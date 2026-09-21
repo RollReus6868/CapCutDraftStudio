@@ -1,0 +1,14 @@
+[project]
+name = "capcut-draft-studio"
+version = "0.4.0"
+description = "Clean-room CapCut draft automation tool with a full desktop GUI"
+requires-python = ">=3.10"
+dependencies = [
+  "pycapcut==0.0.3",
+  "pymediainfo>=6.1",
+  "openpyxl>=3.1",
+  "Pillow>=10.0",
+]
+
+[project.scripts]
+capcut-draft-studio = "capcut_draft_studio.app:main"

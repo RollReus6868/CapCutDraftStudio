@@ -1,0 +1,6786 @@
+{
+  "capcut_tool": [
+    {
+      "qualname": "<module>",
+      "firstlineno": 1,
+      "args": [],
+      "locals": [
+        "k",
+        "v"
+      ],
+      "global_names": [
+        "__doc__",
+        "json",
+        "os",
+        "queue",
+        "re",
+        "shutil",
+        "sys",
+        "threading",
+        "traceback",
+        "pathlib",
+        "Path",
+        "tkinter",
+        "tk",
+        "ttk",
+        "filedialog",
+        "messagebox",
+        "scrolledtext",
+        "__file__",
+        "resolve",
+        "parent",
+        "SCRIPT_DIR",
+        "PROJECT_ROOT",
+        "path",
+        "insert",
+        "str",
+        "draft_builder",
+        "db",
+        "updater",
+        "pycapcut",
+        "cc",
+        "getattr",
+        "executable",
+        "APP_DIR",
+        "TOOL_CONFIG",
+        "SFX_LIBRARY",
+        "SUB_STYLES",
+        "detect_capcut_drafts",
+        "pygame",
+        "mixer",
+        "init",
+        "PYGAME_OK",
+        "Exception",
+        "PIL",
+        "Image",
+        "ImageTk",
+        "PIL_OK",
+        "VOLUME_FIELDS",
+        "PLAIN_FIELDS",
+        "CHECKBOXES",
+        "SFX_ROLE_LABELS",
+        "items",
+        "SFX_LABEL_TO_ROLE",
+        "list",
+        "values",
+        "SFX_ROLE_DISPLAY",
+        "dict",
+        "load_tool_config",
+        "save_tool_config",
+        "float",
+        "fmt_t",
+        "PreviewPlayer",
+        "App",
+        "Toplevel",
+        "LogoPreview",
+        "main",
+        "__name__"
+      ],
+      "code_len": 916
+    },
+    {
+      "qualname": "detect_capcut_drafts",
+      "firstlineno": 38,
+      "args": [],
+      "locals": [
+        "cands",
+        "c"
+      ],
+      "global_names": [
+        "os",
+        "path",
+        "expandvars",
+        "expanduser",
+        "Path",
+        "is_dir"
+      ],
+      "code_len": 334
+    },
+    {
+      "qualname": "load_tool_config",
+      "firstlineno": 86,
+      "args": [],
+      "locals": [
+        "d"
+      ],
+      "global_names": [
+        "json",
+        "loads",
+        "TOOL_CONFIG",
+        "read_text",
+        "isinstance",
+        "dict",
+        "OSError",
+        "JSONDecodeError"
+      ],
+      "code_len": 192
+    },
+    {
+      "qualname": "save_tool_config",
+      "firstlineno": 94,
+      "args": [
+        "d"
+      ],
+      "locals": [
+        "d"
+      ],
+      "global_names": [
+        "TOOL_CONFIG",
+        "write_text",
+        "json",
+        "dumps",
+        "OSError"
+      ],
+      "code_len": 126
+    },
+    {
+      "qualname": "fmt_t",
+      "firstlineno": 101,
+      "args": [
+        "sec"
+      ],
+      "locals": [
+        "sec"
+      ],
+      "global_names": [
+        "max",
+        "int"
+      ],
+      "code_len": 72
+    },
+    {
+      "qualname": "PreviewPlayer",
+      "firstlineno": 106,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "__name__",
+        "__module__",
+        "__qualname__",
+        "__init__",
+        "play",
+        "toggle",
+        "seek",
+        "pos",
+        "stop"
+      ],
+      "code_len": 50
+    },
+    {
+      "qualname": "PreviewPlayer.__init__",
+      "firstlineno": 107,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "PYGAME_OK",
+        "ok",
+        "path",
+        "dur",
+        "base",
+        "playing"
+      ],
+      "code_len": 82
+    },
+    {
+      "qualname": "PreviewPlayer.play",
+      "firstlineno": 114,
+      "args": [
+        "self",
+        "path",
+        "dur",
+        "start"
+      ],
+      "locals": [
+        "self",
+        "path",
+        "dur",
+        "start"
+      ],
+      "global_names": [
+        "ok",
+        "pygame",
+        "mixer",
+        "music",
+        "load",
+        "str",
+        "play",
+        "path",
+        "dur",
+        "base",
+        "playing",
+        "Exception",
+        "stop"
+      ],
+      "code_len": 470
+    },
+    {
+      "qualname": "PreviewPlayer.toggle",
+      "firstlineno": 132,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "ok",
+        "path",
+        "playing",
+        "pygame",
+        "mixer",
+        "music",
+        "pause",
+        "unpause"
+      ],
+      "code_len": 268
+    },
+    {
+      "qualname": "PreviewPlayer.seek",
+      "firstlineno": 140,
+      "args": [
+        "self",
+        "sec"
+      ],
+      "locals": [
+        "self",
+        "sec"
+      ],
+      "global_names": [
+        "ok",
+        "path",
+        "pygame",
+        "mixer",
+        "music",
+        "play",
+        "base",
+        "playing",
+        "Exception"
+      ],
+      "code_len": 198
+    },
+    {
+      "qualname": "PreviewPlayer.pos",
+      "firstlineno": 148,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "p"
+      ],
+      "global_names": [
+        "ok",
+        "playing",
+        "base",
+        "pygame",
+        "mixer",
+        "music",
+        "get_pos"
+      ],
+      "code_len": 208
+    },
+    {
+      "qualname": "PreviewPlayer.stop",
+      "firstlineno": 154,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "ok",
+        "pygame",
+        "mixer",
+        "music",
+        "stop",
+        "Exception",
+        "playing",
+        "path"
+      ],
+      "code_len": 166
+    },
+    {
+      "qualname": "App",
+      "firstlineno": 161,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "__name__",
+        "__module__",
+        "__qualname__",
+        "tk",
+        "Tk",
+        "__init__",
+        "_build_main",
+        "_render_vols",
+        "_on_vol_edit",
+        "_build_music",
+        "_build_sfx",
+        "_sfx_bulk",
+        "Path",
+        "str",
+        "int",
+        "_copy_files_into",
+        "add_sfx_file",
+        "add_music_file",
+        "_ASSET_SPEC",
+        "_channel_path",
+        "refresh_asset_choices",
+        "_on_asset_choice",
+        "_add_asset_file",
+        "add_logo_file",
+        "add_claim_file",
+        "_build_subtitle",
+        "_pick_subfile_cols",
+        "_load_excel_cols",
+        "_load_excel_sheet_cols",
+        "_on_sheet_change",
+        "refresh_sub_styles",
+        "_on_substyle_change",
+        "harvest_sub_styles",
+        "open_substyle_folder",
+        "_build_advanced",
+        "_build_guide",
+        "_build_preview_bar",
+        "preview_file",
+        "_on_seek_release",
+        "_active_bar",
+        "poll_player",
+        "_on_tab_changed",
+        "_current_bgm_dir",
+        "refresh_music_list",
+        "render_music_list_from_states",
+        "move_music",
+        "refresh_sfx_list",
+        "log",
+        "_pick_file",
+        "_pick_bgmdir",
+        "pick_input",
+        "pick_channel",
+        "pick_capcut",
+        "load_channel_into_form",
+        "collect_form",
+        "make_settings",
+        "save_channel",
+        "open_logo_preview",
+        "open_sfx_folder",
+        "harvest_sfx",
+        "_check_update_bg",
+        "check_update_now",
+        "_do_update",
+        "_cfg_dict",
+        "start_work",
+        "worker",
+        "poll_queue",
+        "finish_work",
+        "on_close",
+        "list",
+        "load_transitions_list",
+        "harvest_transitions",
+        "rename_substyle",
+        "pick_logo_path",
+        "pick_claim_path",
+        "save_template",
+        "load_template",
+        "check_missing_settings"
+      ],
+      "code_len": 494
+    },
+    {
+      "qualname": "App.__init__",
+      "firstlineno": 162,
+      "args": [
+        "self",
+        "root"
+      ],
+      "locals": [
+        "self",
+        "root",
+        "cfg",
+        "saved_cap",
+        "cap",
+        "k",
+        "_"
+      ],
+      "global_names": [
+        "root",
+        "queue",
+        "Queue",
+        "q",
+        "running",
+        "PreviewPlayer",
+        "player",
+        "_playing_bar",
+        "_seek_drag",
+        "_rendering_vols",
+        "updater",
+        "read_local_version",
+        "version",
+        "title",
+        "minsize",
+        "protocol",
+        "on_close",
+        "load_tool_config",
+        "get",
+        "Path",
+        "is_dir",
+        "detect_capcut_drafts",
+        "tk",
+        "StringVar",
+        "var_capcut",
+        "db",
+        "DEFAULTS",
+        "logo_x",
+        "logo_y",
+        "logo_scale",
+        "VOLUME_FIELDS",
+        "float",
+        "vol_mult",
+        "var_logo_path",
+        "var_claim_path",
+        "var_transition_type",
+        "ttk",
+        "Notebook",
+        "nb",
+        "pack",
+        "Frame",
+        "tab_main",
+        "tab_music",
+        "tab_sfx",
+        "tab_sub",
+        "tab_adv",
+        "tab_guide",
+        "add",
+        "bind",
+        "_on_tab_changed",
+        "_build_main",
+        "_build_music",
+        "_build_sfx",
+        "_build_subtitle",
+        "_build_advanced",
+        "_build_guide",
+        "log",
+        "PYGAME_OK",
+        "var_channel",
+        "load_channel_into_form",
+        "_render_vols",
+        "refresh_music_list",
+        "refresh_sfx_list",
+        "after",
+        "poll_queue",
+        "poll_player",
+        "threading",
+        "Thread",
+        "_check_update_bg",
+        "start"
+      ],
+      "code_len": 3130
+    },
+    {
+      "qualname": "App._build_main",
+      "firstlineno": 230,
+      "args": [
+        "self",
+        "cfg"
+      ],
+      "locals": [
+        "self",
+        "cfg",
+        "frm",
+        "pad",
+        "tpl_frm",
+        "box",
+        "c",
+        "cb",
+        "i",
+        "key",
+        "label",
+        "r",
+        "base",
+        "e",
+        "h",
+        "prow",
+        "v",
+        "crow",
+        "btns",
+        "logbox"
+      ],
+      "global_names": [
+        "tab_main",
+        "columnconfigure",
+        "dict",
+        "ttk",
+        "LabelFrame",
+        "grid",
+        "Button",
+        "save_template",
+        "pack",
+        "load_template",
+        "Label",
+        "tk",
+        "StringVar",
+        "get",
+        "var_input",
+        "Entry",
+        "pick_input",
+        "var_channel",
+        "pick_channel",
+        "var_name",
+        "var_capcut",
+        "pick_capcut",
+        "range",
+        "var_aspect",
+        "Radiobutton",
+        "var_fps",
+        "var_anim",
+        "Combobox",
+        "db",
+        "IMAGE_ANIM_CHOICES",
+        "var_subsrc",
+        "SUBTITLE_SOURCE_CHOICES",
+        "open_logo_preview",
+        "var_volunit",
+        "bind",
+        "vol_entry",
+        "vol_hint",
+        "enumerate",
+        "VOLUME_FIELDS",
+        "divmod",
+        "plain_var",
+        "len",
+        "PLAIN_FIELDS",
+        "str",
+        "DEFAULTS",
+        "check_vars",
+        "CHECKBOXES",
+        "BooleanVar",
+        "bool",
+        "Checkbutton",
+        "Frame",
+        "save_channel",
+        "btn_save",
+        "btn_check",
+        "btn_build",
+        "Progressbar",
+        "progress",
+        "rowconfigure",
+        "scrolledtext",
+        "ScrolledText",
+        "txt"
+      ],
+      "code_len": 5580
+    },
+    {
+      "qualname": "App._build_main.<lambda>",
+      "firstlineno": 290,
+      "args": [
+        "e"
+      ],
+      "locals": [
+        "e"
+      ],
+      "global_names": [
+        "_render_vols"
+      ],
+      "code_len": 36
+    },
+    {
+      "qualname": "App._build_main.<lambda>",
+      "firstlineno": 300,
+      "args": [
+        "ev",
+        "k"
+      ],
+      "locals": [
+        "ev",
+        "k"
+      ],
+      "global_names": [
+        "_on_vol_edit"
+      ],
+      "code_len": 38
+    },
+    {
+      "qualname": "App._build_main.<lambda>",
+      "firstlineno": 301,
+      "args": [
+        "ev",
+        "k"
+      ],
+      "locals": [
+        "ev",
+        "k"
+      ],
+      "global_names": [
+        "_on_vol_edit"
+      ],
+      "code_len": 38
+    },
+    {
+      "qualname": "App._build_main.<lambda>",
+      "firstlineno": 327,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "start_work"
+      ],
+      "code_len": 38
+    },
+    {
+      "qualname": "App._build_main.<lambda>",
+      "firstlineno": 329,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "start_work"
+      ],
+      "code_len": 38
+    },
+    {
+      "qualname": "App._render_vols",
+      "firstlineno": 341,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "unit",
+        "other",
+        "key",
+        "_",
+        "mult",
+        "ov"
+      ],
+      "global_names": [
+        "var_volunit",
+        "get",
+        "_rendering_vols",
+        "VOLUME_FIELDS",
+        "vol_mult",
+        "vol_entry",
+        "delete",
+        "insert",
+        "str",
+        "db",
+        "mult_to_unit",
+        "vol_hint",
+        "configure"
+      ],
+      "code_len": 474
+    },
+    {
+      "qualname": "App._on_vol_edit",
+      "firstlineno": 353,
+      "args": [
+        "self",
+        "key"
+      ],
+      "locals": [
+        "self",
+        "key",
+        "val",
+        "unit",
+        "other",
+        "ov"
+      ],
+      "global_names": [
+        "_rendering_vols",
+        "float",
+        "vol_entry",
+        "get",
+        "strip",
+        "ValueError",
+        "var_volunit",
+        "db",
+        "unit_to_mult",
+        "vol_mult",
+        "mult_to_unit",
+        "vol_hint",
+        "configure"
+      ],
+      "code_len": 464
+    },
+    {
+      "qualname": "App._build_music",
+      "firstlineno": 367,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "frm",
+        "mtop",
+        "wrap",
+        "sb"
+      ],
+      "global_names": [
+        "tab_music",
+        "columnconfigure",
+        "rowconfigure",
+        "ttk",
+        "Frame",
+        "grid",
+        "Label",
+        "pack",
+        "Button",
+        "add_music_file",
+        "tk",
+        "Canvas",
+        "music_canvas",
+        "Scrollbar",
+        "yview",
+        "music_inner",
+        "bind",
+        "create_window",
+        "configure",
+        "set",
+        "_build_preview_bar",
+        "music_preview",
+        "music_rows"
+      ],
+      "code_len": 1044
+    },
+    {
+      "qualname": "App._build_music.<lambda>",
+      "firstlineno": 377,
+      "args": [
+        "e"
+      ],
+      "locals": [
+        "e"
+      ],
+      "global_names": [
+        "music_canvas",
+        "configure",
+        "bbox"
+      ],
+      "code_len": 110
+    },
+    {
+      "qualname": "App._build_sfx",
+      "firstlineno": 387,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "frm",
+        "top",
+        "bulk",
+        "wrap",
+        "sb"
+      ],
+      "global_names": [
+        "tab_sfx",
+        "columnconfigure",
+        "rowconfigure",
+        "ttk",
+        "Frame",
+        "grid",
+        "Label",
+        "pack",
+        "Button",
+        "harvest_sfx",
+        "add_sfx_file",
+        "open_sfx_folder",
+        "tk",
+        "Canvas",
+        "sfx_canvas",
+        "Scrollbar",
+        "yview",
+        "sfx_inner",
+        "bind",
+        "create_window",
+        "configure",
+        "set",
+        "_build_preview_bar",
+        "sfx_preview",
+        "sfx_rows"
+      ],
+      "code_len": 1674
+    },
+    {
+      "qualname": "App._build_sfx.<lambda>",
+      "firstlineno": 397,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "_sfx_bulk"
+      ],
+      "code_len": 38
+    },
+    {
+      "qualname": "App._build_sfx.<lambda>",
+      "firstlineno": 398,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "_sfx_bulk"
+      ],
+      "code_len": 38
+    },
+    {
+      "qualname": "App._build_sfx.<lambda>",
+      "firstlineno": 399,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "_sfx_bulk"
+      ],
+      "code_len": 38
+    },
+    {
+      "qualname": "App._build_sfx.<lambda>",
+      "firstlineno": 405,
+      "args": [
+        "e"
+      ],
+      "locals": [
+        "e"
+      ],
+      "global_names": [
+        "sfx_canvas",
+        "configure",
+        "bbox"
+      ],
+      "code_len": 110
+    },
+    {
+      "qualname": "App._sfx_bulk",
+      "firstlineno": 414,
+      "args": [
+        "self",
+        "role"
+      ],
+      "locals": [
+        "self",
+        "role",
+        "label",
+        "it",
+        "rv"
+      ],
+      "global_names": [
+        "SFX_ROLE_LABELS",
+        "get",
+        "sfx_rows",
+        "set"
+      ],
+      "code_len": 122
+    },
+    {
+      "qualname": "App._copy_files_into",
+      "firstlineno": 419,
+      "args": [
+        "self",
+        "dest",
+        "title"
+      ],
+      "locals": [
+        "self",
+        "dest",
+        "title",
+        "fs",
+        "n",
+        "f",
+        "e"
+      ],
+      "global_names": [
+        "filedialog",
+        "askopenfilenames",
+        "mkdir",
+        "shutil",
+        "copy2",
+        "Path",
+        "name",
+        "OSError",
+        "log"
+      ],
+      "code_len": 346
+    },
+    {
+      "qualname": "App.add_sfx_file",
+      "firstlineno": 433,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "n"
+      ],
+      "global_names": [
+        "_copy_files_into",
+        "SFX_LIBRARY",
+        "refresh_sfx_list",
+        "log"
+      ],
+      "code_len": 134
+    },
+    {
+      "qualname": "App.add_music_file",
+      "firstlineno": 439,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "bd",
+        "n"
+      ],
+      "global_names": [
+        "_current_bgm_dir",
+        "messagebox",
+        "showwarning",
+        "Path",
+        "mkdir",
+        "_copy_files_into",
+        "refresh_music_list",
+        "log"
+      ],
+      "code_len": 280
+    },
+    {
+      "qualname": "App._channel_path",
+      "firstlineno": 452,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "ch"
+      ],
+      "global_names": [
+        "var_channel",
+        "get",
+        "strip",
+        "Path",
+        "is_dir"
+      ],
+      "code_len": 162
+    },
+    {
+      "qualname": "App.refresh_asset_choices",
+      "firstlineno": 456,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "chp",
+        "kind",
+        "sub",
+        "legacy",
+        "cb",
+        "files",
+        "f"
+      ],
+      "global_names": [
+        "_channel_path",
+        "_ASSET_SPEC",
+        "items",
+        "getattr",
+        "db",
+        "list_named_assets",
+        "name",
+        "_on_asset_choice"
+      ],
+      "code_len": 346
+    },
+    {
+      "qualname": "App._on_asset_choice",
+      "firstlineno": 466,
+      "args": [
+        "self",
+        "kind"
+      ],
+      "locals": [
+        "self",
+        "kind",
+        "path",
+        "path_str",
+        "sub",
+        "legacy",
+        "chp",
+        "lbl",
+        "img",
+        "ph"
+      ],
+      "global_names": [
+        "getattr",
+        "get",
+        "strip",
+        "Path",
+        "is_file",
+        "_ASSET_SPEC",
+        "_channel_path",
+        "next",
+        "db",
+        "list_named_assets",
+        "_pick_named_asset",
+        "PIL_OK",
+        "configure",
+        "Image",
+        "open",
+        "str",
+        "thumbnail",
+        "ImageTk",
+        "PhotoImage",
+        "_asset_imgs",
+        "Exception"
+      ],
+      "code_len": 832
+    },
+    {
+      "qualname": "App._on_asset_choice.<genexpr>",
+      "firstlineno": 477,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "f"
+      ],
+      "global_names": [
+        "name"
+      ],
+      "code_len": 66
+    },
+    {
+      "qualname": "App._on_asset_choice.<lambda>",
+      "firstlineno": 479,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [],
+      "code_len": 4
+    },
+    {
+      "qualname": "App._add_asset_file",
+      "firstlineno": 492,
+      "args": [
+        "self",
+        "kind",
+        "title"
+      ],
+      "locals": [
+        "self",
+        "kind",
+        "title",
+        "chp",
+        "f",
+        "sub",
+        "dest",
+        "e"
+      ],
+      "global_names": [
+        "_channel_path",
+        "messagebox",
+        "showwarning",
+        "filedialog",
+        "askopenfilename",
+        "_ASSET_SPEC",
+        "mkdir",
+        "shutil",
+        "copy2",
+        "Path",
+        "name",
+        "OSError",
+        "showerror",
+        "refresh_asset_choices",
+        "getattr",
+        "set",
+        "_on_asset_choice",
+        "log"
+      ],
+      "code_len": 660
+    },
+    {
+      "qualname": "App.add_logo_file",
+      "firstlineno": 511,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "_add_asset_file"
+      ],
+      "code_len": 40
+    },
+    {
+      "qualname": "App.add_claim_file",
+      "firstlineno": 514,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "_add_asset_file"
+      ],
+      "code_len": 40
+    },
+    {
+      "qualname": "App._build_subtitle",
+      "firstlineno": 518,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "frm",
+        "exc",
+        "trans_frm",
+        "top",
+        "body",
+        "wrap",
+        "sb",
+        "pv"
+      ],
+      "global_names": [
+        "tab_sub",
+        "columnconfigure",
+        "ttk",
+        "Label",
+        "grid",
+        "LabelFrame",
+        "tk",
+        "StringVar",
+        "var_subfile",
+        "Entry",
+        "Button",
+        "_pick_subfile_cols",
+        "var_subsheet",
+        "Combobox",
+        "cb_sheet",
+        "bind",
+        "var_subscript_col",
+        "cb_script_col",
+        "var_subscene_col",
+        "cb_scene_col",
+        "Frame",
+        "pack",
+        "var_transition_type",
+        "cb_transition",
+        "load_transitions_list",
+        "harvest_transitions",
+        "harvest_sub_styles",
+        "rename_substyle",
+        "open_substyle_folder",
+        "rowconfigure",
+        "Canvas",
+        "substyle_canvas",
+        "Scrollbar",
+        "yview",
+        "substyle_inner",
+        "create_window",
+        "configure",
+        "set",
+        "substyle_preview_lbl",
+        "var_substyle",
+        "_substyle_imgs",
+        "refresh_sub_styles"
+      ],
+      "code_len": 3564
+    },
+    {
+      "qualname": "App._build_subtitle.<lambda>",
+      "firstlineno": 536,
+      "args": [
+        "e"
+      ],
+      "locals": [
+        "e"
+      ],
+      "global_names": [
+        "_on_sheet_change"
+      ],
+      "code_len": 36
+    },
+    {
+      "qualname": "App._build_subtitle.<lambda>",
+      "firstlineno": 570,
+      "args": [
+        "e"
+      ],
+      "locals": [
+        "e"
+      ],
+      "global_names": [
+        "substyle_canvas",
+        "configure",
+        "bbox"
+      ],
+      "code_len": 110
+    },
+    {
+      "qualname": "App._pick_subfile_cols",
+      "firstlineno": 585,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "f"
+      ],
+      "global_names": [
+        "filedialog",
+        "askopenfilename",
+        "var_subfile",
+        "set",
+        "lower",
+        "endswith",
+        "var_subsrc",
+        "log",
+        "_load_excel_cols"
+      ],
+      "code_len": 298
+    },
+    {
+      "qualname": "App._load_excel_cols",
+      "firstlineno": 596,
+      "args": [
+        "self",
+        "path"
+      ],
+      "locals": [
+        "self",
+        "path",
+        "openpyxl",
+        "wb",
+        "sheets",
+        "e",
+        "traceback",
+        "err_details",
+        "current_sheet",
+        "ip",
+        "detected"
+      ],
+      "global_names": [
+        "str",
+        "lower",
+        "endswith",
+        "cb_sheet",
+        "cb_script_col",
+        "cb_scene_col",
+        "openpyxl",
+        "load_workbook",
+        "sheetnames",
+        "close",
+        "Exception",
+        "traceback",
+        "format_exc",
+        "log",
+        "messagebox",
+        "showerror",
+        "var_subsheet",
+        "get",
+        "strip",
+        "var_input",
+        "db",
+        "detect_excel_sheet",
+        "Path",
+        "set",
+        "_load_excel_sheet_cols"
+      ],
+      "code_len": 960
+    },
+    {
+      "qualname": "App._load_excel_sheet_cols",
+      "firstlineno": 627,
+      "args": [
+        "self",
+        "path",
+        "sheet_name"
+      ],
+      "locals": [
+        "self",
+        "path",
+        "sheet_name",
+        "ip",
+        "headers",
+        "_",
+        "vals",
+        "curr_script",
+        "detected_script",
+        "curr_scene",
+        "detected_scene"
+      ],
+      "global_names": [
+        "var_input",
+        "get",
+        "strip",
+        "db",
+        "excel_columns",
+        "Path",
+        "log",
+        "cb_script_col",
+        "cb_scene_col",
+        "var_subscript_col",
+        "next",
+        "set",
+        "var_subscene_col"
+      ],
+      "code_len": 608
+    },
+    {
+      "qualname": "App._load_excel_sheet_cols.<genexpr>",
+      "firstlineno": 637,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0"
+      ],
+      "global_names": [
+        "any",
+        "db",
+        "_SCRIPT_HDR",
+        "_PROMPT_HDR"
+      ],
+      "code_len": 172
+    },
+    {
+      "qualname": "App._load_excel_sheet_cols.<genexpr>.<genexpr>",
+      "firstlineno": 637,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "k"
+      ],
+      "global_names": [
+        "lower"
+      ],
+      "code_len": 66
+    },
+    {
+      "qualname": "App._load_excel_sheet_cols.<genexpr>.<genexpr>",
+      "firstlineno": 638,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "k"
+      ],
+      "global_names": [
+        "lower"
+      ],
+      "code_len": 66
+    },
+    {
+      "qualname": "App._load_excel_sheet_cols.<genexpr>",
+      "firstlineno": 644,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0"
+      ],
+      "global_names": [
+        "any",
+        "db",
+        "_SCENE_HDR"
+      ],
+      "code_len": 104
+    },
+    {
+      "qualname": "App._load_excel_sheet_cols.<genexpr>.<genexpr>",
+      "firstlineno": 644,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "k"
+      ],
+      "global_names": [
+        "lower"
+      ],
+      "code_len": 66
+    },
+    {
+      "qualname": "App._on_sheet_change",
+      "firstlineno": 647,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "path",
+        "sheet_name"
+      ],
+      "global_names": [
+        "var_subfile",
+        "get",
+        "strip",
+        "var_subsheet",
+        "Path",
+        "is_file",
+        "_load_excel_sheet_cols",
+        "log"
+      ],
+      "code_len": 300
+    },
+    {
+      "qualname": "App.refresh_sub_styles",
+      "firstlineno": 654,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "w",
+        "it",
+        "png"
+      ],
+      "global_names": [
+        "substyle_inner",
+        "winfo_children",
+        "destroy",
+        "ttk",
+        "Radiobutton",
+        "var_substyle",
+        "_on_substyle_change",
+        "pack",
+        "db",
+        "list_sub_styles",
+        "SUB_STYLES",
+        "_sub_styles",
+        "with_suffix",
+        "render_style_preview",
+        "Label"
+      ],
+      "code_len": 764
+    },
+    {
+      "qualname": "App._on_substyle_change",
+      "firstlineno": 672,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "it",
+        "img",
+        "ph"
+      ],
+      "global_names": [
+        "var_substyle",
+        "get",
+        "next",
+        "getattr",
+        "PIL_OK",
+        "substyle_preview_lbl",
+        "configure",
+        "Image",
+        "open",
+        "str",
+        "thumbnail",
+        "ImageTk",
+        "PhotoImage",
+        "_substyle_imgs",
+        "Exception"
+      ],
+      "code_len": 568
+    },
+    {
+      "qualname": "App._on_substyle_change.<genexpr>",
+      "firstlineno": 674,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "x"
+      ],
+      "global_names": [],
+      "code_len": 52
+    },
+    {
+      "qualname": "App.harvest_sub_styles",
+      "firstlineno": 688,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "n",
+        "it"
+      ],
+      "global_names": [
+        "SUB_STYLES",
+        "mkdir",
+        "log",
+        "db",
+        "harvest_sub_styles_from_capcut",
+        "Path",
+        "var_capcut",
+        "get",
+        "strip",
+        "list_sub_styles",
+        "render_style_preview",
+        "with_suffix",
+        "refresh_sub_styles",
+        "messagebox",
+        "showinfo"
+      ],
+      "code_len": 494
+    },
+    {
+      "qualname": "App.open_substyle_folder",
+      "firstlineno": 699,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "SUB_STYLES",
+        "mkdir",
+        "os",
+        "startfile",
+        "str",
+        "Exception",
+        "messagebox",
+        "showinfo"
+      ],
+      "code_len": 220
+    },
+    {
+      "qualname": "App._build_advanced",
+      "firstlineno": 707,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "frm",
+        "pad",
+        "lbtn"
+      ],
+      "global_names": [
+        "tab_adv",
+        "columnconfigure",
+        "dict",
+        "ttk",
+        "Label",
+        "grid",
+        "tk",
+        "StringVar",
+        "var_logo",
+        "var_claim",
+        "_asset_imgs",
+        "var_logo_choice",
+        "Combobox",
+        "cb_logo",
+        "bind",
+        "Frame",
+        "Button",
+        "add_logo_file",
+        "pack",
+        "open_logo_preview",
+        "Entry",
+        "var_logo_path",
+        "pick_logo_path",
+        "logo_thumb",
+        "var_claim_choice",
+        "cb_claim",
+        "add_claim_file",
+        "var_claim_path",
+        "pick_claim_path",
+        "claim_thumb",
+        "var_bgmdir",
+        "_pick_bgmdir",
+        "Separator",
+        "version",
+        "check_update_now",
+        "refresh_asset_choices"
+      ],
+      "code_len": 3078
+    },
+    {
+      "qualname": "App._build_advanced.<lambda>",
+      "firstlineno": 724,
+      "args": [
+        "e"
+      ],
+      "locals": [
+        "e"
+      ],
+      "global_names": [
+        "_on_asset_choice"
+      ],
+      "code_len": 38
+    },
+    {
+      "qualname": "App._build_advanced.<lambda>",
+      "firstlineno": 742,
+      "args": [
+        "e"
+      ],
+      "locals": [
+        "e"
+      ],
+      "global_names": [
+        "_on_asset_choice"
+      ],
+      "code_len": 38
+    },
+    {
+      "qualname": "App._build_guide",
+      "firstlineno": 771,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "frm",
+        "txt",
+        "guide_content"
+      ],
+      "global_names": [
+        "tab_guide",
+        "scrolledtext",
+        "ScrolledText",
+        "pack",
+        "insert",
+        "configure"
+      ],
+      "code_len": 192
+    },
+    {
+      "qualname": "App._build_preview_bar",
+      "firstlineno": 825,
+      "args": [
+        "self",
+        "parent",
+        "row"
+      ],
+      "locals": [
+        "self",
+        "parent",
+        "row",
+        "bar",
+        "btn",
+        "scale",
+        "lbl",
+        "name"
+      ],
+      "global_names": [
+        "ttk",
+        "Frame",
+        "grid",
+        "columnconfigure",
+        "Button",
+        "player",
+        "toggle",
+        "Scale",
+        "bind",
+        "_on_seek_release",
+        "Label",
+        "scale",
+        "lbl",
+        "name",
+        "PYGAME_OK",
+        "configure"
+      ],
+      "code_len": 716
+    },
+    {
+      "qualname": "App._build_preview_bar.<lambda>",
+      "firstlineno": 833,
+      "args": [
+        "e"
+      ],
+      "locals": [
+        "e"
+      ],
+      "global_names": [
+        "setattr"
+      ],
+      "code_len": 30
+    },
+    {
+      "qualname": "App.preview_file",
+      "firstlineno": 844,
+      "args": [
+        "self",
+        "path",
+        "bar"
+      ],
+      "locals": [
+        "self",
+        "path",
+        "bar",
+        "dur"
+      ],
+      "global_names": [
+        "PYGAME_OK",
+        "db",
+        "media_duration_sec",
+        "Path",
+        "player",
+        "play",
+        "_playing_bar",
+        "scale",
+        "configure",
+        "set",
+        "lbl",
+        "name",
+        "max",
+        "fmt_t"
+      ],
+      "code_len": 746
+    },
+    {
+      "qualname": "App._on_seek_release",
+      "firstlineno": 860,
+      "args": [
+        "self",
+        "ev"
+      ],
+      "locals": [
+        "self",
+        "ev"
+      ],
+      "global_names": [
+        "_seek_drag",
+        "player",
+        "seek",
+        "float",
+        "_active_bar",
+        "scale",
+        "get"
+      ],
+      "code_len": 166
+    },
+    {
+      "qualname": "App._active_bar",
+      "firstlineno": 864,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "nb",
+        "index",
+        "select",
+        "music_preview",
+        "sfx_preview"
+      ],
+      "code_len": 158
+    },
+    {
+      "qualname": "App.poll_player",
+      "firstlineno": 867,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "bar",
+        "pos"
+      ],
+      "global_names": [
+        "_playing_bar",
+        "PYGAME_OK",
+        "player",
+        "playing",
+        "_seek_drag",
+        "path",
+        "pos",
+        "dur",
+        "scale",
+        "set",
+        "lbl",
+        "configure",
+        "fmt_t",
+        "root",
+        "after",
+        "poll_player"
+      ],
+      "code_len": 530
+    },
+    {
+      "qualname": "App._on_tab_changed",
+      "firstlineno": 876,
+      "args": [
+        "self",
+        "event"
+      ],
+      "locals": [
+        "self",
+        "event",
+        "selected_tab",
+        "bgm",
+        "current_files",
+        "item",
+        "existing_files",
+        "ch",
+        "ch_path"
+      ],
+      "global_names": [
+        "nb",
+        "index",
+        "select",
+        "_current_bgm_dir",
+        "is_dir",
+        "set",
+        "db",
+        "list_bgm_files_from",
+        "hasattr",
+        "music_rows",
+        "refresh_music_list",
+        "var_channel",
+        "get",
+        "strip",
+        "Path",
+        "list_sfx_items",
+        "SFX_LIBRARY",
+        "sfx_rows",
+        "refresh_sfx_list",
+        "Exception"
+      ],
+      "code_len": 872
+    },
+    {
+      "qualname": "App._on_tab_changed.<genexpr>",
+      "firstlineno": 888,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "it"
+      ],
+      "global_names": [],
+      "code_len": 38
+    },
+    {
+      "qualname": "App._current_bgm_dir",
+      "firstlineno": 896,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "bd",
+        "ch",
+        "inp"
+      ],
+      "global_names": [
+        "var_bgmdir",
+        "get",
+        "strip",
+        "Path",
+        "is_dir",
+        "var_channel",
+        "var_input"
+      ],
+      "code_len": 522
+    },
+    {
+      "qualname": "App.refresh_music_list",
+      "firstlineno": 910,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "bgm",
+        "files",
+        "roles",
+        "ch",
+        "f",
+        "file_map",
+        "sorted_files",
+        "name",
+        "states",
+        "r",
+        "is_intro",
+        "is_bg",
+        "default_vol"
+      ],
+      "global_names": [
+        "_current_bgm_dir",
+        "is_dir",
+        "db",
+        "list_bgm_files_from",
+        "var_channel",
+        "get",
+        "strip",
+        "Path",
+        "load_channel_settings",
+        "name",
+        "keys",
+        "append",
+        "isinstance",
+        "dict",
+        "bool",
+        "stem",
+        "lower",
+        "render_music_list_from_states"
+      ],
+      "code_len": 976
+    },
+    {
+      "qualname": "App.render_music_list_from_states",
+      "firstlineno": 949,
+      "args": [
+        "self",
+        "states"
+      ],
+      "locals": [
+        "self",
+        "states",
+        "w",
+        "hdr",
+        "idx",
+        "item",
+        "f",
+        "row",
+        "btn_up",
+        "btn_dn",
+        "iv",
+        "bv",
+        "vv",
+        "lbl_vol",
+        "update_vol_label",
+        "scale"
+      ],
+      "global_names": [
+        "music_inner",
+        "winfo_children",
+        "destroy",
+        "music_rows",
+        "ttk",
+        "Frame",
+        "pack",
+        "Label",
+        "enumerate",
+        "Button",
+        "tk",
+        "BooleanVar",
+        "Checkbutton",
+        "DoubleVar",
+        "Scale",
+        "get",
+        "name",
+        "append"
+      ],
+      "code_len": 1880
+    },
+    {
+      "qualname": "App.render_music_list_from_states.<lambda>",
+      "firstlineno": 972,
+      "args": [
+        "i"
+      ],
+      "locals": [
+        "i"
+      ],
+      "global_names": [
+        "move_music"
+      ],
+      "code_len": 40
+    },
+    {
+      "qualname": "App.render_music_list_from_states.<lambda>",
+      "firstlineno": 974,
+      "args": [
+        "i"
+      ],
+      "locals": [
+        "i"
+      ],
+      "global_names": [
+        "move_music"
+      ],
+      "code_len": 40
+    },
+    {
+      "qualname": "App.render_music_list_from_states.<lambda>",
+      "firstlineno": 984,
+      "args": [
+        "p"
+      ],
+      "locals": [
+        "p"
+      ],
+      "global_names": [
+        "preview_file",
+        "music_preview"
+      ],
+      "code_len": 60
+    },
+    {
+      "qualname": "App.render_music_list_from_states.update_vol_label",
+      "firstlineno": 989,
+      "args": [
+        "val",
+        "lbl"
+      ],
+      "locals": [
+        "val",
+        "lbl",
+        "db_val",
+        "mult",
+        "pct"
+      ],
+      "global_names": [
+        "round",
+        "float",
+        "configure"
+      ],
+      "code_len": 138
+    },
+    {
+      "qualname": "App.move_music",
+      "firstlineno": 1005,
+      "args": [
+        "self",
+        "idx",
+        "direction"
+      ],
+      "locals": [
+        "self",
+        "idx",
+        "direction",
+        "target",
+        "current_states",
+        "item"
+      ],
+      "global_names": [
+        "len",
+        "music_rows",
+        "append",
+        "get",
+        "render_music_list_from_states"
+      ],
+      "code_len": 340
+    },
+    {
+      "qualname": "App.refresh_sfx_list",
+      "firstlineno": 1019,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "w",
+        "ch",
+        "ch_path",
+        "items",
+        "roles",
+        "it",
+        "row",
+        "rv"
+      ],
+      "global_names": [
+        "sfx_inner",
+        "winfo_children",
+        "destroy",
+        "sfx_rows",
+        "var_channel",
+        "get",
+        "strip",
+        "Path",
+        "is_dir",
+        "db",
+        "list_sfx_items",
+        "SFX_LIBRARY",
+        "load_channel_settings",
+        "ttk",
+        "Label",
+        "pack",
+        "Frame",
+        "tk",
+        "StringVar",
+        "SFX_ROLE_LABELS",
+        "Combobox",
+        "SFX_ROLE_DISPLAY",
+        "Button",
+        "append"
+      ],
+      "code_len": 1110
+    },
+    {
+      "qualname": "App.refresh_sfx_list.<lambda>",
+      "firstlineno": 1039,
+      "args": [
+        "p"
+      ],
+      "locals": [
+        "p"
+      ],
+      "global_names": [
+        "preview_file",
+        "sfx_preview"
+      ],
+      "code_len": 60
+    },
+    {
+      "qualname": "App.log",
+      "firstlineno": 1044,
+      "args": [
+        "self",
+        "msg"
+      ],
+      "locals": [
+        "self",
+        "msg"
+      ],
+      "global_names": [
+        "txt",
+        "configure",
+        "insert",
+        "see"
+      ],
+      "code_len": 232
+    },
+    {
+      "qualname": "App._pick_file",
+      "firstlineno": 1049,
+      "args": [
+        "self",
+        "var",
+        "label"
+      ],
+      "locals": [
+        "self",
+        "var",
+        "label",
+        "f"
+      ],
+      "global_names": [
+        "filedialog",
+        "askopenfilename",
+        "set"
+      ],
+      "code_len": 94
+    },
+    {
+      "qualname": "App._pick_bgmdir",
+      "firstlineno": 1054,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "d"
+      ],
+      "global_names": [
+        "filedialog",
+        "askdirectory",
+        "var_bgmdir",
+        "set",
+        "refresh_music_list"
+      ],
+      "code_len": 140
+    },
+    {
+      "qualname": "App.pick_input",
+      "firstlineno": 1060,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "d"
+      ],
+      "global_names": [
+        "filedialog",
+        "askdirectory",
+        "var_input",
+        "set",
+        "var_name",
+        "get",
+        "strip",
+        "re",
+        "sub",
+        "Path",
+        "name",
+        "refresh_music_list"
+      ],
+      "code_len": 390
+    },
+    {
+      "qualname": "App.pick_channel",
+      "firstlineno": 1069,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "d"
+      ],
+      "global_names": [
+        "filedialog",
+        "askdirectory",
+        "var_channel",
+        "set",
+        "load_channel_into_form",
+        "Path",
+        "refresh_music_list",
+        "refresh_sfx_list"
+      ],
+      "code_len": 224
+    },
+    {
+      "qualname": "App.pick_capcut",
+      "firstlineno": 1078,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "d"
+      ],
+      "global_names": [
+        "filedialog",
+        "askdirectory",
+        "var_capcut",
+        "set",
+        "Path",
+        "is_dir",
+        "log"
+      ],
+      "code_len": 200
+    },
+    {
+      "qualname": "App.load_channel_into_form",
+      "firstlineno": 1085,
+      "args": [
+        "self",
+        "channel_dir"
+      ],
+      "locals": [
+        "self",
+        "channel_dir",
+        "loaded",
+        "m",
+        "key",
+        "_",
+        "var",
+        "f"
+      ],
+      "global_names": [
+        "db",
+        "load_channel_settings",
+        "log",
+        "is_dir",
+        "var_bgmdir",
+        "set",
+        "str",
+        "_render_vols",
+        "refresh_music_list",
+        "dict",
+        "DEFAULTS",
+        "update",
+        "var_aspect",
+        "var_fps",
+        "var_anim",
+        "get",
+        "var_subsrc",
+        "var_substyle",
+        "var_subsheet",
+        "var_subscript_col",
+        "var_subscene_col",
+        "_on_substyle_change",
+        "var_logo_choice",
+        "var_claim_choice",
+        "var_logo_path",
+        "var_claim_path",
+        "var_transition_type",
+        "refresh_asset_choices",
+        "var_volunit",
+        "VOLUME_FIELDS",
+        "float",
+        "vol_mult",
+        "PLAIN_FIELDS",
+        "plain_var",
+        "check_vars",
+        "items",
+        "bool",
+        "logo_x",
+        "logo_y",
+        "logo_scale",
+        "var_subfile",
+        "strip",
+        "Path",
+        "is_file",
+        "lower",
+        "endswith",
+        "_load_excel_cols"
+      ],
+      "code_len": 2352
+    },
+    {
+      "qualname": "App.collect_form",
+      "firstlineno": 1129,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "out",
+        "key",
+        "_",
+        "v",
+        "f",
+        "iv",
+        "bv",
+        "vv",
+        "it",
+        "rv"
+      ],
+      "global_names": [
+        "var_aspect",
+        "get",
+        "int",
+        "float",
+        "var_fps",
+        "strip",
+        "ValueError",
+        "AssertionError",
+        "messagebox",
+        "showerror",
+        "PLAIN_FIELDS",
+        "plain_var",
+        "dict",
+        "VOLUME_FIELDS",
+        "vol_mult",
+        "var_volunit",
+        "var_anim",
+        "var_subsrc",
+        "var_substyle",
+        "var_subsheet",
+        "var_subscript_col",
+        "var_subscene_col",
+        "var_logo_choice",
+        "var_claim_choice",
+        "logo_x",
+        "logo_y",
+        "logo_scale",
+        "CHECKBOXES",
+        "bool",
+        "check_vars",
+        "music_rows",
+        "name",
+        "sfx_rows",
+        "SFX_LABEL_TO_ROLE",
+        "var_transition_type",
+        "var_logo_path",
+        "var_claim_path"
+      ],
+      "code_len": 2314
+    },
+    {
+      "qualname": "App.make_settings",
+      "firstlineno": 1167,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "ip",
+        "ch",
+        "nm",
+        "cap",
+        "form",
+        "ov"
+      ],
+      "global_names": [
+        "var_input",
+        "get",
+        "strip",
+        "var_channel",
+        "var_name",
+        "Path",
+        "is_dir",
+        "messagebox",
+        "showwarning",
+        "db",
+        "FORBIDDEN_NAME_RE",
+        "search",
+        "showerror",
+        "var_capcut",
+        "collect_form",
+        "load_channel_settings",
+        "update",
+        "make_settings",
+        "SFX_LIBRARY",
+        "SUB_STYLES",
+        "var_logo_path",
+        "var_claim_path",
+        "var_bgmdir",
+        "var_subfile"
+      ],
+      "code_len": 1358
+    },
+    {
+      "qualname": "App.make_settings.<lambda>",
+      "firstlineno": 1188,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [],
+      "code_len": 4
+    },
+    {
+      "qualname": "App.save_channel",
+      "firstlineno": 1197,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "ch",
+        "form"
+      ],
+      "global_names": [
+        "var_channel",
+        "get",
+        "strip",
+        "Path",
+        "is_dir",
+        "messagebox",
+        "showwarning",
+        "collect_form",
+        "db",
+        "save_channel_settings",
+        "log",
+        "showinfo"
+      ],
+      "code_len": 350
+    },
+    {
+      "qualname": "App.open_logo_preview",
+      "firstlineno": 1208,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "chp",
+        "choice",
+        "logo"
+      ],
+      "global_names": [
+        "PIL_OK",
+        "messagebox",
+        "showwarning",
+        "_channel_path",
+        "var_logo_choice",
+        "get",
+        "db",
+        "_pick_named_asset",
+        "LogoPreview"
+      ],
+      "code_len": 340
+    },
+    {
+      "qualname": "App.open_logo_preview.<lambda>",
+      "firstlineno": 1213,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [],
+      "code_len": 4
+    },
+    {
+      "qualname": "App.open_sfx_folder",
+      "firstlineno": 1218,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "SFX_LIBRARY",
+        "mkdir",
+        "os",
+        "startfile",
+        "str",
+        "Exception",
+        "messagebox",
+        "showinfo"
+      ],
+      "code_len": 220
+    },
+    {
+      "qualname": "App.harvest_sfx",
+      "firstlineno": 1225,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "cnt"
+      ],
+      "global_names": [
+        "running",
+        "log",
+        "db",
+        "harvest_from_capcut",
+        "SFX_LIBRARY",
+        "Path",
+        "var_capcut",
+        "get",
+        "strip",
+        "refresh_sfx_list",
+        "messagebox",
+        "showinfo"
+      ],
+      "code_len": 316
+    },
+    {
+      "qualname": "App._check_update_bg",
+      "firstlineno": 1235,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "info"
+      ],
+      "global_names": [
+        "updater",
+        "check_update",
+        "q",
+        "put",
+        "Exception"
+      ],
+      "code_len": 150
+    },
+    {
+      "qualname": "App._check_update_bg.<lambda>",
+      "firstlineno": 1237,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [
+        "q",
+        "put"
+      ],
+      "code_len": 62
+    },
+    {
+      "qualname": "App.check_update_now",
+      "firstlineno": 1243,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "run"
+      ],
+      "global_names": [
+        "log",
+        "threading",
+        "Thread",
+        "start"
+      ],
+      "code_len": 124
+    },
+    {
+      "qualname": "App.check_update_now.run",
+      "firstlineno": 1245,
+      "args": [],
+      "locals": [
+        "info"
+      ],
+      "global_names": [
+        "updater",
+        "check_update",
+        "q",
+        "put"
+      ],
+      "code_len": 130
+    },
+    {
+      "qualname": "App.check_update_now.run.<lambda>",
+      "firstlineno": 1246,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [
+        "q",
+        "put"
+      ],
+      "code_len": 62
+    },
+    {
+      "qualname": "App._do_update",
+      "firstlineno": 1250,
+      "args": [
+        "self",
+        "info"
+      ],
+      "locals": [
+        "self",
+        "info",
+        "notes",
+        "win",
+        "pb",
+        "run"
+      ],
+      "global_names": [
+        "get",
+        "messagebox",
+        "askyesno",
+        "log",
+        "tk",
+        "Toplevel",
+        "root",
+        "title",
+        "transient",
+        "resizable",
+        "ttk",
+        "Label",
+        "_update_lbl",
+        "pack",
+        "Progressbar",
+        "start",
+        "_update_win",
+        "grab_set",
+        "Exception",
+        "threading",
+        "Thread"
+      ],
+      "code_len": 798
+    },
+    {
+      "qualname": "App._do_update.run",
+      "firstlineno": 1269,
+      "args": [],
+      "locals": [
+        "ok"
+      ],
+      "global_names": [
+        "updater",
+        "apply_update",
+        "q",
+        "put"
+      ],
+      "code_len": 114
+    },
+    {
+      "qualname": "App._do_update.run.<lambda>",
+      "firstlineno": 1270,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [
+        "q",
+        "put"
+      ],
+      "code_len": 62
+    },
+    {
+      "qualname": "App._cfg_dict",
+      "firstlineno": 1275,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "var_input",
+        "get",
+        "strip",
+        "var_channel",
+        "var_name",
+        "var_capcut"
+      ],
+      "code_len": 320
+    },
+    {
+      "qualname": "App.start_work",
+      "firstlineno": 1279,
+      "args": [
+        "self",
+        "do_build"
+      ],
+      "locals": [
+        "self",
+        "do_build",
+        "warnings",
+        "warn_msg",
+        "s",
+        "b"
+      ],
+      "global_names": [
+        "running",
+        "check_missing_settings",
+        "join",
+        "messagebox",
+        "askyesno",
+        "make_settings",
+        "db",
+        "draft_exists",
+        "draft_name",
+        "save_tool_config",
+        "_cfg_dict",
+        "btn_save",
+        "btn_check",
+        "btn_build",
+        "configure",
+        "progress",
+        "start",
+        "log",
+        "threading",
+        "Thread",
+        "worker"
+      ],
+      "code_len": 734
+    },
+    {
+      "qualname": "App.worker",
+      "firstlineno": 1303,
+      "args": [
+        "self",
+        "s",
+        "do_build"
+      ],
+      "locals": [
+        "self",
+        "s",
+        "do_build",
+        "log",
+        "assets",
+        "plan",
+        "errors",
+        "dp",
+        "e"
+      ],
+      "global_names": [
+        "db",
+        "scan_assets",
+        "validate",
+        "q",
+        "put",
+        "len",
+        "build",
+        "draft_name",
+        "BuildError",
+        "str",
+        "Exception",
+        "traceback",
+        "format_exc"
+      ],
+      "code_len": 692
+    },
+    {
+      "qualname": "App.worker.<lambda>",
+      "firstlineno": 1304,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [
+        "q",
+        "put"
+      ],
+      "code_len": 62
+    },
+    {
+      "qualname": "App.poll_queue",
+      "firstlineno": 1319,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "kind",
+        "payload",
+        "status"
+      ],
+      "global_names": [
+        "q",
+        "get_nowait",
+        "log",
+        "getattr",
+        "_update_lbl",
+        "configure",
+        "split",
+        "strip",
+        "Exception",
+        "_do_update",
+        "player",
+        "stop",
+        "PYGAME_OK",
+        "pygame",
+        "mixer",
+        "quit",
+        "os",
+        "_exit",
+        "_update_win",
+        "destroy",
+        "messagebox",
+        "showwarning",
+        "finish_work",
+        "showerror",
+        "queue",
+        "Empty",
+        "root",
+        "after",
+        "poll_queue"
+      ],
+      "code_len": 1092
+    },
+    {
+      "qualname": "App.poll_queue.<lambda>",
+      "firstlineno": 1348,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "messagebox",
+        "showinfo"
+      ],
+      "code_len": 48
+    },
+    {
+      "qualname": "App.poll_queue.<lambda>",
+      "firstlineno": 1349,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "messagebox",
+        "showinfo"
+      ],
+      "code_len": 48
+    },
+    {
+      "qualname": "App.poll_queue.<lambda>",
+      "firstlineno": 1350,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "messagebox",
+        "showerror"
+      ],
+      "code_len": 48
+    },
+    {
+      "qualname": "App.finish_work",
+      "firstlineno": 1358,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "b"
+      ],
+      "global_names": [
+        "running",
+        "progress",
+        "stop",
+        "btn_save",
+        "btn_check",
+        "btn_build",
+        "configure"
+      ],
+      "code_len": 186
+    },
+    {
+      "qualname": "App.on_close",
+      "firstlineno": 1364,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "running",
+        "messagebox",
+        "askyesno",
+        "player",
+        "stop",
+        "PYGAME_OK",
+        "pygame",
+        "mixer",
+        "quit",
+        "Exception",
+        "save_tool_config",
+        "_cfg_dict",
+        "root",
+        "destroy"
+      ],
+      "code_len": 330
+    },
+    {
+      "qualname": "App.load_transitions_list",
+      "firstlineno": 1376,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "m",
+        "names",
+        "tp",
+        "data",
+        "item",
+        "name"
+      ],
+      "global_names": [
+        "cc",
+        "TransitionType",
+        "name",
+        "APP_DIR",
+        "is_file",
+        "json",
+        "loads",
+        "read_text",
+        "get",
+        "append",
+        "Exception"
+      ],
+      "code_len": 362
+    },
+    {
+      "qualname": "App.harvest_transitions",
+      "firstlineno": 1390,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "tp",
+        "n"
+      ],
+      "global_names": [
+        "APP_DIR",
+        "log",
+        "db",
+        "harvest_transitions_from_capcut",
+        "Path",
+        "var_capcut",
+        "get",
+        "strip",
+        "load_transitions_list",
+        "cb_transition",
+        "messagebox",
+        "showinfo"
+      ],
+      "code_len": 332
+    },
+    {
+      "qualname": "App.rename_substyle",
+      "firstlineno": 1397,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "old_name",
+        "sd",
+        "new_name",
+        "old_json",
+        "new_json",
+        "style_data",
+        "old_png",
+        "new_png",
+        "e"
+      ],
+      "global_names": [
+        "var_substyle",
+        "get",
+        "messagebox",
+        "showwarning",
+        "tkinter.simpledialog",
+        "simpledialog",
+        "askstring",
+        "db",
+        "FORBIDDEN_NAME_RE",
+        "sub",
+        "strip",
+        "showerror",
+        "SUB_STYLES",
+        "exists",
+        "rename",
+        "json",
+        "loads",
+        "read_text",
+        "write_text",
+        "dumps",
+        "Exception",
+        "is_file",
+        "set",
+        "refresh_sub_styles",
+        "log"
+      ],
+      "code_len": 1020
+    },
+    {
+      "qualname": "App.pick_logo_path",
+      "firstlineno": 1440,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "f"
+      ],
+      "global_names": [
+        "filedialog",
+        "askopenfilename",
+        "var_logo_path",
+        "set",
+        "_on_asset_choice"
+      ],
+      "code_len": 148
+    },
+    {
+      "qualname": "App.pick_claim_path",
+      "firstlineno": 1447,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "f"
+      ],
+      "global_names": [
+        "filedialog",
+        "askopenfilename",
+        "var_claim_path",
+        "set",
+        "_on_asset_choice"
+      ],
+      "code_len": 148
+    },
+    {
+      "qualname": "App.save_template",
+      "firstlineno": 1454,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "sd",
+        "name",
+        "tpl_dir",
+        "form",
+        "tpl_file",
+        "e"
+      ],
+      "global_names": [
+        "tkinter.simpledialog",
+        "simpledialog",
+        "askstring",
+        "db",
+        "FORBIDDEN_NAME_RE",
+        "sub",
+        "strip",
+        "messagebox",
+        "showerror",
+        "APP_DIR",
+        "mkdir",
+        "collect_form",
+        "var_input",
+        "get",
+        "var_channel",
+        "var_name",
+        "var_capcut",
+        "var_logo_path",
+        "var_claim_path",
+        "var_bgmdir",
+        "var_subfile",
+        "write_text",
+        "json",
+        "dumps",
+        "log",
+        "name",
+        "showinfo",
+        "Exception"
+      ],
+      "code_len": 1300
+    },
+    {
+      "qualname": "App.load_template",
+      "firstlineno": 1488,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "files",
+        "f",
+        "names",
+        "cb",
+        "do_load"
+      ],
+      "global_names": [
+        "APP_DIR",
+        "is_dir",
+        "messagebox",
+        "showwarning",
+        "sorted",
+        "glob",
+        "tk",
+        "Toplevel",
+        "root",
+        "title",
+        "transient",
+        "grab_set",
+        "ttk",
+        "Label",
+        "pack",
+        "stem",
+        "StringVar",
+        "Combobox",
+        "Button"
+      ],
+      "code_len": 768
+    },
+    {
+      "qualname": "App.load_template.do_load",
+      "firstlineno": 1511,
+      "args": [],
+      "locals": [
+        "selected",
+        "tpl_file",
+        "m",
+        "key",
+        "_",
+        "var",
+        "music_roles",
+        "states",
+        "f",
+        "iv",
+        "bv",
+        "vv",
+        "r",
+        "sfx_roles",
+        "it",
+        "rv",
+        "role",
+        "e"
+      ],
+      "global_names": [
+        "get",
+        "destroy",
+        "json",
+        "loads",
+        "read_text",
+        "var_input",
+        "set",
+        "var_channel",
+        "var_name",
+        "var_capcut",
+        "var_logo_path",
+        "var_claim_path",
+        "var_bgmdir",
+        "var_subfile",
+        "var_aspect",
+        "var_fps",
+        "str",
+        "var_anim",
+        "var_subsrc",
+        "var_substyle",
+        "var_subsheet",
+        "var_subscript_col",
+        "var_subscene_col",
+        "var_volunit",
+        "var_logo_choice",
+        "var_claim_choice",
+        "VOLUME_FIELDS",
+        "float",
+        "vol_mult",
+        "PLAIN_FIELDS",
+        "plain_var",
+        "check_vars",
+        "items",
+        "bool",
+        "logo_x",
+        "logo_y",
+        "logo_scale",
+        "_render_vols",
+        "refresh_music_list",
+        "music_rows",
+        "name",
+        "isinstance",
+        "dict",
+        "append",
+        "render_music_list_from_states",
+        "sfx_rows",
+        "SFX_ROLE_LABELS",
+        "refresh_asset_choices",
+        "log",
+        "Exception",
+        "messagebox",
+        "showerror"
+      ],
+      "code_len": 3330
+    },
+    {
+      "qualname": "App.check_missing_settings",
+      "firstlineno": 1592,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "warnings",
+        "src",
+        "path",
+        "ip",
+        "manifest_path",
+        "texts_dir",
+        "logo_path",
+        "ch",
+        "logo_found",
+        "sub",
+        "legacy",
+        "files",
+        "claim_path",
+        "claim_found",
+        "bgm_dir",
+        "bgm_found"
+      ],
+      "global_names": [
+        "check_vars",
+        "get",
+        "var_subsrc",
+        "var_subfile",
+        "strip",
+        "Path",
+        "is_file",
+        "append",
+        "var_subscript_col",
+        "var_input",
+        "is_dir",
+        "any",
+        "glob",
+        "var_logo_path",
+        "var_channel",
+        "var_logo_choice",
+        "_ASSET_SPEC",
+        "db",
+        "list_named_assets",
+        "_find_named",
+        "IMAGE_EXTS",
+        "var_claim_path",
+        "var_claim_choice",
+        "var_bgmdir",
+        "list_bgm_files_from"
+      ],
+      "code_len": 2892
+    },
+    {
+      "qualname": "App.check_missing_settings.<genexpr>",
+      "firstlineno": 1626,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "f"
+      ],
+      "global_names": [
+        "name"
+      ],
+      "code_len": 60
+    },
+    {
+      "qualname": "App.check_missing_settings.<genexpr>",
+      "firstlineno": 1644,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "f"
+      ],
+      "global_names": [
+        "name"
+      ],
+      "code_len": 60
+    },
+    {
+      "qualname": "LogoPreview",
+      "firstlineno": 1664,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "__name__",
+        "__module__",
+        "__qualname__",
+        "App",
+        "Path",
+        "__init__",
+        "_logo_px",
+        "_render_logo",
+        "_drag",
+        "_scale",
+        "_save",
+        "__classcell__"
+      ],
+      "code_len": 70
+    },
+    {
+      "qualname": "LogoPreview.__init__",
+      "firstlineno": 1665,
+      "args": [
+        "self",
+        "app",
+        "logo_path"
+      ],
+      "locals": [
+        "self",
+        "app",
+        "logo_path",
+        "landscape",
+        "ip",
+        "imgs",
+        "im",
+        "bar"
+      ],
+      "global_names": [
+        "super",
+        "__init__",
+        "root",
+        "app",
+        "title",
+        "resizable",
+        "var_aspect",
+        "get",
+        "cw",
+        "ch",
+        "vw",
+        "vh",
+        "tk",
+        "Canvas",
+        "canvas",
+        "pack",
+        "bg_img",
+        "var_input",
+        "strip",
+        "db",
+        "_scan_numbered",
+        "Path",
+        "IMAGE_EXTS",
+        "Image",
+        "open",
+        "sorted",
+        "convert",
+        "resize",
+        "ImageTk",
+        "PhotoImage",
+        "create_image",
+        "Exception",
+        "logo_src",
+        "logo_x",
+        "logo_y",
+        "logo_scale",
+        "lx",
+        "ly",
+        "lscale",
+        "logo_id",
+        "logo_tk",
+        "_render_logo",
+        "tag_bind",
+        "_drag",
+        "ttk",
+        "Frame",
+        "Label",
+        "DoubleVar",
+        "sv",
+        "Scale",
+        "_scale",
+        "Button",
+        "_save"
+      ],
+      "code_len": 1848
+    },
+    {
+      "qualname": "LogoPreview.__init__.<lambda>",
+      "firstlineno": 1678,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [],
+      "code_len": 4
+    },
+    {
+      "qualname": "LogoPreview._logo_px",
+      "firstlineno": 1700,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "cw",
+        "lx",
+        "ch",
+        "ly"
+      ],
+      "code_len": 178
+    },
+    {
+      "qualname": "LogoPreview._render_logo",
+      "firstlineno": 1703,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self",
+        "w",
+        "h",
+        "x",
+        "y"
+      ],
+      "global_names": [
+        "max",
+        "int",
+        "logo_src",
+        "width",
+        "lscale",
+        "cw",
+        "vw",
+        "height",
+        "ch",
+        "vh",
+        "ImageTk",
+        "PhotoImage",
+        "resize",
+        "logo_tk",
+        "_logo_px",
+        "logo_id",
+        "canvas",
+        "delete",
+        "create_image"
+      ],
+      "code_len": 658
+    },
+    {
+      "qualname": "LogoPreview._drag",
+      "firstlineno": 1712,
+      "args": [
+        "self",
+        "ev"
+      ],
+      "locals": [
+        "self",
+        "ev",
+        "x",
+        "y"
+      ],
+      "global_names": [
+        "min",
+        "max",
+        "x",
+        "cw",
+        "y",
+        "ch",
+        "lx",
+        "ly",
+        "canvas",
+        "coords",
+        "logo_id"
+      ],
+      "code_len": 406
+    },
+    {
+      "qualname": "LogoPreview._scale",
+      "firstlineno": 1718,
+      "args": [
+        "self",
+        "_"
+      ],
+      "locals": [
+        "self",
+        "_"
+      ],
+      "global_names": [
+        "float",
+        "sv",
+        "get",
+        "lscale",
+        "_render_logo"
+      ],
+      "code_len": 116
+    },
+    {
+      "qualname": "LogoPreview._save",
+      "firstlineno": 1721,
+      "args": [
+        "self"
+      ],
+      "locals": [
+        "self"
+      ],
+      "global_names": [
+        "round",
+        "lx",
+        "ly",
+        "lscale",
+        "app",
+        "logo_x",
+        "logo_y",
+        "logo_scale",
+        "log",
+        "destroy"
+      ],
+      "code_len": 454
+    },
+    {
+      "qualname": "main",
+      "firstlineno": 1729,
+      "args": [],
+      "locals": [
+        "_marker"
+      ],
+      "global_names": [
+        "tk",
+        "Tk",
+        "ttk",
+        "Style",
+        "theme_use",
+        "TclError",
+        "App",
+        "sys",
+        "argv",
+        "after",
+        "mainloop",
+        "stdout",
+        "print"
+      ],
+      "code_len": 396
+    },
+    {
+      "qualname": "main._marker",
+      "firstlineno": 1737,
+      "args": [],
+      "locals": [
+        "info"
+      ],
+      "global_names": [
+        "bool",
+        "getattr",
+        "sys",
+        "version",
+        "len",
+        "db",
+        "list_sfx_items",
+        "SFX_LIBRARY",
+        "list_sub_styles",
+        "SUB_STYLES",
+        "Path",
+        "var_capcut",
+        "get",
+        "is_dir",
+        "PYGAME_OK",
+        "PIL_OK",
+        "APP_DIR",
+        "write_text",
+        "json",
+        "dumps",
+        "Exception",
+        "destroy"
+      ],
+      "code_len": 494
+    }
+  ],
+  "draft_builder": [
+    {
+      "qualname": "<module>",
+      "firstlineno": 1,
+      "args": [],
+      "locals": [
+        "k",
+        "v"
+      ],
+      "global_names": [
+        "__doc__",
+        "inspect",
+        "json",
+        "re",
+        "shutil",
+        "subprocess",
+        "sys",
+        "dataclasses",
+        "dataclass",
+        "field",
+        "asdict",
+        "pathlib",
+        "Path",
+        "pycapcut",
+        "cc",
+        "trange",
+        "tim",
+        "pymediainfo",
+        "MediaInfo",
+        "AUDIO_EXTS",
+        "VIDEO_EXTS",
+        "IMAGE_EXTS",
+        "SFX_EXTS",
+        "CHANNEL_SETTINGS_FILE",
+        "compile",
+        "FORBIDDEN_NAME_RE",
+        "SFX_CATEGORIES",
+        "Exception",
+        "BuildError",
+        "math",
+        "float",
+        "str",
+        "mult_to_unit",
+        "unit_to_mult",
+        "Settings",
+        "_NON_CHANNEL_KEYS",
+        "items",
+        "DEFAULTS",
+        "dict",
+        "__annotations__",
+        "IMAGE_ANIM_CHOICES",
+        "VOL_UNIT_CHOICES",
+        "SUBTITLE_SOURCE_CHOICES",
+        "Assets",
+        "_validate_music_roles",
+        "_validate_sfx_roles",
+        "load_channel_settings",
+        "save_channel_settings",
+        "make_settings",
+        "list",
+        "_scan_numbered",
+        "_find_named",
+        "media_duration_sec",
+        "capcut_audio",
+        "_add_audio",
+        "list_bgm_files_from",
+        "list_bgm_files",
+        "list_sfx_items",
+        "resolve_music_roles",
+        "list_named_assets",
+        "_pick_named_asset",
+        "_audio_dir",
+        "scan_assets",
+        "tuple",
+        "validate",
+        "bool",
+        "draft_exists",
+        "warn_if_capcut_running",
+        "find_ffmpeg",
+        "transcode_to_mp3",
+        "int",
+        "harvest_from_capcut",
+        "_split_sentences",
+        "_srt_ts",
+        "_SCRIPT_HDR",
+        "_SCENE_HDR",
+        "_PROMPT_HDR",
+        "_texts_from_folder",
+        "_find_manifest",
+        "_texts_from_manifest",
+        "_find_header_row_index",
+        "detect_excel_sheet",
+        "_read_excel_rows",
+        "excel_columns",
+        "_texts_from_excel",
+        "_load_scene_texts",
+        "_PAN_ANIMS",
+        "_apply_image_anim",
+        "_clamp01",
+        "list_sub_styles",
+        "_solid_color",
+        "_parse_text_style",
+        "_style_sig",
+        "_style_name",
+        "harvest_sub_styles_from_capcut",
+        "_resolve_font",
+        "_color_tuple",
+        "build_text_template",
+        "balance_text_lines",
+        "_inject_subtitle_styles",
+        "register_draft_in_root_meta",
+        "harvest_transitions_from_capcut",
+        "any",
+        "_resolve_transition_type",
+        "render_style_preview",
+        "build"
+      ],
+      "code_len": 1504
+    },
+    {
+      "qualname": "BuildError",
+      "firstlineno": 35,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "__name__",
+        "__module__",
+        "__qualname__",
+        "__doc__"
+      ],
+      "code_len": 16
+    },
+    {
+      "qualname": "mult_to_unit",
+      "firstlineno": 43,
+      "args": [
+        "mult",
+        "unit"
+      ],
+      "locals": [
+        "mult",
+        "unit"
+      ],
+      "global_names": [
+        "max",
+        "float",
+        "round",
+        "math",
+        "log10"
+      ],
+      "code_len": 166
+    },
+    {
+      "qualname": "unit_to_mult",
+      "firstlineno": 51,
+      "args": [
+        "val",
+        "unit"
+      ],
+      "locals": [
+        "val",
+        "unit"
+      ],
+      "global_names": [
+        "float",
+        "max"
+      ],
+      "code_len": 94
+    },
+    {
+      "qualname": "Settings",
+      "firstlineno": 59,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "__name__",
+        "__module__",
+        "__qualname__",
+        "Path",
+        "input_dir",
+        "__annotations__",
+        "channel_dir",
+        "draft_name",
+        "str",
+        "capcut_drafts",
+        "sfx_library_dir",
+        "sub_styles_dir",
+        "logo_path",
+        "claim_path",
+        "bgm_dir",
+        "subtitle_file",
+        "width",
+        "int",
+        "height",
+        "fps",
+        "claim_dur",
+        "float",
+        "min_speed",
+        "trans_dur",
+        "voice_vol",
+        "bgm_intro_vol_high",
+        "bgm_intro_vol_low",
+        "bgm_body_vol",
+        "bgm_intro_high_dur",
+        "bgm_intro_max_dur",
+        "field",
+        "impact_times",
+        "list",
+        "impact_vol",
+        "logo_x",
+        "logo_y",
+        "logo_scale",
+        "sub_max_words",
+        "sub_target_sec",
+        "dict",
+        "hook_overrides",
+        "crossfade_sec",
+        "image_anim",
+        "music_roles",
+        "sfx_roles",
+        "vol_unit",
+        "subtitle_source",
+        "subtitle_style",
+        "excel_script_col",
+        "excel_scene_col",
+        "excel_sheet",
+        "transition_type",
+        "logo_choice",
+        "claim_choice",
+        "enable_subtitles",
+        "bool",
+        "enable_logo",
+        "enable_claim",
+        "enable_bgm",
+        "enable_impact",
+        "enable_voice",
+        "enable_transition",
+        "enable_slow",
+        "enable_cut"
+      ],
+      "code_len": 860
+    },
+    {
+      "qualname": "Settings.<lambda>",
+      "firstlineno": 89,
+      "args": [],
+      "locals": [],
+      "global_names": [],
+      "code_len": 10
+    },
+    {
+      "qualname": "Assets",
+      "firstlineno": 141,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "__name__",
+        "__module__",
+        "__qualname__",
+        "dict",
+        "__annotations__",
+        "Path",
+        "list"
+      ],
+      "code_len": 122
+    },
+    {
+      "qualname": "_validate_music_roles",
+      "firstlineno": 156,
+      "args": [
+        "raw",
+        "log"
+      ],
+      "locals": [
+        "raw",
+        "log",
+        "out",
+        "k",
+        "v"
+      ],
+      "global_names": [
+        "isinstance",
+        "dict",
+        "items",
+        "bool",
+        "get",
+        "str"
+      ],
+      "code_len": 286
+    },
+    {
+      "qualname": "_validate_sfx_roles",
+      "firstlineno": 168,
+      "args": [
+        "raw",
+        "log"
+      ],
+      "locals": [
+        "raw",
+        "log",
+        "out",
+        "k",
+        "v"
+      ],
+      "global_names": [
+        "isinstance",
+        "dict",
+        "items",
+        "str"
+      ],
+      "code_len": 162
+    },
+    {
+      "qualname": "<lambda>",
+      "firstlineno": 180,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [],
+      "code_len": 4
+    },
+    {
+      "qualname": "load_channel_settings",
+      "firstlineno": 180,
+      "args": [
+        "channel_dir",
+        "log"
+      ],
+      "locals": [
+        "channel_dir",
+        "log",
+        "p",
+        "raw",
+        "e",
+        "out",
+        "k",
+        "v"
+      ],
+      "global_names": [
+        "Path",
+        "CHANNEL_SETTINGS_FILE",
+        "is_file",
+        "json",
+        "loads",
+        "read_text",
+        "JSONDecodeError",
+        "OSError",
+        "isinstance",
+        "dict",
+        "items",
+        "DEFAULTS",
+        "int",
+        "ValueError",
+        "TypeError",
+        "pop",
+        "_validate_music_roles",
+        "_validate_sfx_roles",
+        "IMAGE_ANIM_CHOICES",
+        "VOL_UNIT_CHOICES",
+        "SUBTITLE_SOURCE_CHOICES"
+      ],
+      "code_len": 952
+    },
+    {
+      "qualname": "<lambda>",
+      "firstlineno": 219,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [],
+      "code_len": 4
+    },
+    {
+      "qualname": "save_channel_settings",
+      "firstlineno": 219,
+      "args": [
+        "channel_dir",
+        "updates",
+        "log"
+      ],
+      "locals": [
+        "channel_dir",
+        "updates",
+        "log",
+        "p",
+        "current",
+        "k",
+        "v"
+      ],
+      "global_names": [
+        "Path",
+        "CHANNEL_SETTINGS_FILE",
+        "is_file",
+        "json",
+        "loads",
+        "read_text",
+        "isinstance",
+        "dict",
+        "JSONDecodeError",
+        "OSError",
+        "items",
+        "_NON_CHANNEL_KEYS",
+        "write_text",
+        "dumps"
+      ],
+      "code_len": 436
+    },
+    {
+      "qualname": "make_settings",
+      "firstlineno": 239,
+      "args": [
+        "input_dir",
+        "channel_dir",
+        "draft_name",
+        "capcut_drafts",
+        "overrides",
+        "sfx_library_dir",
+        "sub_styles_dir",
+        "logo_path",
+        "claim_path",
+        "bgm_dir",
+        "subtitle_file"
+      ],
+      "locals": [
+        "input_dir",
+        "channel_dir",
+        "draft_name",
+        "capcut_drafts",
+        "overrides",
+        "sfx_library_dir",
+        "sub_styles_dir",
+        "logo_path",
+        "claim_path",
+        "bgm_dir",
+        "subtitle_file",
+        "merged",
+        "k",
+        "v"
+      ],
+      "global_names": [
+        "dict",
+        "DEFAULTS",
+        "update",
+        "items",
+        "Settings",
+        "Path",
+        "str"
+      ],
+      "code_len": 472
+    },
+    {
+      "qualname": "_scan_numbered",
+      "firstlineno": 256,
+      "args": [
+        "folder",
+        "exts",
+        "log"
+      ],
+      "locals": [
+        "folder",
+        "exts",
+        "log",
+        "out",
+        "by_num",
+        "f",
+        "n",
+        "files"
+      ],
+      "global_names": [
+        "is_dir",
+        "iterdir",
+        "is_file",
+        "suffix",
+        "lower",
+        "re",
+        "fullmatch",
+        "stem",
+        "setdefault",
+        "int",
+        "append",
+        "items",
+        "len",
+        "sort",
+        "name"
+      ],
+      "code_len": 596
+    },
+    {
+      "qualname": "_scan_numbered.<lambda>",
+      "firstlineno": 266,
+      "args": [
+        "p"
+      ],
+      "locals": [
+        "p"
+      ],
+      "global_names": [
+        "index",
+        "suffix",
+        "lower"
+      ],
+      "code_len": 86
+    },
+    {
+      "qualname": "_find_named",
+      "firstlineno": 272,
+      "args": [
+        "folder",
+        "stem",
+        "exts"
+      ],
+      "locals": [
+        "folder",
+        "stem",
+        "exts",
+        "f"
+      ],
+      "global_names": [
+        "is_dir",
+        "iterdir",
+        "is_file",
+        "stem",
+        "lower",
+        "suffix"
+      ],
+      "code_len": 266
+    },
+    {
+      "qualname": "media_duration_sec",
+      "firstlineno": 281,
+      "args": [
+        "path"
+      ],
+      "locals": [
+        "path",
+        "info",
+        "t"
+      ],
+      "global_names": [
+        "MediaInfo",
+        "parse",
+        "str",
+        "tracks",
+        "track_type",
+        "duration",
+        "float",
+        "Exception"
+      ],
+      "code_len": 382
+    },
+    {
+      "qualname": "capcut_audio",
+      "firstlineno": 295,
+      "args": [
+        "path"
+      ],
+      "locals": [
+        "path",
+        "mat"
+      ],
+      "global_names": [
+        "cc",
+        "AudioMaterial",
+        "str",
+        "duration",
+        "Exception"
+      ],
+      "code_len": 128
+    },
+    {
+      "qualname": "_add_audio",
+      "firstlineno": 305,
+      "args": [
+        "script",
+        "track",
+        "path",
+        "start",
+        "want_len",
+        "volume",
+        "fade_in",
+        "fade_out",
+        "mat",
+        "dur"
+      ],
+      "locals": [
+        "script",
+        "track",
+        "path",
+        "start",
+        "want_len",
+        "volume",
+        "fade_in",
+        "fade_out",
+        "mat",
+        "dur",
+        "seg_len",
+        "seg"
+      ],
+      "global_names": [
+        "capcut_audio",
+        "min",
+        "cc",
+        "AudioSegment",
+        "trange",
+        "add_fade",
+        "tim",
+        "add_segment"
+      ],
+      "code_len": 404
+    },
+    {
+      "qualname": "list_bgm_files_from",
+      "firstlineno": 323,
+      "args": [
+        "bgm_dir"
+      ],
+      "locals": [
+        "bgm_dir",
+        "f",
+        "files"
+      ],
+      "global_names": [
+        "Path",
+        "is_dir",
+        "rglob",
+        "is_file",
+        "suffix",
+        "lower",
+        "AUDIO_EXTS",
+        "stem",
+        "sorted"
+      ],
+      "code_len": 312
+    },
+    {
+      "qualname": "list_bgm_files_from.<lambda>",
+      "firstlineno": 330,
+      "args": [
+        "p"
+      ],
+      "locals": [
+        "p"
+      ],
+      "global_names": [
+        "name",
+        "lower"
+      ],
+      "code_len": 54
+    },
+    {
+      "qualname": "list_bgm_files",
+      "firstlineno": 333,
+      "args": [
+        "channel_dir"
+      ],
+      "locals": [
+        "channel_dir"
+      ],
+      "global_names": [
+        "list_bgm_files_from",
+        "Path"
+      ],
+      "code_len": 48
+    },
+    {
+      "qualname": "list_sfx_items",
+      "firstlineno": 338,
+      "args": [
+        "sfx_library_dir",
+        "channel_dir"
+      ],
+      "locals": [
+        "sfx_library_dir",
+        "channel_dir",
+        "items",
+        "seen",
+        "lib",
+        "f",
+        "cat",
+        "key",
+        "chsfx"
+      ],
+      "global_names": [
+        "set",
+        "Path",
+        "is_dir",
+        "sorted",
+        "rglob",
+        "is_file",
+        "suffix",
+        "lower",
+        "SFX_EXTS",
+        "parent",
+        "name",
+        "stem",
+        "add",
+        "append"
+      ],
+      "code_len": 874
+    },
+    {
+      "qualname": "resolve_music_roles",
+      "firstlineno": 365,
+      "args": [
+        "music_roles",
+        "files"
+      ],
+      "locals": [
+        "music_roles",
+        "files",
+        "f",
+        "file_map",
+        "out",
+        "name",
+        "r",
+        "is_intro",
+        "default_db",
+        "vol_db"
+      ],
+      "global_names": [
+        "name",
+        "items",
+        "isinstance",
+        "dict",
+        "bool",
+        "get",
+        "append",
+        "stem",
+        "lower"
+      ],
+      "code_len": 632
+    },
+    {
+      "qualname": "list_named_assets",
+      "firstlineno": 394,
+      "args": [
+        "channel_dir",
+        "subfolder",
+        "legacy_stem"
+      ],
+      "locals": [
+        "channel_dir",
+        "subfolder",
+        "legacy_stem",
+        "out",
+        "ch",
+        "d",
+        "f",
+        "legacy"
+      ],
+      "global_names": [
+        "Path",
+        "is_dir",
+        "sorted",
+        "iterdir",
+        "is_file",
+        "suffix",
+        "lower",
+        "IMAGE_EXTS",
+        "append",
+        "_find_named"
+      ],
+      "code_len": 348
+    },
+    {
+      "qualname": "_pick_named_asset",
+      "firstlineno": 409,
+      "args": [
+        "channel_dir",
+        "subfolder",
+        "legacy_stem",
+        "choice",
+        "log"
+      ],
+      "locals": [
+        "channel_dir",
+        "subfolder",
+        "legacy_stem",
+        "choice",
+        "log",
+        "cands",
+        "hit",
+        "legacy"
+      ],
+      "global_names": [
+        "list_named_assets",
+        "next",
+        "_find_named",
+        "Path",
+        "IMAGE_EXTS"
+      ],
+      "code_len": 192
+    },
+    {
+      "qualname": "_pick_named_asset.<genexpr>",
+      "firstlineno": 413,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "f"
+      ],
+      "global_names": [
+        "name"
+      ],
+      "code_len": 66
+    },
+    {
+      "qualname": "<lambda>",
+      "firstlineno": 421,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [],
+      "code_len": 4
+    },
+    {
+      "qualname": "_audio_dir",
+      "firstlineno": 421,
+      "args": [
+        "input_dir",
+        "log"
+      ],
+      "locals": [
+        "input_dir",
+        "log",
+        "base",
+        "p",
+        "found"
+      ],
+      "global_names": [
+        "Path",
+        "is_dir",
+        "iterdir",
+        "name",
+        "lower",
+        "sort",
+        "len"
+      ],
+      "code_len": 426
+    },
+    {
+      "qualname": "_audio_dir.<lambda>",
+      "firstlineno": 428,
+      "args": [
+        "p"
+      ],
+      "locals": [
+        "p"
+      ],
+      "global_names": [
+        "name",
+        "lower"
+      ],
+      "code_len": 68
+    },
+    {
+      "qualname": "scan_assets",
+      "firstlineno": 434,
+      "args": [
+        "s",
+        "log"
+      ],
+      "locals": [
+        "s",
+        "log",
+        "adir",
+        "audios",
+        "videos",
+        "images",
+        "texts",
+        "_override_file",
+        "logo",
+        "claim",
+        "bgm_files",
+        "bgm_impact",
+        "bgm_src",
+        "sfx_items",
+        "a",
+        "name",
+        "p",
+        "en"
+      ],
+      "global_names": [
+        "input_dir",
+        "is_dir",
+        "BuildError",
+        "channel_dir",
+        "_audio_dir",
+        "_scan_numbered",
+        "AUDIO_EXTS",
+        "VIDEO_EXTS",
+        "IMAGE_EXTS",
+        "enable_logo",
+        "logo_path",
+        "_pick_named_asset",
+        "logo_choice",
+        "enable_claim",
+        "claim_path",
+        "claim_choice",
+        "enable_bgm",
+        "bgm_dir",
+        "Path",
+        "resolve",
+        "list_bgm_files_from",
+        "enable_impact",
+        "_find_named",
+        "list_sfx_items",
+        "sfx_library_dir",
+        "Assets",
+        "len",
+        "bgm_impact",
+        "claim",
+        "logo",
+        "name"
+      ],
+      "code_len": 1940
+    },
+    {
+      "qualname": "scan_assets._override_file",
+      "firstlineno": 449,
+      "args": [
+        "path_str",
+        "label"
+      ],
+      "locals": [
+        "path_str",
+        "label"
+      ],
+      "global_names": [
+        "Path",
+        "is_file"
+      ],
+      "code_len": 114
+    },
+    {
+      "qualname": "validate",
+      "firstlineno": 500,
+      "args": [
+        "s",
+        "a",
+        "log"
+      ],
+      "locals": [
+        "s",
+        "a",
+        "log",
+        "nums",
+        "plan",
+        "errors",
+        "i",
+        "n",
+        "a_dur",
+        "vn",
+        "v_path",
+        "i_path",
+        "v_dur",
+        "speed",
+        "e",
+        "n_cut",
+        "n_slow",
+        "n_img",
+        "claim_dur",
+        "total"
+      ],
+      "global_names": [
+        "FORBIDDEN_NAME_RE",
+        "search",
+        "draft_name",
+        "BuildError",
+        "sorted",
+        "audios",
+        "keys",
+        "len",
+        "enumerate",
+        "media_duration_sec",
+        "append",
+        "name",
+        "hook_overrides",
+        "get",
+        "videos",
+        "images",
+        "dict",
+        "enable_cut",
+        "sum",
+        "values",
+        "claim",
+        "enable_claim",
+        "claim_dur"
+      ],
+      "code_len": 1796
+    },
+    {
+      "qualname": "validate.<genexpr>",
+      "firstlineno": 564,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "p"
+      ],
+      "global_names": [],
+      "code_len": 50
+    },
+    {
+      "qualname": "validate.<genexpr>",
+      "firstlineno": 565,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "p"
+      ],
+      "global_names": [],
+      "code_len": 50
+    },
+    {
+      "qualname": "validate.<genexpr>",
+      "firstlineno": 566,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "p"
+      ],
+      "global_names": [],
+      "code_len": 50
+    },
+    {
+      "qualname": "validate.<genexpr>",
+      "firstlineno": 568,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "p"
+      ],
+      "global_names": [],
+      "code_len": 38
+    },
+    {
+      "qualname": "draft_exists",
+      "firstlineno": 574,
+      "args": [
+        "s"
+      ],
+      "locals": [
+        "s"
+      ],
+      "global_names": [
+        "Path",
+        "capcut_drafts",
+        "draft_name",
+        "exists"
+      ],
+      "code_len": 98
+    },
+    {
+      "qualname": "warn_if_capcut_running",
+      "firstlineno": 578,
+      "args": [
+        "log"
+      ],
+      "locals": [
+        "log",
+        "r"
+      ],
+      "global_names": [
+        "subprocess",
+        "run",
+        "stdout",
+        "Exception"
+      ],
+      "code_len": 136
+    },
+    {
+      "qualname": "find_ffmpeg",
+      "firstlineno": 591,
+      "args": [],
+      "locals": [
+        "base",
+        "c"
+      ],
+      "global_names": [
+        "Path",
+        "sys",
+        "executable",
+        "resolve",
+        "parent",
+        "is_file",
+        "str",
+        "Exception",
+        "shutil",
+        "which"
+      ],
+      "code_len": 276
+    },
+    {
+      "qualname": "transcode_to_mp3",
+      "firstlineno": 603,
+      "args": [
+        "ffmpeg",
+        "src",
+        "dst",
+        "log"
+      ],
+      "locals": [
+        "ffmpeg",
+        "src",
+        "dst",
+        "log",
+        "r",
+        "e"
+      ],
+      "global_names": [
+        "subprocess",
+        "run",
+        "str",
+        "getattr",
+        "returncode",
+        "Path",
+        "is_file",
+        "stderr",
+        "strip",
+        "Exception",
+        "exists",
+        "unlink",
+        "OSError"
+      ],
+      "code_len": 538
+    },
+    {
+      "qualname": "harvest_from_capcut",
+      "firstlineno": 624,
+      "args": [
+        "sfx_library_dir",
+        "capcut_drafts",
+        "log"
+      ],
+      "locals": [
+        "sfx_library_dir",
+        "capcut_drafts",
+        "log",
+        "dest",
+        "drafts_root",
+        "found",
+        "dc",
+        "data",
+        "m",
+        "ty",
+        "nm",
+        "pth",
+        "copied",
+        "ffmpeg",
+        "warned_noff",
+        "src",
+        "safe",
+        "dst",
+        "e"
+      ],
+      "global_names": [
+        "Path",
+        "mkdir",
+        "is_dir",
+        "glob",
+        "json",
+        "loads",
+        "read_text",
+        "Exception",
+        "get",
+        "strip",
+        "re",
+        "fullmatch",
+        "stem",
+        "lower",
+        "endswith",
+        "is_file",
+        "find_ffmpeg",
+        "items",
+        "FORBIDDEN_NAME_RE",
+        "sub",
+        "exists",
+        "transcode_to_mp3",
+        "name",
+        "shutil",
+        "copy2",
+        "OSError",
+        "len"
+      ],
+      "code_len": 1352
+    },
+    {
+      "qualname": "_split_sentences",
+      "firstlineno": 682,
+      "args": [
+        "text",
+        "max_words"
+      ],
+      "locals": [
+        "text",
+        "max_words",
+        "x",
+        "sentences",
+        "chunks",
+        "sent",
+        "p",
+        "parts",
+        "buf",
+        "cand",
+        "piece",
+        "ws"
+      ],
+      "global_names": [
+        "re",
+        "sub",
+        "strip",
+        "split",
+        "len",
+        "append",
+        "join"
+      ],
+      "code_len": 974
+    },
+    {
+      "qualname": "_srt_ts",
+      "firstlineno": 712,
+      "args": [
+        "sec"
+      ],
+      "locals": [
+        "sec",
+        "ms",
+        "h",
+        "m",
+        "sct"
+      ],
+      "global_names": [
+        "round",
+        "divmod"
+      ],
+      "code_len": 154
+    },
+    {
+      "qualname": "_texts_from_folder",
+      "firstlineno": 727,
+      "args": [
+        "texts",
+        "log"
+      ],
+      "locals": [
+        "texts",
+        "log",
+        "out",
+        "n",
+        "p",
+        "raw"
+      ],
+      "global_names": [
+        "items",
+        "read_text",
+        "strip",
+        "UnicodeDecodeError",
+        "OSError"
+      ],
+      "code_len": 256
+    },
+    {
+      "qualname": "_find_manifest",
+      "firstlineno": 742,
+      "args": [
+        "s"
+      ],
+      "locals": [
+        "s",
+        "d",
+        "p"
+      ],
+      "global_names": [
+        "input_dir",
+        "parent",
+        "channel_dir",
+        "Path",
+        "is_file"
+      ],
+      "code_len": 214
+    },
+    {
+      "qualname": "_texts_from_manifest",
+      "firstlineno": 750,
+      "args": [
+        "manifest_path",
+        "input_dir",
+        "log"
+      ],
+      "locals": [
+        "manifest_path",
+        "input_dir",
+        "log",
+        "data",
+        "e",
+        "sheets",
+        "sheet",
+        "out",
+        "sc",
+        "sid",
+        "txt"
+      ],
+      "global_names": [
+        "json",
+        "loads",
+        "Path",
+        "read_text",
+        "JSONDecodeError",
+        "OSError",
+        "get",
+        "name",
+        "next",
+        "max",
+        "len",
+        "strip",
+        "isinstance",
+        "int",
+        "float"
+      ],
+      "code_len": 732
+    },
+    {
+      "qualname": "_texts_from_manifest.<genexpr>",
+      "firstlineno": 761,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "sh"
+      ],
+      "global_names": [
+        "get"
+      ],
+      "code_len": 76
+    },
+    {
+      "qualname": "_texts_from_manifest.<lambda>",
+      "firstlineno": 763,
+      "args": [
+        "sh"
+      ],
+      "locals": [
+        "sh"
+      ],
+      "global_names": [
+        "len",
+        "get"
+      ],
+      "code_len": 64
+    },
+    {
+      "qualname": "_find_header_row_index",
+      "firstlineno": 775,
+      "args": [
+        "rows"
+      ],
+      "locals": [
+        "rows",
+        "idx",
+        "row",
+        "c",
+        "row_str",
+        "has_script",
+        "has_scene"
+      ],
+      "global_names": [
+        "enumerate",
+        "str",
+        "strip",
+        "lower",
+        "any"
+      ],
+      "code_len": 262
+    },
+    {
+      "qualname": "_find_header_row_index.<genexpr>",
+      "firstlineno": 784,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0"
+      ],
+      "global_names": [
+        "any",
+        "_SCRIPT_HDR"
+      ],
+      "code_len": 78
+    },
+    {
+      "qualname": "_find_header_row_index.<genexpr>.<genexpr>",
+      "firstlineno": 784,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "k"
+      ],
+      "global_names": [],
+      "code_len": 38
+    },
+    {
+      "qualname": "_find_header_row_index.<genexpr>",
+      "firstlineno": 785,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0"
+      ],
+      "global_names": [
+        "any",
+        "_SCENE_HDR"
+      ],
+      "code_len": 78
+    },
+    {
+      "qualname": "_find_header_row_index.<genexpr>.<genexpr>",
+      "firstlineno": 785,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "k"
+      ],
+      "global_names": [],
+      "code_len": 38
+    },
+    {
+      "qualname": "detect_excel_sheet",
+      "firstlineno": 791,
+      "args": [
+        "xlsx_path",
+        "input_dir",
+        "log"
+      ],
+      "locals": [
+        "xlsx_path",
+        "input_dir",
+        "log",
+        "openpyxl",
+        "wb",
+        "sheets",
+        "want",
+        "n",
+        "nl",
+        "ws",
+        "first_rows",
+        "r",
+        "c",
+        "row_str"
+      ],
+      "global_names": [
+        "openpyxl",
+        "ImportError",
+        "load_workbook",
+        "str",
+        "sheetnames",
+        "close",
+        "Exception",
+        "Path",
+        "name",
+        "lower",
+        "list",
+        "iter_rows",
+        "strip",
+        "any"
+      ],
+      "code_len": 838
+    },
+    {
+      "qualname": "detect_excel_sheet.<genexpr>",
+      "firstlineno": 828,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0"
+      ],
+      "global_names": [
+        "any",
+        "_SCRIPT_HDR"
+      ],
+      "code_len": 78
+    },
+    {
+      "qualname": "detect_excel_sheet.<genexpr>.<genexpr>",
+      "firstlineno": 828,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "k"
+      ],
+      "global_names": [],
+      "code_len": 38
+    },
+    {
+      "qualname": "_read_excel_rows",
+      "firstlineno": 838,
+      "args": [
+        "xlsx_path",
+        "input_dir",
+        "log",
+        "sheet_name"
+      ],
+      "locals": [
+        "xlsx_path",
+        "input_dir",
+        "log",
+        "sheet_name",
+        "openpyxl",
+        "wb",
+        "e",
+        "name",
+        "rows"
+      ],
+      "global_names": [
+        "openpyxl",
+        "ImportError",
+        "load_workbook",
+        "str",
+        "Exception",
+        "strip",
+        "sheetnames",
+        "detect_excel_sheet",
+        "list",
+        "iter_rows",
+        "close"
+      ],
+      "code_len": 542
+    },
+    {
+      "qualname": "excel_columns",
+      "firstlineno": 870,
+      "args": [
+        "xlsx_path",
+        "input_dir",
+        "log",
+        "sheet_name"
+      ],
+      "locals": [
+        "xlsx_path",
+        "input_dir",
+        "log",
+        "sheet_name",
+        "got",
+        "rows",
+        "h_idx",
+        "c",
+        "headers",
+        "r",
+        "samples"
+      ],
+      "global_names": [
+        "_read_excel_rows",
+        "_find_header_row_index",
+        "str",
+        "strip"
+      ],
+      "code_len": 322
+    },
+    {
+      "qualname": "_texts_from_excel",
+      "firstlineno": 882,
+      "args": [
+        "xlsx_path",
+        "input_dir",
+        "log",
+        "script_col",
+        "scene_col",
+        "sheet_name"
+      ],
+      "locals": [
+        "xlsx_path",
+        "input_dir",
+        "log",
+        "script_col",
+        "scene_col",
+        "sheet_name",
+        "got",
+        "rows",
+        "final_sheet",
+        "h_idx",
+        "c",
+        "body",
+        "col_by_name",
+        "hdr_match",
+        "scene_col_sel",
+        "scene_col_idx",
+        "best",
+        "best_len",
+        "ncol",
+        "tot",
+        "r",
+        "vals",
+        "is_int_col",
+        "v",
+        "out",
+        "i",
+        "txt",
+        "num",
+        "val",
+        "m"
+      ],
+      "global_names": [
+        "_read_excel_rows",
+        "_find_header_row_index",
+        "str",
+        "strip",
+        "lower",
+        "_SCRIPT_HDR",
+        "any",
+        "_PROMPT_HDR",
+        "_SCENE_HDR",
+        "max",
+        "range",
+        "len",
+        "sum",
+        "float",
+        "is_integer",
+        "ValueError",
+        "enumerate",
+        "isinstance",
+        "int",
+        "re",
+        "search",
+        "group"
+      ],
+      "code_len": 1532
+    },
+    {
+      "qualname": "_texts_from_excel.col_by_name",
+      "firstlineno": 892,
+      "args": [
+        "name"
+      ],
+      "locals": [
+        "name"
+      ],
+      "global_names": [
+        "str",
+        "strip",
+        "lower",
+        "next",
+        "enumerate"
+      ],
+      "code_len": 150
+    },
+    {
+      "qualname": "_texts_from_excel.col_by_name.<genexpr>",
+      "firstlineno": 896,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "i",
+        "h"
+      ],
+      "global_names": [],
+      "code_len": 52
+    },
+    {
+      "qualname": "_texts_from_excel.hdr_match",
+      "firstlineno": 898,
+      "args": [
+        "cands"
+      ],
+      "locals": [
+        "cands",
+        "i"
+      ],
+      "global_names": [
+        "enumerate",
+        "any"
+      ],
+      "code_len": 94
+    },
+    {
+      "qualname": "_texts_from_excel.hdr_match.<genexpr>",
+      "firstlineno": 900,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "k"
+      ],
+      "global_names": [],
+      "code_len": 38
+    },
+    {
+      "qualname": "_texts_from_excel.<genexpr>",
+      "firstlineno": 908,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "k"
+      ],
+      "global_names": [],
+      "code_len": 44
+    },
+    {
+      "qualname": "_texts_from_excel.<genexpr>",
+      "firstlineno": 916,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "r"
+      ],
+      "global_names": [
+        "len"
+      ],
+      "code_len": 50
+    },
+    {
+      "qualname": "_texts_from_excel.<genexpr>",
+      "firstlineno": 918,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "k"
+      ],
+      "global_names": [],
+      "code_len": 44
+    },
+    {
+      "qualname": "_texts_from_excel.<genexpr>",
+      "firstlineno": 920,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "r"
+      ],
+      "global_names": [
+        "len",
+        "isinstance",
+        "str"
+      ],
+      "code_len": 146
+    },
+    {
+      "qualname": "_texts_from_excel.<genexpr>",
+      "firstlineno": 930,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "r"
+      ],
+      "global_names": [
+        "len"
+      ],
+      "code_len": 50
+    },
+    {
+      "qualname": "_load_scene_texts",
+      "firstlineno": 975,
+      "args": [
+        "s",
+        "nums",
+        "log"
+      ],
+      "locals": [
+        "s",
+        "nums",
+        "log",
+        "src",
+        "mp",
+        "d"
+      ],
+      "global_names": [
+        "subtitle_source",
+        "_texts_from_folder",
+        "_scan_numbered",
+        "input_dir",
+        "subtitle_file",
+        "Path",
+        "is_file",
+        "_find_manifest",
+        "_texts_from_manifest",
+        "_texts_from_excel",
+        "excel_script_col",
+        "excel_scene_col",
+        "excel_sheet",
+        "name",
+        "len",
+        "str",
+        "lower",
+        "endswith"
+      ],
+      "code_len": 1370
+    },
+    {
+      "qualname": "_apply_image_anim",
+      "firstlineno": 1020,
+      "args": [
+        "seg",
+        "mode",
+        "a_dur",
+        "idx"
+      ],
+      "locals": [
+        "seg",
+        "mode",
+        "a_dur",
+        "idx",
+        "end",
+        "d"
+      ],
+      "global_names": [
+        "add_keyframe",
+        "cc",
+        "KeyframeProperty",
+        "uniform_scale",
+        "_PAN_ANIMS",
+        "scale_x",
+        "scale_y",
+        "position_x"
+      ],
+      "code_len": 804
+    },
+    {
+      "qualname": "_clamp01",
+      "firstlineno": 1046,
+      "args": [
+        "x",
+        "default"
+      ],
+      "locals": [
+        "x",
+        "default"
+      ],
+      "global_names": [
+        "max",
+        "min",
+        "float",
+        "TypeError",
+        "ValueError"
+      ],
+      "code_len": 112
+    },
+    {
+      "qualname": "list_sub_styles",
+      "firstlineno": 1053,
+      "args": [
+        "sub_styles_dir"
+      ],
+      "locals": [
+        "sub_styles_dir",
+        "out",
+        "d",
+        "f",
+        "data",
+        "png"
+      ],
+      "global_names": [
+        "Path",
+        "is_dir",
+        "sorted",
+        "glob",
+        "json",
+        "loads",
+        "read_text",
+        "JSONDecodeError",
+        "OSError",
+        "isinstance",
+        "dict",
+        "setdefault",
+        "stem",
+        "with_suffix",
+        "append",
+        "is_file"
+      ],
+      "code_len": 478
+    },
+    {
+      "qualname": "_solid_color",
+      "firstlineno": 1073,
+      "args": [
+        "node"
+      ],
+      "locals": [
+        "node",
+        "c",
+        "x"
+      ],
+      "global_names": [
+        "get",
+        "isinstance",
+        "list",
+        "len",
+        "_clamp01"
+      ],
+      "code_len": 246
+    },
+    {
+      "qualname": "_parse_text_style",
+      "firstlineno": 1078,
+      "args": [
+        "content_json",
+        "material"
+      ],
+      "locals": [
+        "content_json",
+        "material",
+        "text",
+        "styles",
+        "st",
+        "color",
+        "fill_alpha",
+        "style",
+        "border",
+        "strokes",
+        "sc",
+        "w_raw",
+        "shadow",
+        "shadows",
+        "sh",
+        "glow",
+        "gl",
+        "gc",
+        "background",
+        "bg",
+        "bgc",
+        "font",
+        "finfo"
+      ],
+      "global_names": [
+        "isinstance",
+        "dict",
+        "get",
+        "strip",
+        "_solid_color",
+        "float",
+        "bool",
+        "_clamp01",
+        "max",
+        "min",
+        "int",
+        "round",
+        "str"
+      ],
+      "code_len": 2122
+    },
+    {
+      "qualname": "_style_sig",
+      "firstlineno": 1144,
+      "args": [
+        "s"
+      ],
+      "locals": [
+        "s",
+        "st",
+        "b"
+      ],
+      "global_names": [
+        "get",
+        "tuple",
+        "round",
+        "float",
+        "bool"
+      ],
+      "code_len": 460
+    },
+    {
+      "qualname": "_style_name",
+      "firstlineno": 1152,
+      "args": [
+        "s"
+      ],
+      "locals": [
+        "s",
+        "col",
+        "cname",
+        "fn"
+      ],
+      "global_names": [
+        "get",
+        "len",
+        "FORBIDDEN_NAME_RE",
+        "sub",
+        "strip"
+      ],
+      "code_len": 366
+    },
+    {
+      "qualname": "harvest_sub_styles_from_capcut",
+      "firstlineno": 1160,
+      "args": [
+        "sub_styles_dir",
+        "capcut_drafts",
+        "log"
+      ],
+      "locals": [
+        "sub_styles_dir",
+        "capcut_drafts",
+        "log",
+        "dest",
+        "root",
+        "ex",
+        "seen",
+        "found",
+        "dc",
+        "data",
+        "m",
+        "c",
+        "cj",
+        "stl",
+        "sig",
+        "base",
+        "nm",
+        "k"
+      ],
+      "global_names": [
+        "Path",
+        "mkdir",
+        "is_dir",
+        "list_sub_styles",
+        "_style_sig",
+        "glob",
+        "json",
+        "loads",
+        "read_text",
+        "Exception",
+        "get",
+        "isinstance",
+        "str",
+        "_parse_text_style",
+        "add",
+        "parent",
+        "name",
+        "_style_name",
+        "exists",
+        "write_text",
+        "dumps"
+      ],
+      "code_len": 1088
+    },
+    {
+      "qualname": "_resolve_font",
+      "firstlineno": 1204,
+      "args": [
+        "font_info"
+      ],
+      "locals": [
+        "font_info",
+        "name",
+        "fid",
+        "e"
+      ],
+      "global_names": [
+        "isinstance",
+        "dict",
+        "get",
+        "strip",
+        "cc",
+        "FontType",
+        "from_name",
+        "Exception",
+        "str",
+        "getattr",
+        "value"
+      ],
+      "code_len": 422
+    },
+    {
+      "qualname": "_color_tuple",
+      "firstlineno": 1225,
+      "args": [
+        "c",
+        "default"
+      ],
+      "locals": [
+        "c",
+        "default"
+      ],
+      "global_names": [
+        "isinstance",
+        "list",
+        "len",
+        "tuple"
+      ],
+      "code_len": 102
+    },
+    {
+      "qualname": "_color_tuple.<genexpr>",
+      "firstlineno": 1226,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "x"
+      ],
+      "global_names": [
+        "_clamp01"
+      ],
+      "code_len": 52
+    },
+    {
+      "qualname": "build_text_template",
+      "firstlineno": 1229,
+      "args": [
+        "style"
+      ],
+      "locals": [
+        "style",
+        "st",
+        "text_style",
+        "b",
+        "border",
+        "bg",
+        "background",
+        "sh",
+        "shadow",
+        "kwargs",
+        "allowed",
+        "k",
+        "v",
+        "tpl",
+        "key",
+        "enum_name",
+        "nm"
+      ],
+      "global_names": [
+        "get",
+        "cc",
+        "TextStyle",
+        "float",
+        "_color_tuple",
+        "bool",
+        "max",
+        "min",
+        "int",
+        "_clamp01",
+        "isinstance",
+        "dict",
+        "TextBorder",
+        "TextBackground",
+        "str",
+        "TextShadow",
+        "_resolve_font",
+        "set",
+        "inspect",
+        "signature",
+        "TextSegment",
+        "__init__",
+        "parameters",
+        "items",
+        "trange",
+        "hasattr",
+        "add_animation",
+        "getattr",
+        "from_name",
+        "Exception"
+      ],
+      "code_len": 2142
+    },
+    {
+      "qualname": "balance_text_lines",
+      "firstlineno": 1273,
+      "args": [
+        "text",
+        "max_chars"
+      ],
+      "locals": [
+        "text",
+        "max_chars",
+        "words",
+        "total_len",
+        "best_diff",
+        "best_idx",
+        "current_len",
+        "i",
+        "diff",
+        "part1",
+        "part2"
+      ],
+      "global_names": [
+        "strip",
+        "len",
+        "split",
+        "range",
+        "abs",
+        "join"
+      ],
+      "code_len": 434
+    },
+    {
+      "qualname": "_inject_subtitle_styles",
+      "firstlineno": 1301,
+      "args": [
+        "draft_path",
+        "style_dict",
+        "log"
+      ],
+      "locals": [
+        "draft_path",
+        "style_dict",
+        "log",
+        "dc",
+        "data",
+        "e",
+        "sub_material_ids",
+        "t",
+        "sg",
+        "st",
+        "border",
+        "shadow",
+        "glow",
+        "background",
+        "font",
+        "changed",
+        "m",
+        "c",
+        "cj",
+        "sty"
+      ],
+      "global_names": [
+        "Path",
+        "is_file",
+        "json",
+        "loads",
+        "read_text",
+        "Exception",
+        "set",
+        "get",
+        "add",
+        "max",
+        "min",
+        "int",
+        "float",
+        "isinstance",
+        "str",
+        "len",
+        "bool",
+        "dumps",
+        "write_text"
+      ],
+      "code_len": 2864
+    },
+    {
+      "qualname": "register_draft_in_root_meta",
+      "firstlineno": 1439,
+      "args": [
+        "draft_folder",
+        "log"
+      ],
+      "locals": [
+        "draft_folder",
+        "log",
+        "meta_info_path",
+        "meta",
+        "root_dir",
+        "root_meta_path",
+        "root_data",
+        "all_draft_store",
+        "found",
+        "idx",
+        "item",
+        "e"
+      ],
+      "global_names": [
+        "Path",
+        "is_file",
+        "json",
+        "loads",
+        "read_text",
+        "str",
+        "replace",
+        "parent",
+        "get",
+        "enumerate",
+        "append",
+        "len",
+        "write_text",
+        "dumps",
+        "Exception"
+      ],
+      "code_len": 802
+    },
+    {
+      "qualname": "harvest_transitions_from_capcut",
+      "firstlineno": 1475,
+      "args": [
+        "transitions_json_path",
+        "capcut_drafts",
+        "log"
+      ],
+      "locals": [
+        "transitions_json_path",
+        "capcut_drafts",
+        "log",
+        "dest",
+        "root",
+        "existing",
+        "t",
+        "seen",
+        "new_transitions",
+        "dc",
+        "data",
+        "name",
+        "effect_id",
+        "resource_id",
+        "key",
+        "all_transitions",
+        "e"
+      ],
+      "global_names": [
+        "Path",
+        "parent",
+        "mkdir",
+        "is_dir",
+        "is_file",
+        "json",
+        "loads",
+        "read_text",
+        "isinstance",
+        "list",
+        "Exception",
+        "get",
+        "glob",
+        "add",
+        "append",
+        "write_text",
+        "dumps",
+        "len"
+      ],
+      "code_len": 1246
+    },
+    {
+      "qualname": "_resolve_transition_type",
+      "firstlineno": 1532,
+      "args": [
+        "name",
+        "transitions_json_path"
+      ],
+      "locals": [
+        "name",
+        "transitions_json_path",
+        "m",
+        "data",
+        "item",
+        "CustomTransitionType"
+      ],
+      "global_names": [
+        "cc",
+        "TransitionType",
+        "叠化",
+        "name",
+        "is_file",
+        "json",
+        "loads",
+        "read_text",
+        "get",
+        "Exception"
+      ],
+      "code_len": 526
+    },
+    {
+      "qualname": "_resolve_transition_type.CustomTransitionType",
+      "firstlineno": 1548,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "__name__",
+        "__module__",
+        "__qualname__",
+        "__init__"
+      ],
+      "code_len": 18
+    },
+    {
+      "qualname": "_resolve_transition_type.CustomTransitionType.__init__",
+      "firstlineno": 1549,
+      "args": [
+        "self",
+        "val_dict"
+      ],
+      "locals": [
+        "self",
+        "val_dict",
+        "ValueHolder"
+      ],
+      "global_names": [
+        "value"
+      ],
+      "code_len": 50
+    },
+    {
+      "qualname": "_resolve_transition_type.CustomTransitionType.__init__.ValueHolder",
+      "firstlineno": 1550,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "__name__",
+        "__module__",
+        "__qualname__",
+        "__init__"
+      ],
+      "code_len": 18
+    },
+    {
+      "qualname": "_resolve_transition_type.CustomTransitionType.__init__.ValueHolder.__init__",
+      "firstlineno": 1551,
+      "args": [
+        "self",
+        "d"
+      ],
+      "locals": [
+        "self",
+        "d"
+      ],
+      "global_names": [
+        "get",
+        "name",
+        "effect_id",
+        "resource_id",
+        "default_duration",
+        "is_overlap"
+      ],
+      "code_len": 228
+    },
+    {
+      "qualname": "render_style_preview",
+      "firstlineno": 1565,
+      "args": [
+        "style",
+        "out_png",
+        "sample"
+      ],
+      "locals": [
+        "style",
+        "out_png",
+        "sample",
+        "Image",
+        "ImageDraw",
+        "ImageFont",
+        "st",
+        "W",
+        "H",
+        "img",
+        "d",
+        "font_px",
+        "cands",
+        "fp",
+        "font",
+        "c",
+        "color",
+        "bb",
+        "tw",
+        "th",
+        "x",
+        "y",
+        "bg",
+        "sh",
+        "shc",
+        "b",
+        "sw",
+        "sc"
+      ],
+      "global_names": [
+        "PIL",
+        "Image",
+        "ImageDraw",
+        "ImageFont",
+        "ImportError",
+        "get",
+        "new",
+        "Draw",
+        "max",
+        "round",
+        "float",
+        "Path",
+        "is_file",
+        "append",
+        "truetype",
+        "Exception",
+        "load_default",
+        "tuple",
+        "textbbox",
+        "len",
+        "isinstance",
+        "dict",
+        "str",
+        "lstrip",
+        "rectangle",
+        "text",
+        "TypeError",
+        "parent",
+        "mkdir",
+        "save"
+      ],
+      "code_len": 1982
+    },
+    {
+      "qualname": "render_style_preview.<genexpr>",
+      "firstlineno": 1590,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "x"
+      ],
+      "global_names": [
+        "int",
+        "_clamp01"
+      ],
+      "code_len": 76
+    },
+    {
+      "qualname": "render_style_preview.<genexpr>",
+      "firstlineno": 1602,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "i"
+      ],
+      "global_names": [
+        "int"
+      ],
+      "code_len": 66
+    },
+    {
+      "qualname": "render_style_preview.<genexpr>",
+      "firstlineno": 1607,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "v"
+      ],
+      "global_names": [
+        "int",
+        "_clamp01"
+      ],
+      "code_len": 76
+    },
+    {
+      "qualname": "render_style_preview.<genexpr>",
+      "firstlineno": 1611,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "v"
+      ],
+      "global_names": [
+        "int",
+        "_clamp01"
+      ],
+      "code_len": 76
+    },
+    {
+      "qualname": "build",
+      "firstlineno": 1624,
+      "args": [
+        "s",
+        "a",
+        "plan",
+        "log",
+        "srt_out_dir"
+      ],
+      "locals": [
+        "s",
+        "a",
+        "plan",
+        "log",
+        "srt_out_dir",
+        "nums",
+        "folder",
+        "script",
+        "use_claim",
+        "use_logo",
+        "roles",
+        "f",
+        "isi",
+        "isb",
+        "vol_db",
+        "intro_files",
+        "bg_files",
+        "it",
+        "placed_sfx",
+        "muted_sfx",
+        "use_impact_track",
+        "cursor",
+        "claim_dur",
+        "trans_json",
+        "trans_type",
+        "last_n",
+        "img_idx",
+        "i",
+        "n",
+        "p",
+        "a_dur",
+        "vis",
+        "total",
+        "bgm_end",
+        "limit",
+        "ci",
+        "vol",
+        "placed_len",
+        "bg_mats",
+        "m",
+        "d",
+        "t",
+        "idx",
+        "toggle",
+        "first",
+        "prev_len",
+        "guard",
+        "mat",
+        "fdur",
+        "seg_len",
+        "is_last",
+        "xf",
+        "fin",
+        "fout",
+        "track",
+        "advance",
+        "placed",
+        "impact_windows",
+        "imp_mat",
+        "imp_dur",
+        "times",
+        "tt",
+        "gap",
+        "want",
+        "got",
+        "tcur",
+        "ws",
+        "we",
+        "cnt",
+        "sub_font_inject",
+        "scene_texts",
+        "entries",
+        "missing",
+        "t_cursor",
+        "start",
+        "raw",
+        "chunks",
+        "tw",
+        "t0",
+        "c",
+        "c_dur",
+        "c_balanced",
+        "out_dir",
+        "srt_path",
+        "st",
+        "en",
+        "txt",
+        "tpl",
+        "ty",
+        "sp",
+        "style",
+        "e",
+        "draft_path",
+        "style_path",
+        "style_dict"
+      ],
+      "global_names": [
+        "BuildError",
+        "Path",
+        "capcut_drafts",
+        "is_dir",
+        "warn_if_capcut_running",
+        "sorted",
+        "keys",
+        "draft_name",
+        "width",
+        "height",
+        "fps",
+        "cc",
+        "DraftFolder",
+        "str",
+        "create_draft",
+        "bool",
+        "claim",
+        "enable_claim",
+        "logo",
+        "enable_logo",
+        "enable_bgm",
+        "resolve_music_roles",
+        "music_roles",
+        "bgm_files",
+        "sfx_items",
+        "sfx_roles",
+        "get",
+        "add_track",
+        "TrackType",
+        "video",
+        "enable_voice",
+        "audio",
+        "bgm_impact",
+        "enable_impact",
+        "add_segment",
+        "VideoSegment",
+        "trange",
+        "claim_dur",
+        "sfx_library_dir",
+        "parent",
+        "_resolve_transition_type",
+        "transition_type",
+        "len",
+        "image_anim",
+        "enumerate",
+        "AudioSegment",
+        "audios",
+        "voice_vol",
+        "_apply_image_anim",
+        "enable_transition",
+        "add_transition",
+        "tim",
+        "min",
+        "trans_dur",
+        "ClipSettings",
+        "logo_x",
+        "logo_y",
+        "logo_scale",
+        "bgm_intro_max_dur",
+        "_add_audio",
+        "name",
+        "capcut_audio",
+        "crossfade_sec",
+        "max",
+        "impact_times",
+        "float",
+        "impact_vol",
+        "append",
+        "enable_subtitles",
+        "subtitle_source",
+        "_load_scene_texts",
+        "strip",
+        "_split_sentences",
+        "sub_max_words",
+        "sum",
+        "split",
+        "balance_text_lines",
+        "mkdir",
+        "open",
+        "write",
+        "_srt_ts",
+        "subtitle_style",
+        "sub_styles_dir",
+        "is_file",
+        "json",
+        "loads",
+        "read_text",
+        "build_text_template",
+        "_resolve_font",
+        "Exception",
+        "import_srt",
+        "save",
+        "_inject_subtitle_styles",
+        "_inject_subtitle_font",
+        "register_draft_in_root_meta"
+      ],
+      "code_len": 8096
+    },
+    {
+      "qualname": "build.<genexpr>",
+      "firstlineno": 1846,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "c"
+      ],
+      "global_names": [
+        "len",
+        "split"
+      ],
+      "code_len": 78
+    }
+  ],
+  "updater": [
+    {
+      "qualname": "<module>",
+      "firstlineno": 1,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "__doc__",
+        "json",
+        "os",
+        "shutil",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "zipfile",
+        "pathlib",
+        "Path",
+        "urllib.request",
+        "Request",
+        "urlopen",
+        "API_BASE",
+        "APP_NAME",
+        "APP_FOLDER_NAME",
+        "EXE_NAME",
+        "USER_AGENT",
+        "app_dir",
+        "str",
+        "read_local_version",
+        "_semver",
+        "bool",
+        "is_newer",
+        "_get_json",
+        "dict",
+        "check_update",
+        "_writable",
+        "_download",
+        "_find_app_in",
+        "apply_update"
+      ],
+      "code_len": 286
+    },
+    {
+      "qualname": "app_dir",
+      "firstlineno": 29,
+      "args": [],
+      "locals": [],
+      "global_names": [
+        "getattr",
+        "sys",
+        "Path",
+        "executable",
+        "resolve",
+        "parent",
+        "__file__"
+      ],
+      "code_len": 232
+    },
+    {
+      "qualname": "read_local_version",
+      "firstlineno": 35,
+      "args": [],
+      "locals": [
+        "p",
+        "v"
+      ],
+      "global_names": [
+        "app_dir",
+        "Path",
+        "__file__",
+        "resolve",
+        "parent",
+        "read_text",
+        "strip",
+        "OSError"
+      ],
+      "code_len": 252
+    },
+    {
+      "qualname": "_semver",
+      "firstlineno": 46,
+      "args": [
+        "v"
+      ],
+      "locals": [
+        "v",
+        "parts",
+        "x",
+        "num"
+      ],
+      "global_names": [
+        "str",
+        "strip",
+        "split",
+        "join",
+        "append",
+        "int",
+        "len",
+        "tuple"
+      ],
+      "code_len": 324
+    },
+    {
+      "qualname": "_semver.<genexpr>",
+      "firstlineno": 49,
+      "args": [
+        ".0"
+      ],
+      "locals": [
+        ".0",
+        "ch"
+      ],
+      "global_names": [
+        "isdigit"
+      ],
+      "code_len": 66
+    },
+    {
+      "qualname": "is_newer",
+      "firstlineno": 56,
+      "args": [
+        "remote",
+        "local"
+      ],
+      "locals": [
+        "remote",
+        "local"
+      ],
+      "global_names": [
+        "_semver"
+      ],
+      "code_len": 48
+    },
+    {
+      "qualname": "_get_json",
+      "firstlineno": 60,
+      "args": [
+        "url",
+        "timeout"
+      ],
+      "locals": [
+        "url",
+        "timeout",
+        "req",
+        "r"
+      ],
+      "global_names": [
+        "Request",
+        "USER_AGENT",
+        "urlopen",
+        "json",
+        "loads",
+        "read",
+        "decode"
+      ],
+      "code_len": 210
+    },
+    {
+      "qualname": "<lambda>",
+      "firstlineno": 66,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [],
+      "code_len": 4
+    },
+    {
+      "qualname": "check_update",
+      "firstlineno": 66,
+      "args": [
+        "log"
+      ],
+      "locals": [
+        "log",
+        "info",
+        "e",
+        "local"
+      ],
+      "global_names": [
+        "_get_json",
+        "API_BASE",
+        "APP_NAME",
+        "Exception",
+        "read_local_version",
+        "is_newer"
+      ],
+      "code_len": 248
+    },
+    {
+      "qualname": "_writable",
+      "firstlineno": 83,
+      "args": [
+        "d"
+      ],
+      "locals": [
+        "d",
+        "t"
+      ],
+      "global_names": [
+        "write_text",
+        "unlink",
+        "Exception"
+      ],
+      "code_len": 116
+    },
+    {
+      "qualname": "_download",
+      "firstlineno": 93,
+      "args": [
+        "url",
+        "dest",
+        "log"
+      ],
+      "locals": [
+        "url",
+        "dest",
+        "log",
+        "req",
+        "r",
+        "f",
+        "e"
+      ],
+      "global_names": [
+        "Request",
+        "USER_AGENT",
+        "urlopen",
+        "open",
+        "shutil",
+        "copyfileobj",
+        "is_file",
+        "stat",
+        "st_size",
+        "Exception"
+      ],
+      "code_len": 402
+    },
+    {
+      "qualname": "_find_app_in",
+      "firstlineno": 105,
+      "args": [
+        "extracted"
+      ],
+      "locals": [
+        "extracted",
+        "p"
+      ],
+      "global_names": [
+        "EXE_NAME",
+        "is_file",
+        "rglob",
+        "parent"
+      ],
+      "code_len": 132
+    },
+    {
+      "qualname": "<lambda>",
+      "firstlineno": 113,
+      "args": [
+        "m"
+      ],
+      "locals": [
+        "m"
+      ],
+      "global_names": [],
+      "code_len": 4
+    },
+    {
+      "qualname": "apply_update",
+      "firstlineno": 113,
+      "args": [
+        "info",
+        "log"
+      ],
+      "locals": [
+        "info",
+        "log",
+        "app",
+        "url",
+        "work",
+        "e",
+        "dl",
+        "ext",
+        "z",
+        "new_app",
+        "old_sfx",
+        "new_sfx",
+        "f",
+        "dst",
+        "keep",
+        "src",
+        "pid",
+        "app_str",
+        "new_app_str",
+        "exe_path_str",
+        "work_str",
+        "ps1_file",
+        "ps_text",
+        "bat",
+        "bat_text",
+        "CREATE_NO_WINDOW",
+        "launched"
+      ],
+      "global_names": [
+        "getattr",
+        "sys",
+        "app_dir",
+        "_writable",
+        "get",
+        "Path",
+        "tempfile",
+        "gettempdir",
+        "exists",
+        "shutil",
+        "rmtree",
+        "mkdir",
+        "Exception",
+        "_download",
+        "zipfile",
+        "ZipFile",
+        "extractall",
+        "_find_app_in",
+        "is_dir",
+        "rglob",
+        "is_file",
+        "relative_to",
+        "parent",
+        "copy2",
+        "os",
+        "getpid",
+        "str",
+        "replace",
+        "EXE_NAME",
+        "write_text",
+        "OSError",
+        "subprocess",
+        "Popen",
+        "environ",
+        "home"
+      ],
+      "code_len": 2594
+    }
+  ]
+}

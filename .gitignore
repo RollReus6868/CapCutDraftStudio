@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Build
+build/
+dist/
+dist_installer/
+*.spec.bak
+build.log
+crash.log
+
+# ffmpeg đi kèm (CI tự tải, không commit nhị phân)
+bin/
+
+# Dữ liệu chạy máy người dùng
+tool-config.json
+recent-projects.json
+presets/
+updates/
+assets/sfx-library/*
+!assets/sfx-library/.gitkeep
+assets/sub-styles/*
+!assets/sub-styles/.gitkeep
+assets/icon.icns
+
+# ---------------------------------------------------------------- #
+# TƯ LIỆU LÀM VIỆC — KHÔNG ĐƯỢC ĐẨY LÊN GITHUB
+# Đây là nhạc, video, ảnh, giọng đọc của bạn. GitHub chặn file trên
+# 100 MB và repo code không phải chỗ chứa tư liệu nặng.
+# ---------------------------------------------------------------- #
+BGM/
+SFX/
+Logo/
+Text Claim/
+Audio/
+Voice/
+Voices/
+Videos/
+Images/
+Texts/
+_render/
+_queue/
+_capcut_draft_studio/
+Claude outputs/
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.flac
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+
+# Hệ điều hành
+.DS_Store
+Thumbs.db
