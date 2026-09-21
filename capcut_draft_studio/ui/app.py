@@ -23,7 +23,7 @@ from .theme import Theme
 from .widgets import LogView
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.4.0"
+APP_VERSION = "0.4.1"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -51,14 +51,64 @@ def bundled_dir() -> Path:
     return Path(base) if base else app_dir()
 
 
-def _ensure_assets() -> None:
-    """Bung assets đi kèm ra cạnh file chạy trong lần chạy đầu tiên.
+APP_SLUG = "CapCutDraftStudio"
+
+
+def user_data_dir() -> Path:
+    """Thư mục dữ liệu riêng của người dùng, luôn ghi được."""
+    if os.name == "nt":
+        base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+        return Path(base) / APP_SLUG
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / APP_SLUG
+    base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    return Path(base) / APP_SLUG
+
+
+def _is_writable(path: Path) -> bool:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        probe = path / ".write-test"
+        probe.write_text("", encoding="utf-8")
+        probe.unlink()
+        return True
+    except OSError:
+        return False
+
+
+def data_dir() -> Path:
+    """Nơi ghi cấu hình, preset, assets người dùng thêm vào.
+
+    Bản cài đặt nằm trong `C:\\Program Files` (hoặc `/Applications`) là thư mục
+    CHỈ ĐỌC với tài khoản thường — ghi vào đó là app chết ngay lúc khởi động.
+    Nên: thư mục cài ghi được (bản portable, chạy từ mã nguồn) thì dùng luôn cho
+    tiện; không ghi được thì chuyển sang thư mục dữ liệu riêng của người dùng.
+    """
+    base = app_dir()
+    if _is_writable(base):
+        return base
+    target = user_data_dir()
+    if _is_writable(target):
+        return target
+    # Máy bị khoá chặt tới mức cả thư mục người dùng cũng không ghi được:
+    # thà dùng thư mục tạm còn hơn để app chết lúc khởi động.
+    import tempfile
+    fallback = Path(tempfile.gettempdir()) / APP_SLUG
+    try:
+        fallback.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+    return fallback
+
+
+def _ensure_assets(dst_root: Path) -> None:
+    """Bung assets đi kèm ra thư mục dữ liệu trong lần chạy đầu tiên.
 
     Nhờ vậy người dùng có thể copy thêm SFX / style vào thư mục assets mà
     vẫn giữ được sau khi tắt app (thư mục tạm _MEIPASS bị xóa khi thoát).
     """
     src = bundled_dir() / "assets"
-    dst = app_dir() / "assets"
+    dst = dst_root / "assets"
     if src == dst or not src.is_dir():
         return
     import shutil
@@ -84,15 +134,16 @@ def _ensure_assets() -> None:
                 pass
 
 
-_ensure_assets()
+APP_DIR = app_dir()          # nơi đặt file chạy (có thể chỉ đọc)
+DATA_DIR = data_dir()        # nơi ghi dữ liệu (luôn ghi được)
+_ensure_assets(DATA_DIR)
 
-APP_DIR = app_dir()
-CONFIG = APP_DIR / "tool-config.json"
-RECENT = APP_DIR / "recent-projects.json"
-PRESET_DIR = APP_DIR / "presets"
-SFX_LIBRARY = APP_DIR / "assets" / "sfx-library"
-SUB_STYLES = APP_DIR / "assets" / "sub-styles"
-DOWNLOADS = APP_DIR / "updates"
+CONFIG = DATA_DIR / "tool-config.json"
+RECENT = DATA_DIR / "recent-projects.json"
+PRESET_DIR = DATA_DIR / "presets"
+SFX_LIBRARY = DATA_DIR / "assets" / "sfx-library"
+SUB_STYLES = DATA_DIR / "assets" / "sub-styles"
+DOWNLOADS = DATA_DIR / "updates"
 
 STR_DEFAULTS = {
     "input_dir": "", "channel_dir": "", "draft_name": "my-video", "capcut_drafts": "",
@@ -185,6 +236,8 @@ class App:
         self.root.after(100, self.poll)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.log(f"[OK] {APP_NAME} {APP_VERSION} đã sẵn sàng.")
+        if DATA_DIR != APP_DIR:
+            self.log(f"[OK] Cấu hình và preset được lưu tại: {DATA_DIR}")
         if not self.vars["capcut_drafts"].get().strip():
             self.log("[WARN] Chưa tìm thấy folder CapCut Drafts — hãy chọn thủ công ở Tổng quan.")
         if not render.ffmpeg_ready():
@@ -194,7 +247,7 @@ class App:
 
     def _set_icon(self):
         """Windows dùng .ico, macOS/Linux phải dùng ảnh PNG qua iconphoto."""
-        for folder in (bundled_dir() / "assets", APP_DIR / "assets"):
+        for folder in (bundled_dir() / "assets", DATA_DIR / "assets", APP_DIR / "assets"):
             ico = folder / "icon.ico"
             if os.name == "nt" and ico.is_file():
                 try:

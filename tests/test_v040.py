@@ -317,6 +317,52 @@ def test_verify_package_requires_exact_digest(tmp_path):
     assert not updater.verify_package(f, "")
 
 
+# --------------------------------------------------------------------------- #
+# thư mục dữ liệu — bản cài trong Program Files là CHỈ ĐỌC
+# --------------------------------------------------------------------------- #
+def test_data_dir_uses_install_folder_when_writable(tmp_path, monkeypatch):
+    from capcut_draft_studio.ui import app as uiapp
+    monkeypatch.setattr(uiapp, "app_dir", lambda: tmp_path)
+    assert uiapp.data_dir() == tmp_path
+
+
+def test_data_dir_falls_back_when_install_folder_is_read_only(tmp_path, monkeypatch):
+    """Đúng tình huống gây crash 0.4.0: C:\\Program Files không ghi được."""
+    from capcut_draft_studio.ui import app as uiapp
+    readonly = tmp_path / "Program Files" / "CapCutDraftStudio"
+    userdata = tmp_path / "LocalAppData" / "CapCutDraftStudio"
+    monkeypatch.setattr(uiapp, "app_dir", lambda: readonly)
+    monkeypatch.setattr(uiapp, "user_data_dir", lambda: userdata)
+    monkeypatch.setattr(uiapp, "_is_writable", lambda p: p != readonly)
+    assert uiapp.data_dir() == userdata
+
+
+def test_data_dir_last_resort_is_temp(tmp_path, monkeypatch):
+    import tempfile
+    from capcut_draft_studio.ui import app as uiapp
+    monkeypatch.setattr(uiapp, "app_dir", lambda: tmp_path / "ro")
+    monkeypatch.setattr(uiapp, "user_data_dir", lambda: tmp_path / "ro2")
+    monkeypatch.setattr(uiapp, "_is_writable", lambda p: False)
+    assert uiapp.data_dir() == Path(tempfile.gettempdir()) / uiapp.APP_SLUG
+
+
+def test_is_writable_detects_a_real_read_only_folder(tmp_path):
+    import os
+    import stat
+    from capcut_draft_studio.ui.app import _is_writable
+    ok = tmp_path / "ghi-duoc"
+    assert _is_writable(ok)
+    if os.name == "nt" or os.geteuid() == 0:
+        return          # root/Windows bỏ qua quyền thư mục, không test được
+    locked = tmp_path / "chi-doc"
+    locked.mkdir()
+    locked.chmod(stat.S_IRUSR | stat.S_IXUSR)
+    try:
+        assert not _is_writable(locked)
+    finally:
+        locked.chmod(stat.S_IRWXU)
+
+
 def test_check_refuses_release_without_checksums(monkeypatch):
     monkeypatch.setattr(updater, "fetch_manifest", lambda url, timeout=10: {
         "tag_name": "v9.9.9",

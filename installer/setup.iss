@@ -2,7 +2,7 @@
 ; Biên dịch: ISCC.exe /DMyAppVersion=0.4.0 installer\setup.iss
 
 #ifndef MyAppVersion
-  #define MyAppVersion "0.4.0"
+  #define MyAppVersion "0.4.1"
 #endif
 #define MyAppName "CapCut Draft Studio"
 #define MyAppExeName "CapCut Draft Studio.exe"
@@ -24,6 +24,10 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
+; Cai cho rieng nguoi dung dang dang nhap: khong hien bang UAC, va thu muc cai
+; nam trong %LOCALAPPDATA%\Programs nen ghi duoc. Nguoi dung van chon cai cho
+; toan may duoc o bang dau tien neu muon.
+PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayIcon={app}\{#MyAppExeName}
 

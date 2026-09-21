@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.4.0
+# CapCut Draft Studio 0.4.1
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -200,7 +200,19 @@ ffmpeg tự đọc lại đúng thông số đó.
 
 ---
 
-## File cấu hình sinh ra cạnh tool
+## File cấu hình tool sinh ra
+
+Tool ghi dữ liệu vào **thư mục cài đặt** khi thư mục đó ghi được (bản portable,
+chạy từ mã nguồn). Khi cài vào `C:\Program Files` hoặc `/Applications` — là nơi
+Windows/macOS **cấm ghi** với tài khoản thường — tool tự chuyển sang:
+
+| Hệ điều hành | Thư mục dữ liệu |
+|---|---|
+| Windows | `%LOCALAPPDATA%\CapCutDraftStudio` |
+| macOS | `~/Library/Application Support/CapCutDraftStudio` |
+| Linux | `~/.local/share/CapCutDraftStudio` |
+
+Đường dẫn thật được in ra dòng đầu của nhật ký mỗi lần mở tool.
 
 | File / thư mục | Vai trò |
 |---|---|
@@ -211,7 +223,7 @@ ffmpeg tự đọc lại đúng thông số đó.
 | `assets/sub-styles/` | Style phụ đề đã nhập từ CapCut |
 | `bin/` | ffmpeg + ffprobe đi kèm bộ cài Windows |
 | `updates/` | Bộ cài tải về khi tự cập nhật |
-| `crash.log` | Chỉ sinh ra nếu bản đóng gói lỗi lúc khởi động |
+| `crash.log` | Chỉ sinh ra nếu bản đóng gói lỗi lúc khởi động — gửi file này khi app không mở được |
 | `build.log` | Nhật ký của `BUILD_EXE.bat` — gửi file này khi build lỗi |
 
 ---

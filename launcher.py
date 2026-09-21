@@ -10,12 +10,37 @@ import traceback
 from pathlib import Path
 
 
+def _crash_log_candidates() -> list[Path]:
+    """Nơi ghi crash.log, ưu tiên chỗ chắc chắn ghi được.
+
+    Thư mục cài đặt (vd C:\\Program Files) thường CHỈ ĐỌC nên phải có phương án
+    dự phòng, nếu không người dùng chẳng có gì để gửi đi khi báo lỗi.
+    """
+    import os
+    import tempfile
+    out = [Path(sys.executable).resolve().parent]
+    if os.name == "nt":
+        base = os.environ.get("LOCALAPPDATA")
+        if base:
+            out.append(Path(base) / "CapCutDraftStudio")
+    elif sys.platform == "darwin":
+        out.append(Path.home() / "Library" / "Application Support" / "CapCutDraftStudio")
+    else:
+        out.append(Path.home() / ".local" / "share" / "CapCutDraftStudio")
+    out.append(Path(tempfile.gettempdir()) / "CapCutDraftStudio")
+    return [p / "crash.log" for p in out]
+
+
 def _report(exc_text: str) -> None:
-    try:
-        log = Path(sys.executable).resolve().parent / "crash.log"
-        log.write_text(exc_text, encoding="utf-8")
-    except OSError:
-        log = None
+    log = None
+    for candidate in _crash_log_candidates():
+        try:
+            candidate.parent.mkdir(parents=True, exist_ok=True)
+            candidate.write_text(exc_text, encoding="utf-8")
+            log = candidate
+            break
+        except OSError:
+            continue
     try:
         import tkinter as tk
         from tkinter import messagebox
