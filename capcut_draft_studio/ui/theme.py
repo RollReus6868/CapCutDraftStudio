@@ -85,6 +85,65 @@ SIDEBAR_TEXT = "#c7cddd"
 SIDEBAR_TEXT_ACTIVE = "#ffffff"
 SIDEBAR_HOVER = "#1b2130"
 
+# --------------------------------------------------------------------------- #
+# Màu theo ngữ nghĩa — mỗi mục, mỗi chế độ cảnh, mỗi ô thống kê một màu riêng
+# để nhìn vào là biết ngay đang ở đâu và cảnh nào đang dùng kiểu gì.
+# --------------------------------------------------------------------------- #
+
+#: màu của từng trang trong thanh điều hướng
+SECTION_COLORS = {
+    "dashboard": {"dark": "#5b8cff", "light": "#2f62e8"},   # xanh dương
+    "settings":  {"dark": "#a78bfa", "light": "#7c3aed"},   # tím
+    "render":    {"dark": "#fb923c", "light": "#c2410c"},   # cam
+    "presets":   {"dark": "#34d399", "light": "#0f8a5f"},   # xanh lá
+    "guide":     {"dark": "#22d3ee", "light": "#0e7490"},   # xanh ngọc
+}
+
+#: biểu tượng cạnh tên trang
+SECTION_ICONS = {
+    "dashboard": "▦", "settings": "⚙", "render": "▶",
+    "presets": "★", "guide": "?",
+}
+
+#: màu của từng chế độ dựng cảnh
+MODE_COLORS = {
+    "CUT":     {"dark": "#5b8cff", "light": "#2f62e8"},
+    "SLOW":    {"dark": "#fbbf24", "light": "#a16207"},
+    "SPEEDUP": {"dark": "#fb923c", "light": "#c2410c"},
+    "IMAGE":   {"dark": "#a78bfa", "light": "#7c3aed"},
+    "ERR":     {"dark": "#f87171", "light": "#c62f2f"},
+}
+
+#: màu của từng ô thống kê ở trang Tổng quan
+TILE_COLORS = {
+    "audio":    {"dark": "#5b8cff", "light": "#2f62e8"},
+    "visual":   {"dark": "#a78bfa", "light": "#7c3aed"},
+    "bgm":      {"dark": "#22d3ee", "light": "#0e7490"},
+    "scenes":   {"dark": "#34d399", "light": "#0f8a5f"},
+    "duration": {"dark": "#fb923c", "light": "#c2410c"},
+}
+
+#: màu trạng thái của một việc trong hàng đợi render
+STATE_COLORS = {
+    "pending":   {"dark": "#8b93a7", "light": "#6b7280"},
+    "running":   {"dark": "#fb923c", "light": "#c2410c"},
+    "done":      {"dark": "#34d399", "light": "#0f8a5f"},
+    "error":     {"dark": "#f87171", "light": "#c62f2f"},
+    "cancelled": {"dark": "#fbbf24", "light": "#a16207"},
+}
+
+
+def _hex_to_rgb(value: str) -> tuple[int, int, int]:
+    raw = value.lstrip("#")
+    return int(raw[0:2], 16), int(raw[2:4], 16), int(raw[4:6], 16)
+
+
+def blend(fg: str, bg: str, ratio: float) -> str:
+    """Trộn `ratio` phần `fg` với nền `bg` — dùng để sinh nền nhạt cho huy hiệu."""
+    a, b = _hex_to_rgb(fg), _hex_to_rgb(bg)
+    mix = tuple(int(round(a[i] * ratio + b[i] * (1 - ratio))) for i in range(3))
+    return "#%02x%02x%02x" % mix
+
 
 class Theme:
     """Giữ palette hiện hành và cấu hình toàn bộ ttk style."""
@@ -164,18 +223,90 @@ class Theme:
         except tk.TclError:
             pass
 
+        self._resolve_palettes()
         self._frames(s, c)
         self._labels(s, c)
         self._buttons(s, c)
         self._inputs(s, c)
         self._controls(s, c)
         self._tables(s, c)
+        self._semantic(s, c)
 
         for cb in self._listeners:
             try:
                 cb(c)
             except tk.TclError:
                 pass
+
+    # ------------------------------------------------------------------ #
+    # màu theo ngữ nghĩa
+    # ------------------------------------------------------------------ #
+    def _resolve_palettes(self) -> None:
+        mode = self.c["name"]
+        self.section = {k: v[mode] for k, v in SECTION_COLORS.items()}
+        self.mode_color = {k: v[mode] for k, v in MODE_COLORS.items()}
+        self.tile = {k: v[mode] for k, v in TILE_COLORS.items()}
+        self.state = {k: v[mode] for k, v in STATE_COLORS.items()}
+        self.icon = dict(SECTION_ICONS)
+
+    def soft(self, color: str, ratio: float = 0.16, on: str = "surface") -> str:
+        """Nền nhạt cùng tông với `color`, đặt trên nền `on`."""
+        return blend(color, self.c[on], ratio)
+
+    def _semantic(self, s, c) -> None:
+        """Sinh style cho từng mục / chế độ / ô thống kê / trạng thái."""
+        for key, col in self.section.items():
+            s.configure(f"{key}.Title.TLabel", background=c["bg"], foreground=col,
+                        font=self.f_h1)
+            s.configure(f"{key}.Bar.TFrame", background=col)
+            s.configure(f"{key}.Soft.TFrame", background=self.soft(col, 0.14, "bg"))
+            s.configure(f"{key}Nav.TButton", background=col, foreground="#ffffff",
+                        font=self.f_btn, anchor="w", padding=(14, 11), borderwidth=0,
+                        relief="flat", lightcolor=col, darkcolor=col)
+            s.map(f"{key}Nav.TButton",
+                  background=[("active", blend(col, "#ffffff", 0.82))],
+                  lightcolor=[("active", blend(col, "#ffffff", 0.82))],
+                  darkcolor=[("active", blend(col, "#ffffff", 0.82))])
+            # nút hành động chính mang màu của trang đang mở
+            s.configure(f"{key}.Do.TButton", background=col, foreground="#ffffff",
+                        font=self.f_btn_big, padding=(26, 13), borderwidth=0,
+                        relief="flat", lightcolor=col, darkcolor=col)
+            s.map(f"{key}.Do.TButton",
+                  background=[("pressed", blend(col, "#000000", 0.78)),
+                              ("active", blend(col, "#ffffff", 0.84)),
+                              ("disabled", c["surface_alt"])],
+                  foreground=[("disabled", c["text_faint"])],
+                  lightcolor=[("active", blend(col, "#ffffff", 0.84))],
+                  darkcolor=[("active", blend(col, "#ffffff", 0.84))])
+
+        # tab con của trang Cài đặt mang màu của chính trang đó
+        settings_col = self.section["settings"]
+        s.configure("TabActive.TButton", background=settings_col, foreground="#ffffff",
+                    font=self.f_btn, padding=(18, 9), borderwidth=0, relief="flat",
+                    lightcolor=settings_col, darkcolor=settings_col)
+        s.map("TabActive.TButton",
+              background=[("active", blend(settings_col, "#ffffff", 0.84))],
+              lightcolor=[("active", blend(settings_col, "#ffffff", 0.84))],
+              darkcolor=[("active", blend(settings_col, "#ffffff", 0.84))])
+
+        for key, col in self.mode_color.items():
+            s.configure(f"{key}.Mode.TLabel", background=self.soft(col, 0.18),
+                        foreground=col, font=self.f_tiny, padding=(9, 3))
+
+        # thanh tiến trình của trang Render mang màu cam của trang đó
+        rcol = self.section["render"]
+        s.configure("Render.Horizontal.TProgressbar", background=rcol,
+                    troughcolor=c["surface_alt"], borderwidth=0, thickness=14,
+                    lightcolor=rcol, darkcolor=rcol, bordercolor=c["surface_alt"])
+
+        for key, col in self.tile.items():
+            s.configure(f"{key}.Stat.TLabel", background=c["surface"], foreground=col,
+                        font=self.f_stat)
+            s.configure(f"{key}.Tile.TFrame", background=col)
+
+        for key, col in self.state.items():
+            s.configure(f"{key}.State.TLabel", background=self.soft(col, 0.18),
+                        foreground=col, font=self.f_tiny, padding=(9, 3))
 
     # ------------------------------------------------------------------ #
     def _frames(self, s, c) -> None:

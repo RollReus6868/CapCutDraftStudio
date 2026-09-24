@@ -39,6 +39,26 @@ def main() -> int:
                  "[ERROR] 2 scene thiếu/lỗi asset"):
         app.log(line)
 
+    # bảng cảnh quay giả để nhìn được màu của từng chế độ dựng
+    from pathlib import Path as _P
+
+    from capcut_draft_studio.models import ScenePlan
+    demo = []
+    cursor = 0.0
+    for i, (mode, dur, speed) in enumerate([
+            ("CUT", 4.2, 1.0), ("IMAGE", 3.1, 1.0), ("SLOW", 5.0, 0.82),
+            ("CUT", 2.8, 1.0), ("SPEEDUP", 3.6, 1.35), ("IMAGE", 4.4, 1.0),
+            ("CUT", 3.3, 1.0), ("SLOW", 2.9, 0.77)], start=1):
+        demo.append(ScenePlan(i, _P(f"{i}.mp3"), dur, mode, _P(f"{i}.mp4"),
+                              video_duration=dur * speed, speed=speed,
+                              start=cursor, gap=0.4))
+        cursor += dur + 0.4
+    pages.fill_scene_table(app, demo, ["0009: thiếu cả video lẫn ảnh",
+                                       "0010: video lỗi và không có ảnh fallback"])
+    pages.update_plan_stats(app, demo, ["x", "y"])
+    for key, value in (("audio", 42), ("visual", 40), ("bgm", 3)):
+        app.tiles[key].set(value)
+
     # hàng đợi render giả
     app.render_queue.extend([
         {"name": "tap-01", "values": {}, "status": "done", "percent": 100.0,

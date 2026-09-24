@@ -23,7 +23,7 @@ from .theme import Theme
 from .widgets import LogView
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.4.1"
+APP_VERSION = "0.4.2"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -288,11 +288,22 @@ class App:
         navbox = ttk.Frame(side, style="Sidebar.TFrame")
         navbox.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         navbox.columnconfigure(0, weight=1)
+        self.nav_bars: dict[str, tk.Frame] = {}
         for i, (key, label) in enumerate(NAV):
-            b = ttk.Button(navbox, text=f"   {label}", style="Nav.TButton",
-                           command=lambda k=key: self.show(k))
-            b.grid(row=i, column=0, sticky="ew", padx=12, pady=2)
+            row = ttk.Frame(navbox, style="Sidebar.TFrame")
+            row.grid(row=i, column=0, sticky="ew", padx=(0, 12), pady=2)
+            row.columnconfigure(1, weight=1)
+            # vạch màu bên trái làm "chìa khoá màu" cho từng mục
+            bar = tk.Frame(row, bg=self.theme.section[key], width=4,
+                           highlightthickness=0, bd=0)
+            bar.grid(row=0, column=0, sticky="ns")
+            b = ttk.Button(row, text=f"  {self.theme.icon.get(key, '')}   {label}",
+                           style="Nav.TButton", command=lambda k=key: self.show(k))
+            b.grid(row=0, column=1, sticky="ew")
             self.nav_buttons[key] = b
+            self.nav_bars[key] = bar
+        self.theme.on_change(lambda c: [self.nav_bars[k].configure(bg=self.theme.section[k])
+                                        for k in self.nav_bars])
 
         foot = ttk.Frame(side, style="Sidebar.TFrame", padding=(16, 16))
         foot.grid(row=3, column=0, sticky="ew")
@@ -313,10 +324,15 @@ class App:
         head = ttk.Frame(body)
         head.grid(row=0, column=0, sticky="ew", pady=(0, 16))
         head.columnconfigure(0, weight=1)
-        self.title_lbl = ttk.Label(head, text="Tổng quan", style="H1.TLabel")
+        self.title_lbl = ttk.Label(head, text="Tổng quan", style="dashboard.Title.TLabel")
         self.title_lbl.grid(row=0, column=0, sticky="w")
         self.subtitle_lbl = ttk.Label(head, text="", style="Dim.TLabel")
         self.subtitle_lbl.grid(row=1, column=0, sticky="w", pady=(4, 0))
+        # gạch màu dưới tiêu đề, đổi màu theo trang đang mở
+        self.head_bar = ttk.Frame(head, style="dashboard.Bar.TFrame", height=3)
+        self.head_bar.grid(row=2, column=0, sticky="w", pady=(10, 0))
+        self.head_bar.configure(width=64)
+        self.head_bar.grid_propagate(False)
 
         self.container = ttk.Frame(body)
         self.container.grid(row=1, column=0, sticky="nsew")
@@ -342,13 +358,14 @@ class App:
         ttk.Label(prog_wrap, textvariable=self.status_var, style="Status.TLabel").grid(
             row=1, column=0, sticky="w", pady=(7, 0))
 
-        self.stop_btn = ttk.Button(bar, text="Dừng", style="Danger.TButton",
+        self.stop_btn = ttk.Button(bar, text="■  Dừng", style="Danger.TButton",
                                    command=self.request_cancel, state="disabled")
         self.stop_btn.grid(row=0, column=1, padx=(0, 10))
-        self.check_btn = ttk.Button(bar, text="KIỂM TRA", style="Secondary.TButton",
+        self.check_btn = ttk.Button(bar, text="✓   KIỂM TRA", style="Secondary.TButton",
                                     command=lambda: self.start(False))
         self.check_btn.grid(row=0, column=2, padx=(0, 10))
-        self.build_btn = ttk.Button(bar, text="TẠO PROJECT", style="Primary.TButton",
+        self.build_btn = ttk.Button(bar, text="★   TẠO PROJECT",
+                                    style="dashboard.Do.TButton",
                                     command=lambda: self.start(True))
         self.build_btn.grid(row=0, column=3)
 
@@ -374,10 +391,13 @@ class App:
         self.current = key
         self.pages[key].tkraise()
         label = dict(NAV)[key]
-        self.title_lbl.configure(text=label)
+        icon = self.theme.icon.get(key, "")
+        self.title_lbl.configure(text=f"{icon}  {label}" if icon else label,
+                                 style=f"{key}.Title.TLabel")
         self.subtitle_lbl.configure(text=self.PAGE_SUBTITLES.get(key, ""))
+        self.head_bar.configure(style=f"{key}.Bar.TFrame")
         for k, btn in self.nav_buttons.items():
-            btn.configure(style="NavActive.TButton" if k == key else "Nav.TButton")
+            btn.configure(style=f"{k}Nav.TButton" if k == key else "Nav.TButton")
 
     def show_settings_tab(self, key: str):
         self.show("settings")
@@ -699,7 +719,8 @@ class App:
             return capcut_export.export(
                 s.draft_name, out,
                 res="" if s.render_res == "source" else str(s.render_res),
-                fps=s.render_fps or s.fps, log=log)
+                fps=s.render_fps or s.fps, log=log, cancel=cancel,
+                restart_capcut=True)
 
         srt = None
         if s.enable_subtitles and s.subtitle_source != "off" and s.render_burn_subs:
@@ -712,6 +733,24 @@ class App:
                         progress=lambda phase, pct, eta: on_prog(pct, eta),
                         cancel=cancel).run()
         return out
+
+    def diagnose_capcut(self):
+        """Liệt kê cửa sổ đang mở để tìm ra vì sao CapCut không tự render."""
+        try:
+            report = capcut_export.diagnose()
+        except Exception as e:
+            report = f"Không chẩn đoán được: {e}"
+        self.log("")
+        self.log("[EXPORT] ───── CHẨN ĐOÁN CAPCUT ─────")
+        for line in report.splitlines():
+            self.log("[EXPORT] " + line)
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(report)
+            extra = "\n\nKết quả đã được chép vào clipboard — dán vào chat để được hỗ trợ."
+        except tk.TclError:
+            extra = ""
+        messagebox.showinfo("Chẩn đoán CapCut", report[:1500] + extra)
 
     # ------------------------------------------------------------------ #
     # cập nhật

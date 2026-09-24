@@ -3,6 +3,8 @@ bóng đổ phụ đề, engine render và bộ cập nhật."""
 from __future__ import annotations
 
 import json
+import os
+import re
 from pathlib import Path
 
 import pytest
@@ -361,6 +363,81 @@ def test_is_writable_detects_a_real_read_only_folder(tmp_path):
         assert not _is_writable(locked)
     finally:
         locked.chmod(stat.S_IRWXU)
+
+
+# --------------------------------------------------------------------------- #
+# xuất qua CapCut — phần chạy được ngoài Windows
+# --------------------------------------------------------------------------- #
+class _FakeWindow:
+    def __init__(self, name="", cls="", pid=1234):
+        self.Name = name
+        self.ClassName = cls
+        self.ProcessId = pid
+
+
+def test_window_state_reads_class_not_title():
+    """Đúng chỗ pycapcut sai: bản quốc tế có tiêu đề 'CapCut', không phải tiếng Trung."""
+    from capcut_draft_studio import capcut_export as ce
+    assert ce._window_state(_FakeWindow("CapCut", "Qt5152HomePageWindow")) == "home"
+    assert ce._window_state(_FakeWindow("CapCut", "Qt5152MainWindow")) == "edit"
+    assert ce._window_state(_FakeWindow("CapCut专业版", "HomePage")) == "home"
+    assert ce._window_state(_FakeWindow("Notepad", "Notepad")) == ""
+
+
+def test_is_capcut_window_accepts_when_process_unknown(monkeypatch):
+    from capcut_draft_studio import capcut_export as ce
+    monkeypatch.setattr(ce, "_process_name", lambda pid: "")
+    assert ce._is_capcut_window(_FakeWindow("CapCut", "HomePageWindow"))
+    monkeypatch.setattr(ce, "_process_name", lambda pid: "chrome.exe")
+    assert not ce._is_capcut_window(_FakeWindow("CapCut", "HomePageWindow"))
+    monkeypatch.setattr(ce, "_process_name", lambda pid: "CapCut.exe")
+    assert ce._is_capcut_window(_FakeWindow("bất kỳ", "MainWindow"))
+
+
+def test_available_explains_itself_off_windows():
+    from capcut_draft_studio import capcut_export as ce
+    ok, why = ce.available()
+    if os.name != "nt":
+        assert not ok and "Windows" in why
+
+
+def test_diagnose_never_raises():
+    from capcut_draft_studio import capcut_export as ce
+    report = ce.diagnose()
+    assert "CapCut.exe" in report and "uiautomation" in report
+
+
+def test_resolution_and_fps_maps():
+    from capcut_draft_studio import capcut_export as ce
+    assert ce.RES_MAP["1080"] == "RES_1080P"
+    assert ce.FPS_MAP[60] == "FR_60"
+
+
+# --------------------------------------------------------------------------- #
+# bảng màu theo ngữ nghĩa
+# --------------------------------------------------------------------------- #
+def test_every_section_mode_and_tile_has_a_colour_in_both_themes():
+    from capcut_draft_studio.ui import theme as th
+    for table in (th.SECTION_COLORS, th.MODE_COLORS, th.TILE_COLORS, th.STATE_COLORS):
+        for key, value in table.items():
+            assert set(value) == {"dark", "light"}, key
+            for variant in value.values():
+                assert re.fullmatch(r"#[0-9a-fA-F]{6}", variant), (key, variant)
+
+
+def test_section_colours_cover_every_nav_page():
+    from capcut_draft_studio.ui import theme as th
+    from capcut_draft_studio.ui.app import NAV
+    for key, _ in NAV:
+        assert key in th.SECTION_COLORS, key
+        assert key in th.SECTION_ICONS, key
+
+
+def test_blend_moves_towards_the_foreground():
+    from capcut_draft_studio.ui.theme import blend
+    assert blend("#ffffff", "#000000", 0.0) == "#000000"
+    assert blend("#ffffff", "#000000", 1.0) == "#ffffff"
+    assert blend("#ffffff", "#000000", 0.5) == "#808080"
 
 
 def test_check_refuses_release_without_checksums(monkeypatch):

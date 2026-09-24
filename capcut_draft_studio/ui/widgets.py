@@ -18,17 +18,31 @@ class Card(ttk.Frame):
     """
 
     def __init__(self, parent, theme: Theme, title: str = "", subtitle: str = "",
-                 padding: int = 18, **kw):
+                 padding: int = 18, accent: str = "", icon: str = "", **kw):
         self.theme = theme
+        self.accent = accent
         self.outer = tk.Frame(parent, bg=theme.c["border_soft"], highlightthickness=0, bd=0)
+        self.bar = None
+        if accent:
+            # vạch màu mỏng trên đầu thẻ — nhìn là biết thẻ thuộc nhóm nào
+            self.bar = tk.Frame(self.outer, bg=self._accent_color(), height=3,
+                                highlightthickness=0, bd=0)
+            self.bar.pack(fill="x", side="top")
         self.container = ttk.Frame(self.outer, style="Surface.TFrame", padding=padding)
-        self.container.pack(fill="both", expand=True, padx=1, pady=1)
-        theme.on_change(lambda c: self.outer.configure(bg=c["border_soft"]))
+        self.container.pack(fill="both", expand=True, padx=1, pady=(0 if accent else 1, 1))
+        theme.on_change(self._on_theme)
 
         if title:
             head = ttk.Frame(self.container, style="Surface.TFrame")
             head.pack(fill="x", pady=(0, 14))
-            ttk.Label(head, text=title, style="H2.TLabel").pack(anchor="w")
+            row = ttk.Frame(head, style="Surface.TFrame")
+            row.pack(fill="x")
+            if icon:
+                self.icon_lbl = ttk.Label(row, text=icon, style="H2.TLabel")
+                self.icon_lbl.pack(side="left", padx=(0, 9))
+                if accent:
+                    self.icon_lbl.configure(foreground=self._accent_color())
+            ttk.Label(row, text=title, style="H2.TLabel").pack(side="left")
             if subtitle:
                 ttk.Label(head, text=subtitle, style="SurfaceDim.TLabel",
                           wraplength=860, justify="left").pack(anchor="w", pady=(4, 0))
@@ -36,6 +50,19 @@ class Card(ttk.Frame):
         super().__init__(self.container, style="Surface.TFrame", **kw)
         super().pack(fill="both", expand=True)
         self.body = self
+
+    def _accent_color(self) -> str:
+        th = self.theme
+        return (th.section.get(self.accent) or th.tile.get(self.accent)
+                or th.mode_color.get(self.accent) or th.c["accent"])
+
+    def _on_theme(self, c):
+        self.outer.configure(bg=c["border_soft"])
+        if self.bar is not None:
+            color = self._accent_color()
+            self.bar.configure(bg=color)
+            if hasattr(self, "icon_lbl"):
+                self.icon_lbl.configure(foreground=color)
 
     def place_in(self, **kw):
         self.outer.pack(**kw)
@@ -126,17 +153,20 @@ class SegmentedTabs(ttk.Frame):
 
 
 class Badge(ttk.Label):
-    """Nhãn viên thuốc nhỏ: ok / warn / err / info / muted."""
+    """Nhãn viên thuốc nhỏ: ok / warn / err / info / muted, hoặc style tự đặt."""
 
     KIND = {"ok": "BadgeOk", "warn": "BadgeWarn", "err": "BadgeErr",
             "info": "BadgeInfo", "muted": "BadgeMuted"}
 
-    def __init__(self, parent, text: str = "", kind: str = "muted", **kw):
-        super().__init__(parent, text=text, style=f"{self.KIND.get(kind, 'BadgeMuted')}.TLabel",
+    def __init__(self, parent, text: str = "", kind: str = "muted",
+                 style_name: str = "", **kw):
+        super().__init__(parent, text=text,
+                         style=style_name or f"{self.KIND.get(kind, 'BadgeMuted')}.TLabel",
                          **kw)
 
-    def set(self, text: str, kind: str = "muted"):
-        self.configure(text=text, style=f"{self.KIND.get(kind, 'BadgeMuted')}.TLabel")
+    def set(self, text: str, kind: str = "muted", style_name: str = ""):
+        self.configure(text=text,
+                       style=style_name or f"{self.KIND.get(kind, 'BadgeMuted')}.TLabel")
 
 
 class PathPicker(ttk.Frame):
@@ -196,16 +226,39 @@ class StatTile(ttk.Frame):
     """Ô số liệu: giá trị lớn + nhãn nhỏ."""
 
     def __init__(self, parent, theme: Theme, label: str, value: str = "—",
-                 accent: bool = False, **kw):
+                 color_key: str = "", icon: str = "", **kw):
         self.theme = theme
+        self.color_key = color_key
         self.outer = tk.Frame(parent, bg=theme.c["border_soft"])
-        super().__init__(self.outer, style="Surface.TFrame", padding=(18, 15), **kw)
-        super().pack(fill="both", expand=True, padx=1, pady=1)
-        theme.on_change(lambda c: self.outer.configure(bg=c["border_soft"]))
-        self.value_lbl = ttk.Label(self, text=value,
-                                   style="StatAccent.TLabel" if accent else "Stat.TLabel")
+        self.bar = tk.Frame(self.outer, bg=self._color(), height=3,
+                            highlightthickness=0, bd=0)
+        self.bar.pack(fill="x", side="top")
+        super().__init__(self.outer, style="Surface.TFrame", padding=(18, 14), **kw)
+        super().pack(fill="both", expand=True, padx=1, pady=(0, 1))
+        theme.on_change(self._on_theme)
+
+        self.value_lbl = ttk.Label(self, text=value, style=self._value_style())
         self.value_lbl.pack(anchor="w")
-        ttk.Label(self, text=label, style="SurfaceDim.TLabel").pack(anchor="w", pady=(3, 0))
+        row = ttk.Frame(self, style="Surface.TFrame")
+        row.pack(anchor="w", fill="x", pady=(3, 0))
+        if icon:
+            self.icon_lbl = ttk.Label(row, text=icon, style="SurfaceDim.TLabel")
+            self.icon_lbl.pack(side="left", padx=(0, 6))
+            self.icon_lbl.configure(foreground=self._color())
+        ttk.Label(row, text=label, style="SurfaceDim.TLabel").pack(side="left")
+
+    def _color(self) -> str:
+        return self.theme.tile.get(self.color_key) or self.theme.c["accent"]
+
+    def _value_style(self) -> str:
+        return f"{self.color_key}.Stat.TLabel" if self.color_key else "Stat.TLabel"
+
+    def _on_theme(self, c):
+        self.outer.configure(bg=c["border_soft"])
+        self.bar.configure(bg=self._color())
+        self.value_lbl.configure(style=self._value_style())
+        if hasattr(self, "icon_lbl"):
+            self.icon_lbl.configure(foreground=self._color())
 
     def set(self, value: str):
         self.value_lbl.configure(text=str(value))

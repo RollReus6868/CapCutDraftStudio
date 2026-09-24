@@ -1,6 +1,6 @@
 [project]
 name = "capcut-draft-studio"
-version = "0.4.1"
+version = "0.4.2"
 description = "Clean-room CapCut draft automation tool with a full desktop GUI"
 requires-python = ">=3.10"
 dependencies = [

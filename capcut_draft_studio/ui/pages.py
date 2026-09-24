@@ -20,7 +20,7 @@ from ..subtitles import excel_columns
 from .widgets import (Badge, Card, LogView, MappedCombobox, PathPicker, ScrollFrame,
                       SegmentedTabs, SliderField, StatTile, field_row, labeled_combo)
 
-MODE_LABEL = {"CUT": "Cắt", "SLOW": "Chậm", "SPEEDUP": "Nhanh", "IMAGE": "Ảnh"}
+MODE_LABEL = {"CUT": "● Cắt", "SLOW": "● Chậm", "SPEEDUP": "● Nhanh", "IMAGE": "● Ảnh"}
 
 SETTING_TABS = [
     ("scenes", "Cảnh quay"),
@@ -89,16 +89,17 @@ def build_dashboard(app):
     for i in range(5):
         stats.columnconfigure(i, weight=1, uniform="stat")
     app.tiles = {}
-    specs = [("audio", "File giọng đọc"), ("visual", "Video / Ảnh"),
-             ("bgm", "Nhạc nền"), ("scenes", "Cảnh hợp lệ"),
-             ("duration", "Tổng thời lượng")]
-    for i, (key, label) in enumerate(specs):
-        tile = StatTile(stats, th, label, "—", accent=(key in ("scenes", "duration")))
+    specs = [("audio", "File giọng đọc", "♪"), ("visual", "Video / Ảnh", "▣"),
+             ("bgm", "Nhạc nền", "♫"), ("scenes", "Cảnh hợp lệ", "✓"),
+             ("duration", "Tổng thời lượng", "◐")]
+    for i, (key, label, icon) in enumerate(specs):
+        tile = StatTile(stats, th, label, "—", color_key=key, icon=icon)
         tile.grid_in(row=0, column=i, sticky="ew", padx=(0 if i == 0 else 10, 0))
         app.tiles[key] = tile
 
     paths = Card(page, th, "Thư mục làm việc",
-                 "Ba đường dẫn bắt buộc. Huy hiệu bên phải cho biết đường dẫn có tồn tại hay không.")
+                 "Ba đường dẫn bắt buộc. Huy hiệu bên phải cho biết đường dẫn có tồn tại hay không.",
+                 accent="dashboard", icon="▦")
     paths.grid_in(row=1, column=0, sticky="ew", pady=(0, 16))
     paths.columnconfigure(0, weight=1)
     paths.columnconfigure(1, weight=1)
@@ -144,7 +145,8 @@ def build_dashboard(app):
     bottom.columnconfigure(1, weight=1)
     bottom.rowconfigure(0, weight=1)
 
-    feat = Card(bottom, th, "Chức năng", "Tắt bớt để dựng nhanh hơn.")
+    feat = Card(bottom, th, "Chức năng", "Tắt bớt để dựng nhanh hơn.",
+                accent="scenes", icon="⚙")
     feat.grid_in(row=0, column=0, sticky="nsew", padx=(0, 16))
     from .app import BOOL_LABELS
     feat.columnconfigure(0, weight=1, uniform="feat")
@@ -168,7 +170,7 @@ def build_dashboard(app):
                command=lambda: _open_folder(Path(app.vars["input_dir"].get()))
                ).grid(row=0, column=2, sticky="ew")
 
-    logcard = Card(bottom, th, padding=16)
+    logcard = Card(bottom, th, padding=16, accent="bgm")
     logcard.grid_in(row=0, column=1, sticky="nsew")
     app.logview = LogView(logcard, th, height=11)
     app.logview.pack(fill="both", expand=True)
@@ -277,7 +279,7 @@ def build_scenes(app, page):
     page.rowconfigure(1, weight=1)
     th = app.theme
 
-    bar = Card(page, th, padding=14)
+    bar = Card(page, th, padding=14, accent="settings")
     bar.grid_in(row=0, column=0, sticky="ew", pady=(0, 12))
     app.scene_filter = tk.StringVar(value="all")
     ttk.Label(bar, text="Lọc:", style="Field.TLabel").pack(side="left", padx=(0, 10))
@@ -289,7 +291,7 @@ def build_scenes(app, page):
                                   style="SurfaceDim.TLabel")
     app.scene_summary.pack(side="right")
 
-    table_card = Card(page, th, padding=1)
+    table_card = Card(page, th, padding=1, accent="settings")
     table_card.grid_in(row=1, column=0, sticky="nsew")
     wrap = ttk.Frame(table_card, style="Surface.TFrame")
     wrap.pack(fill="both", expand=True)
@@ -311,11 +313,16 @@ def build_scenes(app, page):
 
 
 def _configure_scene_tags(app):
-    c = app.theme.c
+    """Mỗi chế độ dựng một màu nền riêng — liếc bảng là thấy ngay tỉ lệ."""
+    th = app.theme
+    c = th.c
     t = app.scene_tree
     t.tag_configure("odd", background=c["row_alt"])
     t.tag_configure("even", background=c["surface"])
-    t.tag_configure("err", background=c["error_soft"], foreground=c["error"])
+    for mode, col in th.mode_color.items():
+        t.tag_configure(f"m{mode}", background=th.soft(col, 0.14), foreground=c["text"])
+    t.tag_configure("mERR", background=th.soft(th.mode_color["ERR"], 0.20),
+                    foreground=th.mode_color["ERR"])
 
 
 def fill_scene_table(app, plan, errors):
@@ -370,13 +377,10 @@ def _apply_scene_filter(app):
     tree = app.scene_tree
     tree.delete(*tree.get_children())
     want = app.scene_filter.get()
-    i = 0
     for row in app.scene_rows:
         if want != "all" and row["mode"] != want:
             continue
-        tag = "err" if row["mode"] == "ERR" else ("odd" if i % 2 else "even")
-        tree.insert("", "end", values=row["values"], tags=(tag,))
-        i += 1
+        tree.insert("", "end", values=row["values"], tags=(f"m{row['mode']}",))
 
 
 # --------------------------------------------------------------------------- #
@@ -578,7 +582,8 @@ def build_subtitle(app, page):
     host.columnconfigure(0, weight=1)
 
     src = Card(host, th, "Nguồn lời thoại",
-               "Tự động = ưu tiên _manifest.json, rồi Excel, rồi Texts/*.txt.")
+               "Tự động = ưu tiên _manifest.json, rồi Excel, rồi Texts/*.txt.",
+               accent="settings", icon="✎")
     src.grid_in(row=0, column=0, sticky="ew", pady=(0, 16))
     src.columnconfigure(1, weight=1)
     labeled_combo(src, th, "Nguồn", app.vars["subtitle_source"], SUB_SOURCE_CHOICES,
@@ -629,7 +634,7 @@ def build_subtitle(app, page):
 
     shadow = Card(host, th, "Bóng đổ chữ",
                   "Mặc định BẬT với độ mờ 90% để chữ luôn tách khỏi nền, "
-                  "áp cho cả draft CapCut lẫn bản render mp4.")
+                  "áp cho cả draft CapCut lẫn bản render mp4.", accent="settings")
     shadow.grid_in(row=2, column=0, sticky="ew")
     shadow.columnconfigure(0, weight=1)
     shadow.columnconfigure(1, weight=1)
@@ -702,7 +707,8 @@ def build_advanced(app, page):
 
     pace = Card(host, th, "Nhịp hội thoại",
                 "Khoảng nghỉ chèn sau mỗi cảnh để các câu thoại không dính liền nhau. "
-                "Hình của cảnh đó được kéo dài để lấp chỗ trống nên không bao giờ đen màn.")
+                "Hình của cảnh đó được kéo dài để lấp chỗ trống nên không bao giờ đen màn.",
+                accent="settings", icon="⚙")
     pace.grid_in(row=0, column=0, sticky="ew", pady=(0, 16))
     pace.columnconfigure(0, weight=1)
     pace.columnconfigure(1, weight=1)
@@ -788,7 +794,7 @@ def _grid_fields(app, card, th, specs, per_row: int = 4):
 # =========================================================================== #
 QUEUE_COLS = [
     ("name", "Project", 170, "w"),
-    ("state", "Trạng thái", 110, "center"),
+    ("state", "Trạng thái", 136, "center"),
     ("pct", "Tiến độ", 80, "center"),
     ("dur", "Thời lượng", 90, "center"),
     ("eta", "Còn lại", 110, "center"),
@@ -805,14 +811,18 @@ def build_render(app):
     # --- cài đặt xuất ---
     opts = Card(page, th, "Cài đặt xuất video",
                 "Engine ffmpeg render thẳng trong tool. Engine CapCut nhờ CapCut tự bấm "
-                "Export — cho ra bản đúng y CapCut nhưng chỉ chạy trên Windows.")
+                "Export — cho ra bản đúng y CapCut nhưng chỉ chạy trên Windows.",
+                accent="render", icon="⚙")
     opts.grid_in(row=0, column=0, sticky="ew", pady=(0, 14))
     for i in range(4):
         opts.columnconfigure(i, weight=1, uniform="ropt")
 
-    labeled_combo(opts, th, "Engine", app.vars["render_engine"], ENGINE_CHOICES,
-                  fallback="ffmpeg", width=34).grid(row=0, column=0, columnspan=2,
-                                                    sticky="ew", padx=(0, 16), pady=(0, 14))
+    engine_cell = ttk.Frame(opts, style="Surface.TFrame")
+    engine_cell.grid(row=0, column=0, columnspan=2, sticky="ew", padx=(0, 16), pady=(0, 14))
+    labeled_combo(engine_cell, th, "Engine", app.vars["render_engine"], ENGINE_CHOICES,
+                  fallback="ffmpeg", width=34).pack(fill="x")
+    ttk.Button(engine_cell, text="⚙   Chẩn đoán CapCut", style="Secondary.TButton",
+               command=app.diagnose_capcut).pack(anchor="w", pady=(9, 0))
     labeled_combo(opts, th, "Độ phân giải", app.vars["render_res"], render.RES_CHOICES,
                   fallback="source").grid(row=0, column=2, sticky="ew", padx=(0, 16),
                                           pady=(0, 14))
@@ -842,7 +852,7 @@ def build_render(app):
                     variable=app.boolvars["render_open_when_done"]).pack(anchor="w")
 
     # --- tiến độ ---
-    prog = Card(page, th, padding=16)
+    prog = Card(page, th, padding=16, accent="render")
     prog.grid_in(row=1, column=0, sticky="ew", pady=(0, 14))
     prog.columnconfigure(0, weight=1)
     head = ttk.Frame(prog, style="Surface.TFrame")
@@ -852,7 +862,7 @@ def build_render(app):
     app.render_job_lbl.pack(side="left")
     app.render_pct_lbl = ttk.Label(head, text="0%", style="H2.TLabel")
     app.render_pct_lbl.pack(side="right")
-    app.render_progress = ttk.Progressbar(prog, style="Thick.Horizontal.TProgressbar",
+    app.render_progress = ttk.Progressbar(prog, style="Render.Horizontal.TProgressbar",
                                           variable=app.render_pct, maximum=100)
     app.render_progress.grid(row=1, column=0, sticky="ew", pady=(10, 8))
     foot = ttk.Frame(prog, style="Surface.TFrame")
@@ -867,25 +877,25 @@ def build_render(app):
     btns.columnconfigure(0, weight=1)
     left = ttk.Frame(btns, style="Surface.TFrame")
     left.grid(row=0, column=0, sticky="w")
-    ttk.Button(left, text="Thêm project hiện tại", style="Secondary.TButton",
+    ttk.Button(left, text="＋ Thêm project", style="Secondary.TButton",
                command=lambda: add_current_to_queue(app)).pack(side="left", padx=(0, 8))
-    ttk.Button(left, text="Thêm nhiều folder…", style="Secondary.TButton",
+    ttk.Button(left, text="＋ Thêm folder…", style="Secondary.TButton",
                command=lambda: _add_folder_batch(app)).pack(side="left", padx=(0, 8))
-    ttk.Button(left, text="Bỏ dòng đang chọn", style="Ghost.TButton",
+    ttk.Button(left, text="Bỏ dòng", style="Ghost.TButton",
                command=lambda: _remove_selected(app)).pack(side="left", padx=(0, 8))
-    ttk.Button(left, text="Xoá hàng đợi", style="Ghost.TButton",
+    ttk.Button(left, text="Xoá hết", style="Ghost.TButton",
                command=lambda: _clear_queue(app)).pack(side="left")
     right = ttk.Frame(btns, style="Surface.TFrame")
     right.grid(row=0, column=1, sticky="e")
     app.render_stop_btn = ttk.Button(right, text="Dừng render", style="Danger.TButton",
                                      command=app.request_cancel, state="disabled")
     app.render_stop_btn.pack(side="left", padx=(0, 10))
-    app.render_btn = ttk.Button(right, text="BẮT ĐẦU RENDER", style="Primary.TButton",
+    app.render_btn = ttk.Button(right, text="▶   BẮT ĐẦU RENDER", style="render.Do.TButton",
                                 command=app.start_render)
     app.render_btn.pack(side="left")
 
     # --- hàng đợi ---
-    qcard = Card(page, th, padding=1)
+    qcard = Card(page, th, padding=1, accent="render")
     qcard.grid_in(row=2, column=0, sticky="nsew")
     wrap = ttk.Frame(qcard, style="Surface.TFrame")
     wrap.pack(fill="both", expand=True)
@@ -906,17 +916,19 @@ def build_render(app):
 
 
 def _configure_queue_tags(app):
-    c = app.theme.c
+    th = app.theme
+    c = th.c
     t = app.queue_tree
-    t.tag_configure("odd", background=c["row_alt"])
-    t.tag_configure("even", background=c["surface"])
-    t.tag_configure("running", background=c["accent_soft"], foreground=c["accent"])
-    t.tag_configure("done", foreground=c["success"])
-    t.tag_configure("error", background=c["error_soft"], foreground=c["error"])
+    for state, col in th.state.items():
+        t.tag_configure(state, background=th.soft(col, 0.12), foreground=c["text"])
+    t.tag_configure("error", background=th.soft(th.state["error"], 0.20),
+                    foreground=th.state["error"])
+    t.tag_configure("done", background=th.soft(th.state["done"], 0.12),
+                    foreground=th.state["done"])
 
 
-QUEUE_STATE = {"pending": "Chờ", "running": "Đang render", "done": "Xong",
-               "error": "Lỗi", "cancelled": "Đã dừng"}
+QUEUE_STATE = {"pending": "○ Chờ", "running": "◐ Đang render", "done": "● Xong",
+               "error": "✕ Lỗi", "cancelled": "■ Đã dừng"}
 
 
 def refresh_queue(app):
@@ -925,9 +937,7 @@ def refresh_queue(app):
     t = app.queue_tree
     t.delete(*t.get_children())
     for i, item in enumerate(app.render_queue):
-        tag = {"running": "running", "done": "done", "error": "error"}.get(
-            item["status"], "odd" if i % 2 else "even")
-        t.insert("", "end", iid=str(i), tags=(tag,), values=(
+        t.insert("", "end", iid=str(i), tags=(item["status"],), values=(
             item["name"],
             QUEUE_STATE.get(item["status"], item["status"]),
             f"{item['percent']:.0f}%",
@@ -1025,7 +1035,7 @@ def build_presets(app):
 
     card = Card(page, th, "Preset kênh",
                 "Mỗi preset lưu toàn bộ đường dẫn, âm lượng, vai trò nhạc/SFX, style phụ đề "
-                "và cài đặt render.")
+                "và cài đặt render.", accent="presets", icon="★")
     card.grid_in(row=0, column=0, sticky="ew", pady=(0, 16))
     card.columnconfigure(0, weight=1)
 
@@ -1048,7 +1058,8 @@ def build_presets(app):
                                 wraplength=880, justify="left")
     app.preset_info.grid(row=1, column=0, sticky="w", pady=(12, 0))
 
-    rec = Card(page, th, "Project gần đây", "Nhấp đúp để nạp lại đường dẫn.")
+    rec = Card(page, th, "Project gần đây", "Nhấp đúp để nạp lại đường dẫn.",
+                accent="presets")
     rec.grid_in(row=1, column=0, sticky="nsew")
     rec.columnconfigure(0, weight=1)
     rec.rowconfigure(1, weight=1)
@@ -1230,8 +1241,16 @@ Engine ffmpeg  — tool tự ghép video, không cần mở CapCut, chạy đư�
                  giống CapCut nhưng hiệu ứng chuyển cảnh và kiểu chữ là
                  bản mô phỏng, không giống 100%.
 Engine CapCut  — nhờ chính CapCut bấm Export nên giống 100%, nhưng CHỈ
-                 chạy trên Windows, phải mở sẵn CapCut ở màn hình danh
-                 sách project và không được đụng chuột trong lúc chạy.
+                 chạy trên Windows và không được đụng chuột trong lúc chạy.
+
+                 Tool tự tìm CapCut.exe, TỰ ĐÓNG CapCut nếu đang mở rồi mở
+                 lại — bắt buộc phải vậy thì CapCut mới thấy draft vừa tạo.
+                 Nếu bạn đang sửa dở project khác trong CapCut thì nhớ lưu
+                 trước khi bấm render.
+
+                 Không chạy được thì bấm "Chẩn đoán CapCut" ở trang Render:
+                 tool liệt kê mọi cửa sổ đang mở và chép vào clipboard để
+                 bạn gửi đi nhờ sửa.
 
 Render hàng loạt: bấm "Thêm nhiều folder…" rồi chọn thư mục CHA chứa
 nhiều folder VIDEO. Mỗi thư mục con có Audio/ sẽ thành một việc trong
@@ -1281,7 +1300,7 @@ def build_guide(app):
     page.columnconfigure(0, weight=1)
     page.rowconfigure(0, weight=1)
     th = app.theme
-    card = Card(page, th, padding=16)
+    card = Card(page, th, padding=16, accent="guide")
     card.grid_in(row=0, column=0, sticky="nsew")
     wrap = ttk.Frame(card, style="Surface.TFrame")
     wrap.pack(fill="both", expand=True)

@@ -15,7 +15,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
 APP_NAME = "CapCut Draft Studio"
 BUNDLE_ID = "com.leo.capcutdraftstudio"
-VERSION = "0.4.1"
+VERSION = "0.4.2"
 
 ROOT = Path(SPECPATH)
 IS_MAC = sys.platform == "darwin"

@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.4.1
+# CapCut Draft Studio 0.4.2
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -109,7 +109,16 @@ Trang **Render video**, chọn một trong hai engine:
 | Engine | Ưu | Nhược |
 |---|---|---|
 | **ffmpeg** (mặc định) | Không cần mở CapCut, chạy hàng loạt, % và thời gian còn lại thật, chạy cả Windows lẫn macOS | Chuyển cảnh và kiểu chữ là bản mô phỏng, không giống CapCut 100% |
-| **CapCut** | File ra đúng y CapCut xuất | Chỉ Windows, phải mở sẵn CapCut ở màn hình danh sách project, không được đụng chuột trong lúc chạy, dễ hỏng khi CapCut đổi giao diện |
+| **CapCut** | File ra đúng y CapCut xuất | Chỉ Windows, không được đụng chuột trong lúc chạy, và tool phải đóng CapCut rồi mở lại để nó thấy draft mới |
+
+Engine CapCut tự tìm `CapCut.exe`, tự đóng và mở lại CapCut, tự chọn project,
+bấm Export và chờ xong. Nhận diện cửa sổ dựa vào **tên lớp cửa sổ + tên tiến
+trình**, không dựa vào tiêu đề — bản `pycapcut` gốc so tiêu đề đúng bằng chuỗi
+tiếng Trung `"CapCut专业版"` nên không bao giờ chạy được với CapCut quốc tế.
+
+Khi không chạy, bấm **Chẩn đoán CapCut** ở trang Render: tool liệt kê CapCut.exe
+tìm thấy ở đâu, tiến trình nào đang chạy và mọi cửa sổ đang mở, rồi chép vào
+clipboard để gửi đi nhờ sửa.
 
 Render hàng loạt: bấm **Thêm nhiều folder…** rồi chọn thư mục **cha** chứa
 nhiều folder VIDEO — mỗi thư mục con có `Audio/` thành một việc trong hàng đợi.
