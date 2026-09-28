@@ -152,6 +152,99 @@ class SegmentedTabs(ttk.Frame):
             self.on_change(key)
 
 
+class GapDialog(tk.Toplevel):
+    """Đặt riêng khoảng nghỉ cho một cảnh. `self.result`:
+
+    None  = bấm Huỷ · ""  = trả về tự động · "join"/"short"/"full"/"long"
+    hoặc một chuỗi số giây.
+    """
+
+    CHOICES = [
+        ("", "Tự động — để tool tự đoán theo lời thoại"),
+        ("join", "Nối liền — không nghỉ, nối thẳng vào cảnh sau"),
+        ("short", "Nghỉ ngắn — một nửa khoảng nghỉ đủ"),
+        ("full", "Nghỉ đủ — đúng bằng cài đặt"),
+        ("long", "Nghỉ dài — nhấn mạnh chuyển ý"),
+        ("custom", "Tự nhập số giây:"),
+    ]
+
+    def __init__(self, parent, theme: Theme, scene: int, current: str = "",
+                 reason: str = ""):
+        super().__init__(parent)
+        self.result: str | None = None
+        self.theme = theme
+        self.title(f"Khoảng nghỉ sau cảnh {scene:04d}")
+        self.configure(bg=theme.c["bg"])
+        self.resizable(False, False)
+        self.transient(parent)
+
+        body = ttk.Frame(self, padding=20)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text=f"Khoảng nghỉ sau cảnh {scene:04d}",
+                  style="H2.TLabel").pack(anchor="w")
+        if reason:
+            ttk.Label(body, text=f"Tool đang chọn: {reason}", style="Dim.TLabel",
+                      wraplength=420, justify="left").pack(anchor="w", pady=(4, 0))
+
+        preset, custom = "", ""
+        if current:
+            if current in ("join", "short", "full", "long"):
+                preset = current
+            else:
+                preset, custom = "custom", current
+        self.choice = tk.StringVar(value=preset)
+        self.custom = tk.StringVar(value=custom or "0.30")
+
+        for value, label in self.CHOICES:
+            row = ttk.Frame(body)
+            row.pack(fill="x", pady=(10 if value == "" else 3, 0))
+            ttk.Radiobutton(row, text=label, variable=self.choice, value=value,
+                            style="Plain.TRadiobutton").pack(side="left")
+            if value == "custom":
+                ttk.Entry(row, textvariable=self.custom, width=7,
+                          justify="center").pack(side="left", padx=(8, 0))
+
+        buttons = ttk.Frame(body)
+        buttons.pack(fill="x", pady=(20, 0))
+        ttk.Button(buttons, text="Huỷ", style="Ghost.TButton",
+                   command=self._cancel).pack(side="right")
+        ttk.Button(buttons, text="Lưu", style="Accent.TButton",
+                   command=self._ok).pack(side="right", padx=(0, 8))
+
+        self.protocol("WM_DELETE_WINDOW", self._cancel)
+        self.bind("<Escape>", lambda e: self._cancel())
+        self.bind("<Return>", lambda e: self._ok())
+        self.update_idletasks()
+        self._centre(parent)
+        try:
+            self.grab_set()
+        except tk.TclError:
+            pass
+
+    def _centre(self, parent):
+        try:
+            x = parent.winfo_rootx() + (parent.winfo_width() - self.winfo_width()) // 2
+            y = parent.winfo_rooty() + (parent.winfo_height() - self.winfo_height()) // 3
+            self.geometry(f"+{max(0, x)}+{max(0, y)}")
+        except tk.TclError:
+            pass
+
+    def _ok(self):
+        value = self.choice.get()
+        if value == "custom":
+            raw = self.custom.get().strip().replace(",", ".")
+            try:
+                value = f"{max(0.0, float(raw)):.2f}"
+            except ValueError:
+                value = ""
+        self.result = value
+        self.destroy()
+
+    def _cancel(self):
+        self.result = None
+        self.destroy()
+
+
 class Badge(ttk.Label):
     """Nhãn viên thuốc nhỏ: ok / warn / err / info / muted, hoặc style tự đặt."""
 

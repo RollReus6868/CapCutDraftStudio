@@ -23,7 +23,7 @@ from .theme import Theme
 from .widgets import LogView
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.4.2"
+APP_VERSION = "0.4.3"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -156,7 +156,8 @@ STR_DEFAULTS = {
     "bgm_intro_vol_high": 1.0, "bgm_intro_vol_low": 0.56, "bgm_intro_high_dur": 12.0,
     "bgm_intro_max_dur": 59.0,
     # --- 0.4.0 ---
-    "scene_gap": 0.4, "video_vol": 1.0,
+    "scene_gap": 0.4, "gap_mode": "smart", "gap_short_mul": 0.5,
+    "gap_long_mul": 1.6, "video_vol": 1.0,
     "sub_shadow_alpha": 0.9, "sub_shadow_distance": 5.0,
     "render_engine": "ffmpeg", "render_res": "source", "render_fps": 0,
     "render_crf": 20, "render_preset": "medium", "render_codec": "h264",
@@ -203,6 +204,7 @@ class App:
         self.last_plan: list = []
         self.last_errors: list[str] = []
         self.render_queue: list[dict] = []
+        self.gap_overrides: dict[str, str] = {}
         self.pages: dict[str, ttk.Frame] = {}
         self.nav_buttons: dict[str, ttk.Button] = {}
         self.current = "dashboard"
@@ -221,6 +223,9 @@ class App:
 
         self.vars = {k: tk.StringVar(value=str(cfg.get(k, v)))
                      for k, v in STR_DEFAULTS.items()}
+        raw_overrides = cfg.get("gap_overrides")
+        if isinstance(raw_overrides, dict):
+            self.gap_overrides = {str(k): str(v) for k, v in raw_overrides.items()}
         self.boolvars = {k: tk.BooleanVar(value=bool(cfg.get(k, True)))
                          for k in BOOL_LABELS}
         self.boolvars.update({k: tk.BooleanVar(value=bool(cfg.get(k, d)))
@@ -446,9 +451,12 @@ class App:
             for r in self.music_rows
         }
         data["_sfx_roles"] = {r["name"]: r["role"].get() for r in self.sfx_rows}
+        data["gap_overrides"] = dict(self.gap_overrides)
         return data
 
     def apply_values(self, data: dict):
+        if isinstance(data.get("gap_overrides"), dict):
+            self.gap_overrides = {str(k): str(v) for k, v in data["gap_overrides"].items()}
         for k, v in data.items():
             if k in self.vars:
                 self.vars[k].set("" if v is None else str(v))
@@ -513,6 +521,9 @@ class App:
             logo_scale=self._num(d, "logo_scale"),
             # --- 0.4.0 ---
             scene_gap=max(0.0, self._num(d, "scene_gap", float, 0.0)),
+            gap_mode=str(d.get("gap_mode", "smart")),
+            gap_short_mul=self._num(d, "gap_short_mul", float, 0.5),
+            gap_long_mul=self._num(d, "gap_long_mul", float, 1.6),
             video_vol=max(0.0, self._num(d, "video_vol", float, 1.0)),
             sub_shadow=bool(d.get("sub_shadow", True)),
             sub_shadow_alpha=self._num(d, "sub_shadow_alpha", float, 0.9),
@@ -531,6 +542,8 @@ class App:
             kw[k] = bool(d.get(k, True))
         kw["music_roles"] = dict(d.get("_music_roles") or {})
         kw["sfx_roles"] = dict(d.get("_sfx_roles") or {})
+        kw["gap_overrides"] = {str(k): str(v)
+                               for k, v in (d.get("gap_overrides") or {}).items()}
         out_dir = str(d.get("render_out_dir", "") or "").strip()
         kw["render_out_dir"] = Path(out_dir) if out_dir else None
 
@@ -545,6 +558,7 @@ class App:
     def persist(self):
         data = {k: self.vars[k].get() for k in PERSIST_KEYS}
         data.update({k: v.get() for k, v in self.boolvars.items()})
+        data["gap_overrides"] = dict(self.gap_overrides)
         data["theme"] = self.theme.c["name"]
         save_json(CONFIG, data)
 

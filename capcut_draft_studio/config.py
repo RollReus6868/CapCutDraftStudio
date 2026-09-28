@@ -16,7 +16,8 @@ DEFAULT_CHANNEL_KEYS = {
     "enable_subtitles", "enable_logo", "enable_claim", "enable_bgm", "enable_impact",
     "enable_voice", "enable_transition", "enable_slow", "enable_cut", "register_root_meta",
     # --- thêm từ 0.4.0 ---
-    "scene_gap", "video_vol",
+    "scene_gap", "gap_mode", "gap_short_mul", "gap_long_mul", "gap_overrides",
+    "video_vol",
     "sub_shadow", "sub_shadow_alpha", "sub_shadow_angle", "sub_shadow_distance",
     "sub_shadow_smoothing", "sub_shadow_color",
     "render_engine", "render_res", "render_fps", "render_crf", "render_preset",

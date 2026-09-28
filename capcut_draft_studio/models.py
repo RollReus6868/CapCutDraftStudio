@@ -49,6 +49,12 @@ class Settings:
     # Hình của cảnh đó được kéo dài để lấp khoảng lặng (không bao giờ đen màn).
     # Đặt 0.0 để quay lại đúng hành vi các bản trước 0.4.0.
     scene_gap: float = 0.4
+    # "smart" = tự đoán theo lời thoại (xem gaps.py); "fixed" = nghỉ đều nhau
+    gap_mode: str = "smart"
+    gap_short_mul: float = 0.5
+    gap_long_mul: float = 1.6
+    #: {"số cảnh": "join|short|full|long|<số giây>"} — người dùng đặt riêng
+    gap_overrides: dict[str, str] = field(default_factory=dict)
     video_vol: float = 1.0
     image_anim: str = "variety"
     # --- bóng đổ phụ đề (mặc định bật, độ mờ 90%) ---
@@ -120,6 +126,10 @@ class ScenePlan:
     start: float = 0.0
     gap: float = 0.0
     """Khoảng lặng sau giọng đọc của cảnh này (cảnh cuối luôn bằng 0)."""
+    gap_level: str = "full"
+    """join | short | full | long | manual — xem gaps.py."""
+    gap_reason: str = ""
+    """Vì sao chọn mức đó, để hiện trong bảng Cảnh quay."""
 
     @property
     def slot_duration(self) -> float:

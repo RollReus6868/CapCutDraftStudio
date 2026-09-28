@@ -96,8 +96,10 @@ def _excel_texts(path: Path, script_col: str, scene_col: str="", sheet_name: str
         out[n]=txt; auto+=1
     wb.close(); return out
 
-def load_scene_texts(s: Settings, plan: list[ScenePlan], log: LogFn=print) -> dict[int,str]:
-    src=s.subtitle_source.lower(); nums={p.number for p in plan}; out={}
+def load_scene_texts(s: Settings, plan, log: LogFn=print) -> dict[int,str]:
+    """`plan` nhận list[ScenePlan] hoặc thẳng list số cảnh."""
+    src=s.subtitle_source.lower()
+    nums={p if isinstance(p,int) else p.number for p in plan}; out={}
     if src=="off": return {}
     if src in ("manifest","auto"):
         candidates=[s.input_dir/"_manifest.json", s.input_dir.parent/"_manifest.json"]

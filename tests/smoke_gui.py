@@ -45,14 +45,22 @@ def main() -> int:
     from capcut_draft_studio.models import ScenePlan
     demo = []
     cursor = 0.0
-    for i, (mode, dur, speed) in enumerate([
-            ("CUT", 4.2, 1.0), ("IMAGE", 3.1, 1.0), ("SLOW", 5.0, 0.82),
-            ("CUT", 2.8, 1.0), ("SPEEDUP", 3.6, 1.35), ("IMAGE", 4.4, 1.0),
-            ("CUT", 3.3, 1.0), ("SLOW", 2.9, 0.77)], start=1):
+    rows = [
+        ("CUT", 4.2, 1.0, "join", 0.0, "câu chưa kết thúc (kết thúc bằng “,”)"),
+        ("IMAGE", 3.1, 1.0, "short", 0.2, "cảnh sau nối ý bằng “sau đó”"),
+        ("SLOW", 5.0, 0.82, "full", 0.4, "hết câu, sang ý khác"),
+        ("CUT", 2.8, 1.0, "long", 0.64, "lời thoại bỏ lửng"),
+        ("SPEEDUP", 3.6, 1.35, "join", 0.0, "cảnh sau bắt đầu bằng chữ thường"),
+        ("IMAGE", 4.4, 1.0, "manual", 0.75, "bạn đặt riêng 0.75s"),
+        ("CUT", 3.3, 1.0, "full", 0.4, "hết câu, sang ý khác"),
+        ("SLOW", 2.9, 0.77, "full", 0.0, ""),
+    ]
+    for i, (mode, dur, speed, level, gap, reason) in enumerate(rows, start=1):
         demo.append(ScenePlan(i, _P(f"{i}.mp3"), dur, mode, _P(f"{i}.mp4"),
                               video_duration=dur * speed, speed=speed,
-                              start=cursor, gap=0.4))
-        cursor += dur + 0.4
+                              start=cursor, gap=gap, gap_level=level,
+                              gap_reason=reason))
+        cursor += dur + gap
     pages.fill_scene_table(app, demo, ["0009: thiếu cả video lẫn ảnh",
                                        "0010: video lỗi và không có ảnh fallback"])
     pages.update_plan_stats(app, demo, ["x", "y"])

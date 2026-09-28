@@ -1,7 +1,9 @@
 from __future__ import annotations
 import json, re, shutil, subprocess, sys, wave, os
 from pathlib import Path
+from . import gaps
 from .models import AUDIO_EXTS, VIDEO_EXTS, IMAGE_EXTS, SFX_EXTS, Assets, Settings, ScenePlan, LogFn
+from .subtitles import load_scene_texts
 
 class BuildError(RuntimeError): pass
 
@@ -133,9 +135,31 @@ def validate(s: Settings, a: Assets, log: LogFn = print, progress=None, cancel=N
     plan=[]; cursor=0.0; errors=[]
     nums=sorted(a.audios)
     gap=max(0.0,float(getattr(s,"scene_gap",0.0) or 0.0))
+    # KHÔNG đặt tên là `mode`: trong vòng lặp `mode` là chế độ cảnh (CUT/SLOW/…)
+    gap_mode=str(getattr(s,"gap_mode","fixed") or "fixed").lower()
+    muls={gaps.SHORT: float(getattr(s,"gap_short_mul",0.5)),
+          gaps.LONG: float(getattr(s,"gap_long_mul",1.6))}
+    overrides={str(k):v for k,v in (getattr(s,"gap_overrides",None) or {}).items()}
+    texts: dict[int,str] = {}
     log(f"[VALIDATE] Kiểm tra {len(nums)} audio...")
-    if gap>0:
-        log(f"[VALIDATE] Khoảng nghỉ giữa các cảnh: {gap:.2f}s (hình cảnh trước được kéo dài để lấp)")
+    if gap>0 and gap_mode=="smart":
+        # Lời thoại là căn cứ duy nhất để biết hai cảnh có nối nhau hay không.
+        try:
+            texts=load_scene_texts(s,nums,lambda m: None)
+        except Exception as e:
+            log(f"[WARN] Không đọc được lời thoại ({e}) → chia khoảng nghỉ đều nhau.")
+            texts={}
+        if not texts:
+            log("[WARN] Không có lời thoại nên không đoán được chỗ nối câu "
+                "→ mọi cảnh nghỉ đều nhau.")
+            gap_mode="fixed"
+        else:
+            log(f"[VALIDATE] Khoảng nghỉ thông minh: đọc được lời thoại của {len(texts)} cảnh, "
+                f"nghỉ đủ {gap:.2f}s")
+    elif gap>0:
+        log(f"[VALIDATE] Khoảng nghỉ cố định giữa các cảnh: {gap:.2f}s "
+            "(hình cảnh trước được kéo dài để lấp)")
+    level_counts: dict[str,int] = {}
     for i,n in enumerate(nums,1):
         _check(cancel)
         progress("validate", i-1, len(nums))
@@ -144,7 +168,13 @@ def validate(s: Settings, a: Assets, log: LogFn = print, progress=None, cancel=N
         except Exception as e:
             errors.append(f"{n:04d}: audio lỗi ({e})"); continue
         # Cảnh cuối không cần khoảng nghỉ — video sẽ kết thúc ngay sau giọng đọc.
-        g=0.0 if i==len(nums) else gap
+        if i==len(nums) or gap<=0:
+            g, level, reason = 0.0, gaps.FULL, ""
+        else:
+            g, level, reason = gaps.plan_gap(
+                texts.get(n,""), texts.get(nums[i],""), gap,
+                mode=gap_mode, multipliers=muls, override=overrides.get(str(n)))
+            level_counts[level]=level_counts.get(level,0)+1
         slot=ad+g            # độ dài HÌNH của cảnh này
         gap_note=f" + nghỉ {g:.2f}s" if g>0 else ""
         visual_num=int(s.hook_overrides.get(str(n), n))
@@ -180,7 +210,7 @@ def validate(s: Settings, a: Assets, log: LogFn = print, progress=None, cancel=N
             mode="IMAGE"; visual=ip
         else:
             errors.append(f"{n:04d}: thiếu cả video lẫn ảnh"); continue
-        plan.append(ScenePlan(n,ap,ad,mode,visual,vdur,speed,cursor,g))
+        plan.append(ScenePlan(n,ap,ad,mode,visual,vdur,speed,cursor,g,level,reason))
         cursor += slot
         if i%20==0: log(f"[VALIDATE] ... {i}/{len(nums)}")
     progress("validate", len(nums), len(nums))
@@ -189,6 +219,10 @@ def validate(s: Settings, a: Assets, log: LogFn = print, progress=None, cancel=N
         raise BuildError(f"{len(errors)} scene thiếu/lỗi asset")
     counts={m:sum(p.mode==m for p in plan) for m in ("CUT","SLOW","SPEEDUP","IMAGE")}
     log(f"[VALIDATE] OK — CUT {counts['CUT']} | SLOW {counts['SLOW']} | SPEEDUP {counts['SPEEDUP']} | IMAGE {counts['IMAGE']}")
+    if level_counts:
+        detail=" | ".join(f"{gaps.LEVEL_LABELS.get(k,k)} {v}"
+                          for k,v in sorted(level_counts.items(), key=lambda kv:-kv[1]))
+        log(f"[PLAN] Khoảng nghỉ: {detail}")
     log(f"[PLAN] Tổng thời lượng: {cursor/60:.1f} phút ({cursor:.1f}s)")
     if collect_errors:
         for e in errors: log("[FAIL] "+e)

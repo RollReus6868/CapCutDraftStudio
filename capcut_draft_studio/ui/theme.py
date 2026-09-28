@@ -497,9 +497,10 @@ class Theme:
                   indicatorcolor=[("selected", c["accent"]), ("!selected", c["entry_bg"])],
                   bordercolor=[("!selected", c["border"]), ("selected", c["accent"])],
                   lightcolor=[("selected", c["accent"])], darkcolor=[("selected", c["accent"])])
-        s.configure("Plain.TCheckbutton", background=c["bg"], foreground=c["text"],
-                    focuscolor=c["bg"])
-        s.map("Plain.TCheckbutton", background=[("active", c["bg"])])
+        for plain in ("Plain.TCheckbutton", "Plain.TRadiobutton"):
+            s.configure(plain, background=c["bg"], foreground=c["text"],
+                        focuscolor=c["bg"])
+            s.map(plain, background=[("active", c["bg"])])
         s.configure("Alt.TCheckbutton", background=c["surface_alt"], foreground=c["text"],
                     focuscolor=c["surface_alt"])
         s.map("Alt.TCheckbutton", background=[("active", c["surface_alt"])])

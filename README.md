@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.4.2
+# CapCut Draft Studio 0.4.3
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -76,19 +76,33 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
 
 ## Mới ở 0.4.0
 
-### Khoảng nghỉ giữa các cảnh
+### Khoảng nghỉ thông minh giữa các cảnh
 
-*Cài đặt → Nâng cao → Nhịp hội thoại*. Mặc định **0.40 giây**.
+*Cài đặt → Nâng cao → Nhịp hội thoại*. Mặc định **thông minh, nghỉ đủ 0.40 giây**.
 
-Trước đây các file audio nối liền nhau làm lời thoại nghe như máy đọc. Giờ sau
-mỗi cảnh có một quãng lặng, và **hình của cảnh đó được kéo dài để lấp chỗ
-trống** nên không bao giờ bị đen màn.
+Sau mỗi cảnh có một quãng lặng để lời thoại không nghe như máy đọc, và **hình
+của cảnh đó được kéo dài để lấp chỗ trống** nên không bao giờ bị đen màn.
 
-Đặt về `0.00` là quay lại đúng cách dựng của các bản trước.
+Chèn cùng một khoảng nghỉ sau mọi cảnh lại tách rời hai câu vốn nối nhau. Nên
+từ 0.4.3 tool **đọc lời thoại của từng cảnh** rồi tự chọn một trong bốn mức:
+
+| Mức | Hệ số | Khi nào |
+|---|---|---|
+| **Nối liền** | 0 | Câu chưa kết thúc — hết bằng `,` `;` `:` `-`, không có dấu chấm câu, hoặc cảnh sau mở đầu bằng chữ thường |
+| **Nghỉ ngắn** | ×0.5 | Hết câu nhưng cảnh sau nối ý bằng từ nối: *và, rồi, nhưng, nên, sau đó, tiếp theo, tuy nhiên, vì vậy…* |
+| **Nghỉ đủ** | ×1 | Hết câu, sang ý khác |
+| **Nghỉ dài** | ×1.6 | Lời thoại bỏ lửng (`…`) hoặc cảnh sau mở sang phần mới (*Chương, Phần, Tóm lại, Kết luận*) |
+
+Muốn đổi riêng một cảnh: tab **Cảnh quay**, **nhấp đúp** vào dòng đó rồi chọn
+mức hoặc tự nhập số giây. Lựa chọn lưu theo kênh; cột **Nghỉ** có dấu ✎ ở những
+cảnh bạn đã đặt tay, và cột **Ghi chú** nói rõ vì sao tool chọn mức đó.
+
+Chế độ thông minh cần lời thoại trong `Texts/`, `_manifest.json` hoặc Excel —
+không có thì tool tự quay về nghỉ đều nhau và báo ở nhật ký. Chọn *Cố định* để
+giữ nguyên cách cũ; đặt nghỉ đủ về `0.00` là nối liền hết như trước 0.4.0.
 
 Lưu ý: khoảng nghỉ làm mỗi ô thời gian dài thêm, nên một video vốn vừa khít có
-thể phải làm chậm hơn, hoặc rơi sang dùng ảnh. Cột **Nghỉ** trong bảng *Cảnh
-quay* cho biết từng cảnh nghỉ bao lâu.
+thể phải làm chậm hơn, hoặc rơi sang dùng ảnh.
 
 ### Âm lượng tiếng gốc của video
 

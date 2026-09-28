@@ -366,6 +366,135 @@ def test_is_writable_detects_a_real_read_only_folder(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
+# khoảng nghỉ thông minh
+# --------------------------------------------------------------------------- #
+def test_unfinished_sentence_joins():
+    from capcut_draft_studio import gaps
+    assert gaps.classify("Hôm đó trời mưa rất to,", "nước ngập cả đường.")[0] == gaps.JOIN
+    assert gaps.classify("Cô ấy không nói gì thêm", "chỉ lặng lẽ quay đi.")[0] == gaps.JOIN
+    assert gaps.classify("Anh mở cửa:", "Bên ngoài trời đã tối.")[0] == gaps.JOIN
+
+
+def test_lowercase_next_scene_joins():
+    from capcut_draft_studio import gaps
+    # câu trước có dấu chấm nhưng câu sau viết thường -> vẫn là một mạch
+    assert gaps.classify("Anh ấy bước ra.", "rồi đóng cửa lại.")[0] == gaps.JOIN
+
+
+def test_connector_gives_short_gap():
+    from capcut_draft_studio import gaps
+    for nxt in ("Rồi anh nhìn quanh.", "Sau đó anh gọi cảnh sát.",
+                "Tuy nhiên không ai trả lời.", "Kết quả là mọi người bỏ đi."):
+        level, reason = gaps.classify("Anh ấy mở cửa bước ra.", nxt)
+        assert level == gaps.SHORT, (nxt, level, reason)
+
+
+def test_plain_sentence_boundary_is_full():
+    from capcut_draft_studio import gaps
+    assert gaps.classify("Hôm đó trời mưa rất to.", "Nước ngập cả đường.")[0] == gaps.FULL
+    assert gaps.classify("Bạn nghĩ sao?", "Hãy để lại bình luận.")[0] == gaps.FULL
+
+
+def test_trailing_off_and_new_part_are_long():
+    from capcut_draft_studio import gaps
+    assert gaps.classify("Tưởng đã kết thúc…", "Nhưng ba ngày sau…")[0] == gaps.LONG
+    assert gaps.classify("Đó là toàn bộ câu chuyện.", "Phần hai kể về người em.")[0] == gaps.LONG
+
+
+def test_seconds_scale_from_the_base_gap():
+    from capcut_draft_studio import gaps
+    assert gaps.seconds(gaps.JOIN, 0.4) == pytest.approx(0.0)
+    assert gaps.seconds(gaps.SHORT, 0.4) == pytest.approx(0.2)
+    assert gaps.seconds(gaps.FULL, 0.4) == pytest.approx(0.4)
+    assert gaps.seconds(gaps.LONG, 0.4) == pytest.approx(0.64)
+    assert gaps.seconds(gaps.SHORT, 0.4, {"short": 0.25}) == pytest.approx(0.1)
+
+
+def test_parse_override():
+    from capcut_draft_studio import gaps
+    assert gaps.parse_override("") == ("", None)
+    assert gaps.parse_override("auto") == ("", None)
+    assert gaps.parse_override("join") == ("join", None)
+    assert gaps.parse_override("0,75") == ("", 0.75)
+    assert gaps.parse_override("linh tinh") == ("", None)
+
+
+def test_plan_gap_override_beats_detection():
+    from capcut_draft_studio import gaps
+    secs, level, _ = gaps.plan_gap("Câu chưa xong,", "nối tiếp.", 0.4, override="long")
+    assert level == gaps.LONG and secs == pytest.approx(0.64)
+    secs, level, _ = gaps.plan_gap("Hết câu.", "Câu mới.", 0.4, override="1.25")
+    assert level == "manual" and secs == pytest.approx(1.25)
+
+
+def test_fixed_mode_ignores_the_text():
+    from capcut_draft_studio import gaps
+    secs, level, _ = gaps.plan_gap("Câu chưa xong,", "nối tiếp.", 0.4, mode="fixed")
+    assert secs == pytest.approx(0.4) and level == gaps.FULL
+
+
+def _write_texts(root: Path, texts: dict[int, str]) -> None:
+    folder = root / "in" / "Texts"
+    folder.mkdir(parents=True, exist_ok=True)
+    for number, body in texts.items():
+        (folder / f"{number}.txt").write_text(body, encoding="utf-8")
+
+
+def test_validate_gives_each_scene_its_own_gap(tmp_path, monkeypatch):
+    patch_durations(monkeypatch, {"1.mp3": 2.0, "2.mp3": 2.0, "3.mp3": 2.0, "4.mp3": 2.0})
+    _write_texts(tmp_path, {
+        1: "Hôm đó trời mưa rất to,",          # -> nối liền
+        2: "nước ngập cả con đường.",          # -> nghỉ ngắn (câu sau có 'Sau đó')
+        3: "Sau đó mọi người phải đi bộ.",     # -> nghỉ đủ
+        4: "Câu cuối cùng của video.",
+    })
+    s = make_settings(tmp_path, scene_gap=0.4, gap_mode="smart")
+    a = assets_with({n: Path(f"{n}.mp3") for n in (1, 2, 3, 4)},
+                    images={n: Path(f"{n}.jpg") for n in (1, 2, 3, 4)})
+    plan = media.validate(s, a, log=lambda m: None)
+    assert [p.gap_level for p in plan] == ["join", "short", "full", "full"]
+    assert [round(p.gap, 2) for p in plan] == [0.0, 0.2, 0.4, 0.0]
+    assert all(p.gap_reason for p in plan[:3])
+
+
+def test_validate_falls_back_to_fixed_without_texts(tmp_path, monkeypatch):
+    patch_durations(monkeypatch, {"1.mp3": 2.0, "2.mp3": 2.0})
+    s = make_settings(tmp_path, scene_gap=0.4, gap_mode="smart")
+    a = assets_with({1: Path("1.mp3"), 2: Path("2.mp3")},
+                    images={1: Path("1.jpg"), 2: Path("2.jpg")})
+    warnings = []
+    plan = media.validate(s, a, log=warnings.append)
+    assert [round(p.gap, 2) for p in plan] == [0.4, 0.0]
+    assert any("không đoán được" in w for w in warnings)
+
+
+def test_validate_honours_manual_override(tmp_path, monkeypatch):
+    patch_durations(monkeypatch, {"1.mp3": 2.0, "2.mp3": 2.0, "3.mp3": 2.0})
+    _write_texts(tmp_path, {1: "Câu một.", 2: "Câu hai.", 3: "Câu ba."})
+    s = make_settings(tmp_path, scene_gap=0.4, gap_mode="smart",
+                      gap_overrides={"1": "join", "2": "0.9"})
+    a = assets_with({n: Path(f"{n}.mp3") for n in (1, 2, 3)},
+                    images={n: Path(f"{n}.jpg") for n in (1, 2, 3)})
+    plan = media.validate(s, a, log=lambda m: None)
+    assert [round(p.gap, 2) for p in plan] == [0.0, 0.9, 0.0]
+    assert plan[0].gap_level == "join" and plan[1].gap_level == "manual"
+
+
+def test_smart_gap_changes_total_duration_vs_fixed(tmp_path, monkeypatch):
+    """Nối liền làm video ngắn lại — đây chính là điều người dùng muốn."""
+    patch_durations(monkeypatch, {"1.mp3": 2.0, "2.mp3": 2.0, "3.mp3": 2.0})
+    _write_texts(tmp_path, {1: "Một câu dài chưa hết,", 2: "nối tiếp luôn.", 3: "Hết."})
+    a = assets_with({n: Path(f"{n}.mp3") for n in (1, 2, 3)},
+                    images={n: Path(f"{n}.jpg") for n in (1, 2, 3)})
+    fixed = media.validate(make_settings(tmp_path, scene_gap=0.4, gap_mode="fixed"),
+                           a, log=lambda m: None)
+    smart = media.validate(make_settings(tmp_path, scene_gap=0.4, gap_mode="smart"),
+                           a, log=lambda m: None)
+    assert fixed[-1].end == pytest.approx(6.8)
+    assert smart[-1].end == pytest.approx(6.4)
+
+
+# --------------------------------------------------------------------------- #
 # xuất qua CapCut — phần chạy được ngoài Windows
 # --------------------------------------------------------------------------- #
 class _FakeWindow:

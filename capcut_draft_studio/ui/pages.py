@@ -13,12 +13,13 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from .. import animations, render
+from .. import animations, gaps, render
 from ..media import harvest_sfx_from_capcut, list_bgm_files, list_sfx_items
 from ..styles import harvest_sub_styles, list_sub_styles
 from ..subtitles import excel_columns
-from .widgets import (Badge, Card, LogView, MappedCombobox, PathPicker, ScrollFrame,
-                      SegmentedTabs, SliderField, StatTile, field_row, labeled_combo)
+from .widgets import (Badge, Card, GapDialog, LogView, MappedCombobox, PathPicker,
+                      ScrollFrame, SegmentedTabs, SliderField, StatTile, field_row,
+                      labeled_combo)
 
 MODE_LABEL = {"CUT": "● Cắt", "SLOW": "● Chậm", "SPEEDUP": "● Nhanh", "IMAGE": "● Ảnh"}
 
@@ -41,6 +42,11 @@ SUB_SOURCE_CHOICES = (
 ENGINE_CHOICES = (
     ("ffmpeg", "ffmpeg — tool tự render (khuyến nghị)"),
     ("capcut", "CapCut — nhờ CapCut tự export (chỉ Windows)"),
+)
+
+GAP_MODE_CHOICES = (
+    ("smart", "Thông minh — đọc lời thoại để biết chỗ nối câu"),
+    ("fixed", "Cố định — mọi cảnh nghỉ như nhau"),
 )
 
 HW_CHOICES = (
@@ -266,7 +272,7 @@ SCENE_COLS = [
     ("mode", "Chế độ", 76, "center"),
     ("audio", "Giọng đọc", 140, "w"),
     ("dur", "Dài", 62, "center"),
-    ("gap", "Nghỉ", 60, "center"),
+    ("gap", "Nghỉ", 104, "center"),
     ("visual", "Hình ảnh / video", 150, "w"),
     ("speed", "Tốc độ", 68, "center"),
     ("start", "Bắt đầu", 70, "center"),
@@ -306,6 +312,7 @@ def build_scenes(app, page):
     tree.configure(yscrollcommand=vsb.set)
     tree.pack(side="left", fill="both", expand=True)
     vsb.pack(side="right", fill="y")
+    tree.bind("<Double-1>", lambda e: _edit_gap(app))
     app.scene_tree = tree
     _configure_scene_tags(app)
     th.on_change(lambda c: _configure_scene_tags(app))
@@ -335,7 +342,7 @@ def fill_scene_table(app, plan, errors):
                 MODE_LABEL.get(p.mode, p.mode),
                 p.audio_path.name,
                 _fmt_dur(p.audio_duration),
-                f"{p.gap:.2f}s" if p.gap else "—",
+                _gap_cell(p),
                 p.visual_path.name,
                 f"{p.speed:.2f}×" if p.mode in ("SLOW", "SPEEDUP") else "1.00×",
                 _fmt_dur(p.start),
@@ -362,8 +369,22 @@ def fill_scene_table(app, plan, errors):
         style="Err.TLabel" if counts["ERR"] else "SurfaceDim.TLabel")
 
 
+def _gap_cell(p) -> str:
+    """Ô cột Nghỉ: vừa số giây vừa tên mức, có dấu ✎ nếu do người dùng đặt."""
+    level = getattr(p, "gap_level", "full")
+    mark = " ✎" if level == "manual" else ""
+    if not p.gap:
+        return ("nối liền" + mark) if level in ("join", "manual") else "—"
+    label = gaps.LEVEL_LABELS.get(level, "")
+    short = {"Nghỉ ngắn": "ngắn", "Nghỉ dài": "dài", "Nghỉ đủ": ""}.get(label, "")
+    return f"{p.gap:.2f}s {short}".strip() + mark
+
+
 def _scene_note(p) -> str:
-    extra = f" (đã tính {p.gap:.2f}s nghỉ)" if p.gap else ""
+    reason = getattr(p, "gap_reason", "")
+    extra = f" · nghỉ {p.gap:.2f}s" if p.gap else ""
+    if reason:
+        extra += f" ({reason})"
     if p.mode == "SLOW":
         return f"Video {p.video_duration:.1f}s ngắn hơn giọng đọc → làm chậm{extra}"
     if p.mode == "SPEEDUP":
@@ -371,6 +392,38 @@ def _scene_note(p) -> str:
     if p.mode == "IMAGE":
         return f"Ảnh tĩnh + hiệu ứng Ken Burns{extra}"
     return f"Cắt video theo độ dài giọng đọc{extra}"
+
+
+def _edit_gap(app):
+    """Nhấp đúp một dòng để đặt riêng khoảng nghỉ sau cảnh đó."""
+    selection = app.scene_tree.selection()
+    if not selection:
+        return
+    values = app.scene_tree.item(selection[0], "values")
+    raw = str(values[0]).strip().lstrip("0") or "0"
+    if not raw.isdigit():
+        messagebox.showinfo("Cảnh lỗi", "Dòng này là cảnh lỗi, chưa có khoảng nghỉ để chỉnh.")
+        return
+    number = int(raw)
+    scene = next((p for p in app.last_plan if p.number == number), None)
+    if scene is not None and scene is app.last_plan[-1]:
+        messagebox.showinfo("Cảnh cuối", "Cảnh cuối không có khoảng nghỉ phía sau.")
+        return
+    dialog = GapDialog(app.root, app.theme, number,
+                       current=app.gap_overrides.get(str(number), ""),
+                       reason=getattr(scene, "gap_reason", ""))
+    app.root.wait_window(dialog)
+    if dialog.result is None:
+        return
+    if dialog.result:
+        app.gap_overrides[str(number)] = dialog.result
+        app.log(f"[PLAN] Cảnh {number:04d}: đặt riêng khoảng nghỉ = {dialog.result}")
+    else:
+        app.gap_overrides.pop(str(number), None)
+        app.log(f"[PLAN] Cảnh {number:04d}: trả khoảng nghỉ về tự động")
+    app.persist()
+    if not app.running:
+        app.start(False)          # tính lại cả bảng vì mốc thời gian dịch theo
 
 
 def _apply_scene_filter(app):
@@ -712,14 +765,35 @@ def build_advanced(app, page):
     pace.grid_in(row=0, column=0, sticky="ew", pady=(0, 16))
     pace.columnconfigure(0, weight=1)
     pace.columnconfigure(1, weight=1)
-    SliderField(pace, th, "Khoảng nghỉ giữa các cảnh", app.vars["scene_gap"],
-                from_=0.0, to=2.0, step=0.05, decimals=2, unit="giây",
-                hint="0.00 = nối liền như các bản trước · 0.40 là mặc định.").grid(
-        row=0, column=0, sticky="ew", padx=(0, 16))
+    labeled_combo(pace, th, "Cách chia khoảng nghỉ", app.vars["gap_mode"],
+                  GAP_MODE_CHOICES, fallback="smart", width=42,
+                  hint="Chế độ thông minh cần có lời thoại trong Texts/, "
+                       "_manifest.json hoặc Excel.").grid(
+        row=0, column=0, sticky="ew", padx=(0, 16), pady=(0, 14))
     SliderField(pace, th, "Âm lượng tiếng gốc của video", app.vars["video_vol"],
                 from_=0.0, to=2.0, step=0.05, decimals=2, unit="hệ số",
                 hint="0.00 = tắt tiếng video · 1.00 = giữ nguyên như bản gốc.").grid(
+        row=0, column=1, sticky="ew", pady=(0, 14))
+    SliderField(pace, th, "Nghỉ đủ", app.vars["scene_gap"],
+                from_=0.0, to=2.0, step=0.05, decimals=2, unit="giây",
+                hint="0.00 = nối liền hết như các bản trước · 0.40 là mặc định.").grid(
+        row=1, column=0, sticky="ew", padx=(0, 16))
+    muls = ttk.Frame(pace, style="Surface.TFrame")
+    muls.grid(row=1, column=1, sticky="ew")
+    muls.columnconfigure(0, weight=1)
+    muls.columnconfigure(1, weight=1)
+    SliderField(muls, th, "Nghỉ ngắn", app.vars["gap_short_mul"],
+                from_=0.0, to=1.0, step=0.05, decimals=2, unit="× nghỉ đủ").grid(
+        row=0, column=0, sticky="ew", padx=(0, 12))
+    SliderField(muls, th, "Nghỉ dài", app.vars["gap_long_mul"],
+                from_=1.0, to=3.0, step=0.1, decimals=2, unit="× nghỉ đủ").grid(
         row=0, column=1, sticky="ew")
+    ttk.Label(pace, text="Bốn mức: Nối liền 0s (câu chưa hết) · Nghỉ ngắn (câu sau mở đầu "
+                         "bằng từ nối: và, rồi, nhưng, sau đó…) · Nghỉ đủ (hết câu, sang ý "
+                         "khác) · Nghỉ dài (bỏ lửng hoặc sang phần mới). Muốn sửa riêng một "
+                         "cảnh thì nhấp đúp vào dòng đó ở tab Cảnh quay.",
+              style="SurfaceDim.TLabel", wraplength=880, justify="left").grid(
+        row=2, column=0, columnspan=2, sticky="w", pady=(16, 0))
 
     over = Card(host, th, "Asset thay thế", "Để trống sẽ dùng asset trong folder kênh.")
     over.grid_in(row=1, column=0, sticky="ew", pady=(0, 16))
@@ -1223,15 +1297,32 @@ QUY TRÌNH
 
 KHOẢNG NGHỈ GIỮA CÁC CẢNH  (Cài đặt → Nâng cao)
 
-Mặc định 0.40 giây. Sau mỗi cảnh tool chèn một quãng lặng để các câu
-thoại không dính liền nhau nghe như máy đọc.
+Sau mỗi cảnh tool chèn một quãng lặng để các câu thoại không dính liền
+nhau nghe như máy đọc. Trong quãng lặng đó HÌNH VẪN CHẠY TIẾP: hình của
+cảnh vừa rồi được kéo dài ra cho đủ, nên không bao giờ bị đen màn.
 
-Trong quãng lặng đó HÌNH VẪN CHẠY TIẾP: hình/video của cảnh vừa rồi được
-kéo dài ra cho đủ, nên không bao giờ bị đen màn.
+Chế độ THÔNG MINH (mặc định) đọc lời thoại của từng cảnh rồi tự chọn một
+trong bốn mức, nên hai câu nối nhau sẽ không bị tách ra:
+
+  Nối liền  0s      câu chưa kết thúc — hết bằng dấu phẩy, hai chấm,
+                    gạch nối, không có dấu chấm câu, hoặc cảnh sau mở
+                    đầu bằng chữ thường.
+  Nghỉ ngắn 0.5×    hết câu nhưng cảnh sau nối ý bằng từ nối: và, rồi,
+                    nhưng, nên, sau đó, tiếp theo, tuy nhiên, vì vậy…
+  Nghỉ đủ   1×      hết câu, sang ý khác. Đây là con số bạn chỉnh.
+  Nghỉ dài  1.6×    lời thoại bỏ lửng (dấu ba chấm) hoặc cảnh sau mở
+                    sang phần mới (Chương, Phần, Tóm lại, Kết luận…).
+
+Muốn đổi riêng một cảnh: sang tab Cảnh quay, NHẤP ĐÚP vào dòng đó rồi
+chọn mức, hoặc tự nhập số giây. Lựa chọn được ghi nhớ theo kênh, và cột
+Nghỉ có dấu ✎ ở những cảnh bạn đã đặt tay.
+
+Chế độ thông minh cần có lời thoại trong Texts/, _manifest.json hoặc
+Excel. Không có lời thoại thì tool tự quay về nghỉ đều nhau và báo ở
+nhật ký. Đặt "Nghỉ đủ" về 0.00 là nối liền hết như các bản trước 0.4.0.
 
 Lưu ý: khoảng nghỉ làm mỗi cảnh dài thêm, nên một video vốn vừa khít có
-thể phải làm chậm hơn một chút, hoặc chuyển sang dùng ảnh. Đặt về 0.00
-là quay lại đúng cách dựng của các bản trước.
+thể phải làm chậm hơn một chút, hoặc chuyển sang dùng ảnh.
 
 
 RENDER VIDEO  (trang Render video)
