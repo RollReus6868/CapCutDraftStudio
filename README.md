@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.4.3
+# CapCut Draft Studio 0.5.0
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -51,6 +51,12 @@ mọi chi tiết được ghi vào `build.log` cạnh nó.
 ---
 
 ## Giao diện
+
+Từ 0.5.0 giao diện theo phong cách Youwee: hai khung bo góc (thanh điều hướng
+thu gọn được + nội dung), icon lucide, nút **TẠO PROJECT** tô gradient, chế độ
+sáng/tối và menu **Chủ đề** (Studio mặc định, Ocean, Midnight, Aurora, Sunset,
+Forest, Candy). Muốn dùng font Nunito thì chép file `.ttf` vào `assets/fonts/`,
+không có thì tool dùng Segoe UI.
 
 Cột trái là thanh điều hướng 5 trang; thanh dưới cùng luôn hiển thị tiến trình
 và hai nút **KIỂM TRA** / **TẠO PROJECT**.
