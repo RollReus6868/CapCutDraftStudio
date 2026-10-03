@@ -2,7 +2,7 @@
 ; Biên dịch: ISCC.exe /DMyAppVersion=0.4.0 installer\setup.iss
 
 #ifndef MyAppVersion
-  #define MyAppVersion "0.5.0"
+  #define MyAppVersion "0.5.1"
 #endif
 #define MyAppName "CapCut Draft Studio"
 #define MyAppExeName "CapCut Draft Studio.exe"

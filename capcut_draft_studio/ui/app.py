@@ -24,7 +24,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.5.1"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -292,7 +292,7 @@ class App:
         side_box.outer.grid(row=0, column=0, sticky="nsw", padx=(12, 0), pady=12)
         side = side_box.body
         self.side = side
-        side.configure(width=self.SIDEBAR_WIDE - 32)
+        side.configure(width=self.SIDEBAR_WIDE - 2)
         side.grid_propagate(False)
         side.columnconfigure(0, weight=1)
         side.rowconfigure(2, weight=1)
@@ -416,6 +416,12 @@ class App:
 
     def show(self, key: str):
         self.current = key
+        # Gỡ trang ẩn khỏi lưới thay vì chỉ đè lên nhau: trang ẩn không còn bị
+        # xếp lại / vẽ lại khi đổi cỡ cửa sổ hay thu gọn sidebar.
+        for k, frame in self.pages.items():
+            if k != key:
+                frame.grid_remove()
+        self.pages[key].grid()
         self.pages[key].tkraise()
         label = dict(NAV)[key]
         self.title_lbl.configure(text=label, style=f"{key}.Title.TLabel")
@@ -470,7 +476,7 @@ class App:
 
     def _apply_sidebar(self):
         narrow = self.sidebar_collapsed
-        self.side.configure(width=(self.SIDEBAR_NARROW if narrow else self.SIDEBAR_WIDE) - 32)
+        self.side.configure(width=(self.SIDEBAR_NARROW if narrow else self.SIDEBAR_WIDE) - 2)
         if narrow:
             self.brand_text.pack_forget()
         else:

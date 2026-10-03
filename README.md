@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.5.0
+# CapCut Draft Studio 0.5.1
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.

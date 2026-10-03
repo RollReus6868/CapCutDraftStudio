@@ -221,6 +221,34 @@ def rounded_image(w: int, h: int, r: int, fill: str | None, border: str | None =
     return img.resize((w, h), Image.BOX)
 
 
+def flatten(img: Image.Image, on: str) -> Image.Image:
+    """Ghép ảnh RGBA lên nền đặc `on` -> ảnh RGB không còn trong suốt."""
+    base = Image.new("RGB", img.size, _hex_to_rgb(on))
+    base.paste(img, (0, 0), img)
+    return base
+
+
+BIG_W, BIG_H = 640, 64
+
+
+def stretch9(img: Image.Image, b: int, w: int, h: int) -> Image.Image:
+    """Kéo ảnh bo góc lên cỡ w×h, giữ nguyên 4 góc (cạnh và lõi là màu đều)."""
+    sw, sh = img.size
+    b = min(b, sw // 2, sh // 2)
+    out = Image.new(img.mode, (w, h))
+    xs = [(0, b, 0, b), (b, sw - b, b, w - b), (sw - b, sw, w - b, w)]
+    ys = [(0, b, 0, b), (b, sh - b, b, h - b), (sh - b, sh, h - b, h)]
+    for sx0, sx1, dx0, dx1 in xs:
+        for sy0, sy1, dy0, dy1 in ys:
+            if sx1 <= sx0 or sy1 <= sy0 or dx1 <= dx0 or dy1 <= dy0:
+                continue
+            part = img.crop((sx0, sy0, sx1, sy1))
+            if part.size != (dx1 - dx0, dy1 - dy0):
+                part = part.resize((dx1 - dx0, dy1 - dy0), Image.NEAREST)
+            out.paste(part, (dx0, dy0))
+    return out
+
+
 def gradient_image(w: int, h: int, r: int, stops: tuple[str, str, str],
                    lift: float = 0.0) -> Image.Image:
     """Hình chữ nhật bo góc tô gradient 135° qua 3 điểm màu (nút CTA, logo)."""
@@ -423,8 +451,19 @@ class Theme:
         self._imgs[self._gen].append(ph)
         return ph
 
-    def _round(self, fill, border=None, r=8, w=32, h=32, bw=1.0):
-        return self._photo(rounded_image(w, h, r, fill, border, bw))
+    def _round(self, fill, border=None, r=8, w=32, h=32, bw=1.0, on=None,
+               big=(BIG_W, BIG_H)):
+        """Ảnh bo góc làm phần tử ttk, tối ưu cho tốc độ vẽ lại của Tk:
+
+        * ghép sẵn lên màu nền phía sau → ảnh đục, không phải AlphaBlend;
+        * kéo to sẵn (mặc định 640×64): Tk co giãn phần tử bằng cách LÁT ảnh
+          gốc nhiều lần, ảnh gốc nhỏ thì một ô nhập rộng phải vẽ hàng trăm mảnh
+          → chuyển trang rất giật. Ảnh gốc to thì chỉ vài mảnh.
+        """
+        img = flatten(rounded_image(w, h, r, fill, border, bw), on or self.c["surface"])
+        if big:
+            img = stretch9(img, r + 2, max(w, big[0]), max(h, big[1]))
+        return self._photo(img)
 
     def _el(self, name: str) -> str:
         return f"yw{self._gen}.{name}"
@@ -435,13 +474,15 @@ class Theme:
         c = self.c
         r = RADIUS - 2 if r is None else r
         on = on or c["surface"]
-        normal = self._round(fill, border, r)
-        hov = self._round(hover or fill, hover_border or border, r)
-        prs = self._round(press or hover or fill, hover_border or border, r)
-        dis = self._round(dis_fill or c["surface_alt"], None if dis_fill else border, r)
+        normal = self._round(fill, border, r, on=on)
+        hov = self._round(hover or fill, hover_border or border, r, on=on)
+        prs = self._round(press or hover or fill, hover_border or border, r, on=on)
+        dis = self._round(dis_fill or c["surface_alt"], None if dis_fill else border, r,
+                          on=on)
         el = self._el(name + ".bg")
         s.element_create(el, "image", normal, ("disabled", dis), ("pressed", prs),
-                         ("active", hov), border=r + 2, padding=1, sticky="nsew")
+                         ("active", hov), border=r + 2, padding=1, sticky="nsew",
+                         width=2 * r + 4, height=2 * r + 4)
         s.layout(name, [(el, {"sticky": "nsew", "children": [
             ("Button.padding", {"sticky": "nsew", "children": [
                 ("Button.label", {"sticky": "nsew"})]})]})])
@@ -593,7 +634,8 @@ class Theme:
         dis = self._round(c["surface_alt"], c["border_soft"], r)
         field = self._el("field")
         s.element_create(field, "image", normal, ("disabled", dis), ("focus", focus),
-                         ("hover", hover), border=r + 2, padding=1, sticky="nsew")
+                         ("hover", hover), border=r + 2, padding=1, sticky="nsew",
+                         width=2 * r + 4, height=2 * r + 4)
         layout = [(field, {"sticky": "nsew", "children": [
             ("Entry.padding", {"sticky": "nsew", "children": [
                 ("Entry.textarea", {"sticky": "nsew"})]})]})]
@@ -689,8 +731,9 @@ class Theme:
 
         # --- thanh trượt: rãnh bo tròn + núm tròn ---
         trough = self._el("scale.trough")
-        s.element_create(trough, "image", self._round(c["surface_hi"], None, 3, 24, 6),
-                         border=3, sticky="ew", height=6)
+        s.element_create(trough, "image", self._round(c["surface_hi"], None, 3, 24, 6,
+                                                      big=(BIG_W, 6)),
+                         border=3, sticky="ew", height=6, width=12)
         knob = self._el("scale.slider")
 
         def knob_img(fill, ring):
@@ -733,10 +776,13 @@ class Theme:
         style = f"{name}.Horizontal.TProgressbar" if name else "Horizontal.TProgressbar"
         tr = self._el(f"{name or 'base'}.ptrough")
         bar = self._el(f"{name or 'base'}.pbar")
-        s.element_create(tr, "image", self._round(c["surface_alt"], None, r, thick * 3, thick),
-                         border=(r, 0, r, 0), height=thick, sticky="ew")
-        s.element_create(bar, "image", self._round(color, None, r, thick * 3, thick),
-                         border=(r, 0, r, 0), height=thick, sticky="ew")
+        big = (BIG_W, thick)
+        s.element_create(tr, "image", self._round(c["surface_alt"], None, r, thick * 3, thick,
+                                                  on=on, big=big),
+                         border=(r, 0, r, 0), height=thick, width=2 * r + 2, sticky="ew")
+        s.element_create(bar, "image", self._round(color, None, r, thick * 3, thick, on=on,
+                                                   big=big),
+                         border=(r, 0, r, 0), height=thick, width=2 * r + 2, sticky="ew")
         s.layout(style, [(tr, {"sticky": "ew", "children": [
             (bar, {"side": "left", "sticky": "ns"})]})])
         s.configure(style, background=on, thickness=thick, borderwidth=0)
@@ -764,10 +810,14 @@ class Theme:
             vert = orient == "Vertical"
             thumb = self._el(f"{key}.{orient}.thumb")
             w, h = (10, 30) if vert else (30, 10)
-            norm = self._photo(rounded_image(w, h, 3, c["surface_hi"], inset=2))
-            act = self._photo(rounded_image(w, h, 3, c["text_faint"], inset=2))
+            bw, bh = (w, 400) if vert else (400, h)
+            norm = self._photo(stretch9(flatten(
+                rounded_image(w, h, 3, c["surface_hi"], inset=2), on), 5, bw, bh))
+            act = self._photo(stretch9(flatten(
+                rounded_image(w, h, 3, c["text_faint"], inset=2), on), 5, bw, bh))
             s.element_create(thumb, "image", norm, ("pressed", act), ("active", act),
-                             border=5, sticky="nsew")
+                             border=5, sticky="nsew", width=w if vert else 16,
+                             height=16 if vert else h)
             style = f"{orient}.TScrollbar" if key == "TScrollbar" else f"Panel.{orient}.TScrollbar"
             s.layout(style, [(f"{orient}.Scrollbar.trough", {
                 "sticky": "ns" if vert else "ew",

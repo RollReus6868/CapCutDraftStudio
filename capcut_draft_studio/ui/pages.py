@@ -259,6 +259,12 @@ def build_settings(app):
 def show_setting_tab(app, key: str):
     frame = app.setting_pages.get(key)
     if frame is not None:
+        # Chỉ giữ tab đang xem trên màn hình: tab ẩn bị gỡ khỏi lưới để Tk
+        # không phải xếp lại / vẽ lại nó mỗi lần cửa sổ đổi cỡ.
+        for other in app.setting_pages.values():
+            if other is not frame:
+                other.grid_remove()
+        frame.grid()
         frame.tkraise()
         app.settings_tabs.current = key
         app.settings_tabs._paint()

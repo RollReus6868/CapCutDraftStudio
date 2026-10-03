@@ -19,16 +19,22 @@ def _rgb(color: str) -> tuple[int, int, int]:
 
 
 def _flatten(img: Image.Image, on: str) -> Image.Image:
-    """Ghép ảnh RGBA lên nền đặc `on` — tk.Label không có nền trong suốt."""
-    base = Image.new("RGBA", img.size, _rgb(on) + (255,))
-    base.alpha_composite(img)
+    """Ghép ảnh RGBA lên nền đặc `on` → ảnh RGB đục.
+
+    tk.Label không có nền trong suốt, và Tk vẽ ảnh đục nhanh hơn nhiều so với
+    ảnh còn kênh alpha (phải AlphaBlend từng lần vẽ lại).
+    """
+    base = Image.new("RGB", img.size, _rgb(on))
+    base.paste(img, (0, 0), img)
     return base
 
 
 class RoundBox:
-    """Khung bo góc có viền 1px, dựng bằng lưới 3×3 (4 góc là ảnh, cạnh là Frame).
+    """Khung bo góc có viền 1px.
 
-    Không dùng Canvas nên widget con co giãn tự nhiên như frame thường.
+    Dựng bằng ít cửa sổ nhất có thể (mỗi cửa sổ Tk đều tốn công vẽ lại): khung
+    ngoài mang màu viền, thân lùi vào 1px mang màu nền, và 4 ảnh góc đặt đè lên
+    bằng place(). Không dùng Canvas nên widget con co giãn như frame thường.
     `fill`, `border`, `on` là khoá màu trong palette (on = màu nền phía sau).
     """
 
@@ -39,29 +45,20 @@ class RoundBox:
         self.keys = (fill, border, on)
         self.r = radius
         self._imgs: list = []
+        inset = radius - 1          # vùng góc nằm trong thân, nội dung phải lùi vào
+        if isinstance(padding, (tuple, list)):
+            pad = tuple(inset + p for p in padding)
+        else:
+            pad = inset + padding
         self.outer = tk.Frame(parent, bd=0, highlightthickness=0)
-        self.outer.columnconfigure(1, weight=1)
-        self.outer.rowconfigure(1, weight=1)
+        self.body = ttk.Frame(self.outer, style=body_style, padding=pad)
+        self.body.pack(fill="both", expand=True, padx=1, pady=1)
         self.corners = [tk.Label(self.outer, bd=0, highlightthickness=0, padx=0, pady=0)
                         for _ in range(4)]
-        for lbl, (r, c) in zip(self.corners, ((0, 0), (0, 2), (2, 0), (2, 2))):
-            lbl.grid(row=r, column=c, sticky="nsew")
-        self.edges = {}
-        self.lines = {}
-        for side, (r, c, sticky) in {"top": (0, 1, "ew"), "bottom": (2, 1, "ew"),
-                                     "left": (1, 0, "ns"), "right": (1, 2, "ns")}.items():
-            f = tk.Frame(self.outer, bd=0, highlightthickness=0,
-                         height=radius if side in ("top", "bottom") else 1,
-                         width=radius if side in ("left", "right") else 1)
-            f.grid(row=r, column=c, sticky=sticky)
-            f.pack_propagate(False)
-            line = tk.Frame(f, bd=0, highlightthickness=0,
-                            height=1, width=1)
-            line.pack(side=side, fill="x" if side in ("top", "bottom") else "y")
-            self.edges[side] = f
-            self.lines[side] = line
-        self.body = ttk.Frame(self.outer, style=body_style, padding=padding)
-        self.body.grid(row=1, column=1, sticky="nsew")
+        for lbl, (rx, ry, anchor) in zip(self.corners, ((0, 0, "nw"), (1, 0, "ne"),
+                                                        (0, 1, "sw"), (1, 1, "se"))):
+            lbl.place(relx=rx, rely=ry, anchor=anchor)
+            lbl.lift()
         self._paint(theme.c)
         theme.on_change(self._paint)
 
@@ -79,10 +76,7 @@ class RoundBox:
             ph = ImageTk.PhotoImage(full.crop((x, y, x + r, y + r)))
             self._imgs.append(ph)
             lbl.configure(image=ph, bg=on, width=r, height=r)
-        self.outer.configure(bg=fill)
-        for side, f in self.edges.items():
-            f.configure(bg=fill)
-            self.lines[side].configure(bg=border)
+        self.outer.configure(bg=border)
 
 
 class IconTile(tk.Label):
@@ -123,7 +117,7 @@ class IconTile(tk.Label):
         img = _flatten(base, on)
         ic = icons.render(self.icon_name, self.icon_size, fg)
         off = (s - self.icon_size) // 2
-        img.alpha_composite(ic, (off, off))
+        img.paste(ic, (off, off), ic)
         self._img = ImageTk.PhotoImage(img)
         self.configure(image=self._img, bg=on)
 
@@ -146,7 +140,7 @@ def gradient_text(theme: Theme, text: str, px: int, on: str) -> ImageTk.PhotoIma
     mask = Image.new("L", (w, h), 0)
     ImageDraw.Draw(mask).text((2 - l, 3 - t), text, font=font, fill=255)
     grad = gradient_image(w, h, 0, theme.grad).convert("RGB")
-    out = Image.new("RGBA", (w, h), _rgb(on) + (255,))
+    out = Image.new("RGB", (w, h), _rgb(on))
     out.paste(grad, (0, 0), mask)
     return ImageTk.PhotoImage(out)
 
@@ -222,11 +216,15 @@ class GradientButton(tk.Canvas):
         c = self.theme.c
         w = max(self.winfo_width(), 2)
         h = self.h
-        self.delete("all")
-        self.configure(bg=c[self.on])
         disabled = self.state == "disabled"
         mode = "disabled" if disabled else ("pressed" if self.pressed else
                                             ("hover" if self.hover else "normal"))
+        sig = (w, mode, self.text, self.icon_name, id(c))
+        if sig == getattr(self, "_sig", None):
+            return                      # không có gì đổi → khỏi vẽ lại
+        self._sig = sig
+        self.delete("all")
+        self.configure(bg=c[self.on])
         self.create_image(0, 0, image=self._bg(w, h, mode), anchor="nw")
         fg = c["text_faint"] if disabled else "#ffffff"
         font = self.theme.f_btn_big
@@ -334,6 +332,11 @@ class NavItem(tk.Canvas):
         c = self.theme.c
         w = max(self.winfo_width(), 2)
         h = self.H
+        sig = (w, self.active, self.hover, self.collapsed, self.icon_name, self.label,
+               id(c), self.icon_color() if self.icon_color else "")
+        if sig == getattr(self, "_sig", None):
+            return                      # không có gì đổi → khỏi vẽ lại
+        self._sig = sig
         self.delete("all")
         self.configure(bg=c["bg"])
         fill = None
@@ -375,12 +378,15 @@ class GradientDivider(tk.Canvas):
     def _draw(self):
         c = self.theme.c
         w = max(self.winfo_width(), 2)
-        line = Image.new("RGBA", (w, 1))
-        col = _rgb(c["border"])
-        for x in range(w):
-            t = x / max(1, w - 1)
-            a = int(255 * min(1.0, 2.2 * min(t, 1 - t)))
-            line.putpixel((x, 0), col + (a,))
+        if (w, id(c)) == getattr(self, "_sig", None):
+            return
+        self._sig = (w, id(c))
+        # dải alpha 0 → 255 → 0 dựng bằng resize thay vì putpixel từng điểm
+        ramp = Image.new("L", (3, 1))
+        ramp.putdata([0, 255, 0])
+        alpha = ramp.resize((w, 1), Image.BILINEAR)
+        line = Image.new("RGBA", (w, 1), _rgb(c["border"]) + (0,))
+        line.putalpha(alpha)
         self._img = ImageTk.PhotoImage(_flatten(line, c[self.on]))
         self.delete("all")
         self.configure(bg=c[self.on])
