@@ -964,8 +964,11 @@ def build_render(app):
     app.render_stop_btn = ttk.Button(right, text="Dừng render", style="Danger.TButton",
                                      command=app.request_cancel, state="disabled")
     app.render_stop_btn.pack(side="left", padx=(0, 10))
-    app.render_btn = ttk.Button(right, text="▶   BẮT ĐẦU RENDER", style="render.Do.TButton",
-                                command=app.start_render)
+    app.render_btn = ttk.Button(right, text="  BẮT ĐẦU RENDER", style="render.Do.TButton",
+                                image=th.icon("play", 18, th.c["accent_text"]),
+                                compound="left", command=app.start_render)
+    th.on_change(lambda c: app.render_btn.configure(
+        image=th.icon("play", 18, c["accent_text"])))
     app.render_btn.pack(side="left")
 
     # --- hàng đợi ---

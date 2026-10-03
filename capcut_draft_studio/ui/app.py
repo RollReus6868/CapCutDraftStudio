@@ -19,8 +19,9 @@ from ..models import Settings
 from ..presets import PresetStore, RecentStore
 from ..subtitles import build_srt
 from . import pages
-from .theme import Theme
-from .widgets import LogView
+from .theme import DEFAULT_THEME, THEMES, Theme
+from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavItem, RoundBox,
+                      gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
 APP_VERSION = "0.4.3"
@@ -213,7 +214,9 @@ class App:
         cfg = load_json(CONFIG, {})
         if not isinstance(cfg, dict):
             cfg = {}
-        self.theme = Theme(root, cfg.get("theme", "dark"))
+        self._cfg = cfg
+        self.theme = Theme(root, cfg.get("theme", "dark"),
+                           str(cfg.get("accent_theme", DEFAULT_THEME)))
 
         self.presets = PresetStore(PRESET_DIR)
         self.recent = RecentStore(RECENT)
@@ -272,75 +275,89 @@ class App:
     # ------------------------------------------------------------------ #
     # khung giao diện
     # ------------------------------------------------------------------ #
+    SIDEBAR_WIDE = 208
+    SIDEBAR_NARROW = 64
+
     def _build_shell(self):
+        """Hai khung nổi bo góc trên nền cửa sổ: sidebar (thu gọn được) + nội dung."""
         root = self.root
+        th = self.theme
         root.columnconfigure(1, weight=1)
         root.rowconfigure(0, weight=1)
+        self.sidebar_collapsed = bool(self._cfg.get("sidebar_collapsed", False))
 
-        # ---- sidebar ----
-        side = ttk.Frame(root, style="Sidebar.TFrame", width=248)
-        side.grid(row=0, column=0, rowspan=2, sticky="nsw")
+        # ---- khung sidebar ----
+        side_box = RoundBox(root, th, fill="bg", border="panel_border", on="window",
+                            radius=16, body_style="Sidebar.TFrame")
+        side_box.outer.grid(row=0, column=0, sticky="nsw", padx=(12, 0), pady=12)
+        side = side_box.body
+        self.side = side
+        side.configure(width=self.SIDEBAR_WIDE - 32)
         side.grid_propagate(False)
+        side.columnconfigure(0, weight=1)
         side.rowconfigure(2, weight=1)
 
-        brand = ttk.Frame(side, style="Sidebar.TFrame", padding=(20, 24, 20, 20))
-        brand.grid(row=0, column=0, sticky="ew")
-        ttk.Label(brand, text="CapCut", style="Brand.TLabel").pack(anchor="w")
-        ttk.Label(brand, text="Draft Studio", style="Brand.TLabel").pack(anchor="w")
-        ttk.Label(brand, text=f"phiên bản {APP_VERSION}", style="BrandDim.TLabel").pack(
-            anchor="w", pady=(5, 0))
+        brand = ttk.Frame(side, style="Sidebar.TFrame")
+        brand.grid(row=0, column=0, sticky="ew", pady=(4, 14))
+        self.logo_tile = IconTile(brand, th, "clapperboard", size=36, on="bg", solid=True)
+        self.logo_tile.pack(side="left")
+        self.brand_text = ttk.Frame(brand, style="Sidebar.TFrame")
+        self.brand_text.pack(side="left", padx=(10, 0))
+        self.brand_name = tk.Label(self.brand_text, bd=0, padx=0, pady=0, text="CapCut",
+                                   font=th.f_h2)
+        self.brand_name.pack(anchor="w")
+        ttk.Label(self.brand_text, text=f"Draft Studio · {APP_VERSION}",
+                  style="BrandDim.TLabel").pack(anchor="w")
+        th.on_change(lambda c: self._paint_brand())
+        self._paint_brand()
 
         navbox = ttk.Frame(side, style="Sidebar.TFrame")
-        navbox.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        navbox.grid(row=1, column=0, sticky="new")
         navbox.columnconfigure(0, weight=1)
-        self.nav_bars: dict[str, tk.Frame] = {}
         for i, (key, label) in enumerate(NAV):
-            row = ttk.Frame(navbox, style="Sidebar.TFrame")
-            row.grid(row=i, column=0, sticky="ew", padx=(0, 12), pady=2)
-            row.columnconfigure(1, weight=1)
-            # vạch màu bên trái làm "chìa khoá màu" cho từng mục
-            bar = tk.Frame(row, bg=self.theme.section[key], width=4,
-                           highlightthickness=0, bd=0)
-            bar.grid(row=0, column=0, sticky="ns")
-            b = ttk.Button(row, text=f"  {self.theme.icon.get(key, '')}   {label}",
-                           style="Nav.TButton", command=lambda k=key: self.show(k))
-            b.grid(row=0, column=1, sticky="ew")
-            self.nav_buttons[key] = b
-            self.nav_bars[key] = bar
-        self.theme.on_change(lambda c: [self.nav_bars[k].configure(bg=self.theme.section[k])
-                                        for k in self.nav_bars])
+            item = NavItem(navbox, th, th.icon_name[key], label,
+                           command=lambda k=key: self.show(k))
+            item.grid(row=i, column=0, sticky="ew", pady=2)
+            self.nav_buttons[key] = item
 
-        foot = ttk.Frame(side, style="Sidebar.TFrame", padding=(16, 16))
-        foot.grid(row=3, column=0, sticky="ew")
-        self.update_btn = ttk.Button(foot, text="   Kiểm tra cập nhật", style="Nav.TButton",
-                                     command=lambda: self.check_updates(manual=True))
-        self.update_btn.pack(fill="x", pady=(0, 4))
-        self.theme_btn = ttk.Button(foot, text="Giao diện sáng", style="Nav.TButton",
-                                    command=self.toggle_theme)
-        self.theme_btn.pack(fill="x")
+        foot = ttk.Frame(side, style="Sidebar.TFrame")
+        foot.grid(row=3, column=0, sticky="ew", pady=(0, 2))
+        foot.columnconfigure(0, weight=1)
+        GradientDivider(foot, th).grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        self.update_btn = NavItem(foot, th, "refresh-cw", "Kiểm tra cập nhật",
+                                  command=lambda: self.check_updates(manual=True))
+        self.update_btn.grid(row=1, column=0, sticky="ew", pady=1)
+        self.palette_btn = NavItem(foot, th, "palette", "", command=self._theme_menu)
+        self.palette_btn.grid(row=2, column=0, sticky="ew", pady=1)
+        self.theme_btn = NavItem(foot, th, "sun", "Giao diện sáng", command=self.toggle_theme,
+                                 icon_color=lambda: "#fbbf24" if th.is_dark else "#818cf8")
+        self.theme_btn.grid(row=3, column=0, sticky="ew", pady=1)
+        self.collapse_btn = NavItem(foot, th, "chevrons-left", "Thu gọn",
+                                    command=self.toggle_sidebar)
+        self.collapse_btn.grid(row=4, column=0, sticky="ew", pady=1)
         self._sync_theme_btn()
 
-        # ---- vùng nội dung ----
-        body = ttk.Frame(root, padding=(26, 22, 26, 0))
-        body.grid(row=0, column=1, sticky="nsew")
+        # ---- khung nội dung ----
+        main_box = RoundBox(root, th, fill="bg", border="panel_border", on="window",
+                            radius=16, body_style="TFrame")
+        main_box.outer.grid(row=0, column=1, sticky="nsew", padx=12, pady=12)
+        body = main_box.body
         body.columnconfigure(0, weight=1)
-        body.rowconfigure(1, weight=1)
+        body.rowconfigure(2, weight=1)
 
-        head = ttk.Frame(body)
-        head.grid(row=0, column=0, sticky="ew", pady=(0, 16))
-        head.columnconfigure(0, weight=1)
+        head = ttk.Frame(body, padding=(14, 2, 14, 12))
+        head.grid(row=0, column=0, sticky="ew")
+        head.columnconfigure(1, weight=1)
+        self.head_tile = IconTile(head, th, th.icon_name["dashboard"], size=42, on="bg")
+        self.head_tile.grid(row=0, column=0, rowspan=2, sticky="w", padx=(0, 14))
         self.title_lbl = ttk.Label(head, text="Tổng quan", style="dashboard.Title.TLabel")
-        self.title_lbl.grid(row=0, column=0, sticky="w")
+        self.title_lbl.grid(row=0, column=1, sticky="sw")
         self.subtitle_lbl = ttk.Label(head, text="", style="Dim.TLabel")
-        self.subtitle_lbl.grid(row=1, column=0, sticky="w", pady=(4, 0))
-        # gạch màu dưới tiêu đề, đổi màu theo trang đang mở
-        self.head_bar = ttk.Frame(head, style="dashboard.Bar.TFrame", height=3)
-        self.head_bar.grid(row=2, column=0, sticky="w", pady=(10, 0))
-        self.head_bar.configure(width=64)
-        self.head_bar.grid_propagate(False)
+        self.subtitle_lbl.grid(row=1, column=1, sticky="nw", pady=(1, 0))
+        GradientDivider(body, th).grid(row=1, column=0, sticky="ew")
 
-        self.container = ttk.Frame(body)
-        self.container.grid(row=1, column=0, sticky="nsew")
+        self.container = ttk.Frame(body, padding=(14, 14, 14, 2))
+        self.container.grid(row=2, column=0, sticky="nsew")
         self.container.columnconfigure(0, weight=1)
         self.container.rowconfigure(0, weight=1)
 
@@ -349,9 +366,10 @@ class App:
             frame.grid(row=0, column=0, sticky="nsew")
             self.pages[key] = frame
 
-        # ---- thanh hành động dưới cùng ----
-        bar = ttk.Frame(root, padding=(26, 14, 26, 18))
-        bar.grid(row=1, column=1, sticky="ew")
+        # ---- thanh hành động dưới cùng (ActionBar) ----
+        GradientDivider(body, th).grid(row=3, column=0, sticky="ew", pady=(8, 0))
+        bar = ttk.Frame(body, padding=(14, 14, 14, 4))
+        bar.grid(row=4, column=0, sticky="ew")
         bar.columnconfigure(0, weight=1)
 
         prog_wrap = ttk.Frame(bar)
@@ -363,16 +381,20 @@ class App:
         ttk.Label(prog_wrap, textvariable=self.status_var, style="Status.TLabel").grid(
             row=1, column=0, sticky="w", pady=(7, 0))
 
-        self.stop_btn = ttk.Button(bar, text="■  Dừng", style="Danger.TButton",
-                                   command=self.request_cancel, state="disabled")
+        self.stop_btn = ttk.Button(bar, text="  Dừng", style="SubtleDanger.TButton",
+                                   image=th.icon("square", 16, th.c["error"]),
+                                   compound="left", command=self.request_cancel,
+                                   state="disabled")
         self.stop_btn.grid(row=0, column=1, padx=(0, 10))
-        self.check_btn = ttk.Button(bar, text="✓   KIỂM TRA", style="Secondary.TButton",
-                                    command=lambda: self.start(False))
+        self.check_btn = ttk.Button(bar, text="  KIỂM TRA", style="Outline.TButton",
+                                    image=th.icon("circle-check", 16, th.c["text"]),
+                                    compound="left", command=lambda: self.start(False))
         self.check_btn.grid(row=0, column=2, padx=(0, 10))
-        self.build_btn = ttk.Button(bar, text="★   TẠO PROJECT",
-                                    style="dashboard.Do.TButton",
-                                    command=lambda: self.start(True))
+        self.build_btn = GradientButton(bar, th, "TẠO PROJECT", icon="sparkles",
+                                        command=lambda: self.start(True))
         self.build_btn.grid(row=0, column=3)
+        th.on_change(lambda c: self._paint_action_icons())
+        self._apply_sidebar()
 
         # ---- dựng từng trang ----
         pages.build_dashboard(self)
@@ -396,13 +418,11 @@ class App:
         self.current = key
         self.pages[key].tkraise()
         label = dict(NAV)[key]
-        icon = self.theme.icon.get(key, "")
-        self.title_lbl.configure(text=f"{icon}  {label}" if icon else label,
-                                 style=f"{key}.Title.TLabel")
+        self.title_lbl.configure(text=label, style=f"{key}.Title.TLabel")
         self.subtitle_lbl.configure(text=self.PAGE_SUBTITLES.get(key, ""))
-        self.head_bar.configure(style=f"{key}.Bar.TFrame")
-        for k, btn in self.nav_buttons.items():
-            btn.configure(style=f"{k}Nav.TButton" if k == key else "Nav.TButton")
+        self.head_tile.set_icon(self.theme.icon_name[key])
+        for k, item in self.nav_buttons.items():
+            item._set(active=(k == key))
 
     def show_settings_tab(self, key: str):
         self.show("settings")
@@ -414,9 +434,68 @@ class App:
         self.show(self.current)
         self.persist()
 
+    def set_accent_theme(self, key: str):
+        self.theme.set_theme(key)
+        self._sync_theme_btn()
+        self.show(self.current)
+        self.persist()
+
+    def _theme_menu(self):
+        """Menu chọn chủ đề màu, bật ra cạnh nút bảng màu."""
+        c = self.theme.c
+        menu = tk.Menu(self.root, tearoff=0, bg=c["surface"], fg=c["text"],
+                       activebackground=c["accent_soft"], activeforeground=c["accent"],
+                       selectcolor=c["accent"], bd=0, font=self.theme.f_base)
+        self._theme_choice = tk.StringVar(value=self.theme.theme_key)
+        for key, (label, _) in THEMES.items():
+            text = f"{label}  (mặc định)" if key == DEFAULT_THEME else label
+            menu.add_radiobutton(label=text, value=key, variable=self._theme_choice,
+                                 command=lambda k=key: self.set_accent_theme(k))
+        btn = self.palette_btn
+        try:
+            menu.tk_popup(btn.winfo_rootx() + btn.winfo_width() + 6, btn.winfo_rooty())
+        finally:
+            menu.grab_release()
+
     def _sync_theme_btn(self):
         dark = self.theme.c["name"] == "dark"
-        self.theme_btn.configure(text="   Giao diện sáng" if dark else "   Giao diện tối")
+        self.theme_btn.set(icon="sun" if dark else "moon",
+                           label="Giao diện sáng" if dark else "Giao diện tối")
+        self.palette_btn.set(label=f"Chủ đề: {THEMES[self.theme.theme_key][0]}")
+
+    def toggle_sidebar(self):
+        self.sidebar_collapsed = not self.sidebar_collapsed
+        self._apply_sidebar()
+        self.persist()
+
+    def _apply_sidebar(self):
+        narrow = self.sidebar_collapsed
+        self.side.configure(width=(self.SIDEBAR_NARROW if narrow else self.SIDEBAR_WIDE) - 32)
+        if narrow:
+            self.brand_text.pack_forget()
+        else:
+            self.brand_text.pack(side="left", padx=(10, 0))
+        items = list(self.nav_buttons.values()) + [self.update_btn, self.palette_btn,
+                                                   self.theme_btn, self.collapse_btn]
+        for item in items:
+            item.collapsed = narrow
+            item._draw()
+        self.collapse_btn.set(icon="chevrons-right" if narrow else "chevrons-left",
+                              label="Mở rộng" if narrow else "Thu gọn")
+
+    def _paint_brand(self):
+        c = self.theme.c
+        img = gradient_text(self.theme, "CapCut", 22, c["bg"])
+        if img is not None:
+            self._brand_img = img
+            self.brand_name.configure(image=img, text="", bg=c["bg"])
+        else:
+            self.brand_name.configure(text="CapCut", fg=c["accent"], bg=c["bg"])
+
+    def _paint_action_icons(self):
+        th = self.theme
+        self.stop_btn.configure(image=th.icon("square", 16, th.c["error"]))
+        self.check_btn.configure(image=th.icon("circle-check", 16, th.c["text"]))
 
     # ------------------------------------------------------------------ #
     # làm mới danh sách asset
@@ -560,6 +639,8 @@ class App:
         data.update({k: v.get() for k, v in self.boolvars.items()})
         data["gap_overrides"] = dict(self.gap_overrides)
         data["theme"] = self.theme.c["name"]
+        data["accent_theme"] = self.theme.theme_key
+        data["sidebar_collapsed"] = bool(getattr(self, "sidebar_collapsed", False))
         save_json(CONFIG, data)
 
     def save_channel(self):

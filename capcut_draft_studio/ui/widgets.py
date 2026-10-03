@@ -1,51 +1,426 @@
 """Widget dùng chung: Card, PathPicker, StatTile, LogView, ScrollFrame,
-SegmentedTabs, SliderField, Badge, JobTable."""
+SegmentedTabs, SliderField, Badge — cùng các khối kiểu Youwee: RoundBox (khung
+bo góc), IconTile, GradientButton, NavItem, GradientDivider."""
 from __future__ import annotations
 
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, ttk
 
-from .theme import Theme
+from PIL import Image, ImageDraw, ImageFont, ImageTk
+
+from . import icons
+from .theme import Theme, blend, brand_font_file, gradient_image, rounded_image
+
+
+def _rgb(color: str) -> tuple[int, int, int]:
+    c = color.lstrip("#")
+    return int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16)
+
+
+def _flatten(img: Image.Image, on: str) -> Image.Image:
+    """Ghép ảnh RGBA lên nền đặc `on` — tk.Label không có nền trong suốt."""
+    base = Image.new("RGBA", img.size, _rgb(on) + (255,))
+    base.alpha_composite(img)
+    return base
+
+
+class RoundBox:
+    """Khung bo góc có viền 1px, dựng bằng lưới 3×3 (4 góc là ảnh, cạnh là Frame).
+
+    Không dùng Canvas nên widget con co giãn tự nhiên như frame thường.
+    `fill`, `border`, `on` là khoá màu trong palette (on = màu nền phía sau).
+    """
+
+    def __init__(self, parent, theme: Theme, fill: str = "surface",
+                 border: str | None = "border_soft", on: str = "bg", radius: int = 12,
+                 padding=0, body_style: str = "Surface.TFrame"):
+        self.theme = theme
+        self.keys = (fill, border, on)
+        self.r = radius
+        self._imgs: list = []
+        self.outer = tk.Frame(parent, bd=0, highlightthickness=0)
+        self.outer.columnconfigure(1, weight=1)
+        self.outer.rowconfigure(1, weight=1)
+        self.corners = [tk.Label(self.outer, bd=0, highlightthickness=0, padx=0, pady=0)
+                        for _ in range(4)]
+        for lbl, (r, c) in zip(self.corners, ((0, 0), (0, 2), (2, 0), (2, 2))):
+            lbl.grid(row=r, column=c, sticky="nsew")
+        self.edges = {}
+        self.lines = {}
+        for side, (r, c, sticky) in {"top": (0, 1, "ew"), "bottom": (2, 1, "ew"),
+                                     "left": (1, 0, "ns"), "right": (1, 2, "ns")}.items():
+            f = tk.Frame(self.outer, bd=0, highlightthickness=0,
+                         height=radius if side in ("top", "bottom") else 1,
+                         width=radius if side in ("left", "right") else 1)
+            f.grid(row=r, column=c, sticky=sticky)
+            f.pack_propagate(False)
+            line = tk.Frame(f, bd=0, highlightthickness=0,
+                            height=1, width=1)
+            line.pack(side=side, fill="x" if side in ("top", "bottom") else "y")
+            self.edges[side] = f
+            self.lines[side] = line
+        self.body = ttk.Frame(self.outer, style=body_style, padding=padding)
+        self.body.grid(row=1, column=1, sticky="nsew")
+        self._paint(theme.c)
+        theme.on_change(self._paint)
+
+    def _paint(self, c):
+        fill_key, border_key, on_key = self.keys
+        fill, on = c[fill_key], c[on_key]
+        border = c[border_key] if border_key else fill
+        r = self.r
+        size = 2 * r + 2
+        full = _flatten(rounded_image(size, size, r, fill, border if border_key else None),
+                        on)
+        boxes = ((0, 0), (size - r, 0), (0, size - r), (size - r, size - r))
+        self._imgs = []
+        for lbl, (x, y) in zip(self.corners, boxes):
+            ph = ImageTk.PhotoImage(full.crop((x, y, x + r, y + r)))
+            self._imgs.append(ph)
+            lbl.configure(image=ph, bg=on, width=r, height=r)
+        self.outer.configure(bg=fill)
+        for side, f in self.edges.items():
+            f.configure(bg=fill)
+            self.lines[side].configure(bg=border)
+
+
+class IconTile(tk.Label):
+    """Ô icon bo góc nền nhạt 10% (IconTile của Youwee)."""
+
+    def __init__(self, parent, theme: Theme, icon: str, color=None, size: int = 32,
+                 on: str = "surface", icon_size: int | None = None, solid: bool = False):
+        super().__init__(parent, bd=0, highlightthickness=0, padx=0, pady=0)
+        self.theme = theme
+        self.icon_name = icon
+        self.color = color             # None = màu chủ đạo; hoặc hàm trả về màu
+        self.size = size
+        self.on = on
+        self.icon_size = icon_size or max(14, int(size * 0.5))
+        self.solid = solid
+        self._paint(theme.c)
+        theme.on_change(self._paint)
+
+    def set_icon(self, icon: str, color=None):
+        self.icon_name = icon
+        self.color = color
+        self._paint(self.theme.c)
+
+    def _color(self) -> str:
+        col = self.color() if callable(self.color) else self.color
+        return col or self.theme.c["accent"]
+
+    def _paint(self, c):
+        col = self._color()
+        on = c[self.on]
+        s = self.size
+        if self.solid:
+            base = gradient_image(s, s, max(6, s // 4), self.theme.grad)
+            fg = "#ffffff"
+        else:
+            base = rounded_image(s, s, max(6, s // 4), blend(col, on, 0.13))
+            fg = col
+        img = _flatten(base, on)
+        ic = icons.render(self.icon_name, self.icon_size, fg)
+        off = (s - self.icon_size) // 2
+        img.alpha_composite(ic, (off, off))
+        self._img = ImageTk.PhotoImage(img)
+        self.configure(image=self._img, bg=on)
+
+
+def gradient_text(theme: Theme, text: str, px: int, on: str) -> ImageTk.PhotoImage | None:
+    """Chữ tô gradient (tên app) — vẽ bằng Pillow vì Tk không tô gradient cho chữ."""
+    path = brand_font_file()
+    if not path:
+        return None
+    try:
+        font = ImageFont.truetype(path, px)
+        try:
+            font.set_variation_by_name("ExtraBold")
+        except Exception:
+            pass
+    except OSError:
+        return None
+    l, t, r, b = font.getbbox(text)
+    w, h = r - l + 4, b - t + 6
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).text((2 - l, 3 - t), text, font=font, fill=255)
+    grad = gradient_image(w, h, 0, theme.grad).convert("RGB")
+    out = Image.new("RGBA", (w, h), _rgb(on) + (255,))
+    out.paste(grad, (0, 0), mask)
+    return ImageTk.PhotoImage(out)
+
+
+class GradientButton(tk.Canvas):
+    """Nút hành động chính tô gradient 3 điểm (btn-gradient). Mỗi màn hình MỘT nút.
+
+    Dùng được như ttk.Button ở những chỗ app cần: .configure(state=, text=),
+    .cget("state").
+    """
+
+    def __init__(self, parent, theme: Theme, text: str, icon: str = "", command=None,
+                 on: str = "bg", height: int = 46, padx: int = 26, radius: int = 12):
+        super().__init__(parent, height=height, bd=0, highlightthickness=0,
+                         cursor="hand2", takefocus=1)
+        self.theme = theme
+        self.text = text
+        self.icon_name = icon
+        self.command = command
+        self.on = on
+        self.h = height
+        self.padx = padx
+        self.r = radius
+        self.state = "normal"
+        self.hover = False
+        self.pressed = False
+        self._cache: dict = {}
+        self.configure(width=self._natural_width())
+        self.bind("<Configure>", lambda e: self._draw())
+        self.bind("<Enter>", lambda e: self._set(hover=True))
+        self.bind("<Leave>", lambda e: self._set(hover=False, pressed=False))
+        self.bind("<ButtonPress-1>", lambda e: self._set(pressed=True))
+        self.bind("<ButtonRelease-1>", self._release)
+        self.bind("<Return>", lambda e: self.invoke())
+        self.bind("<space>", lambda e: self.invoke())
+        theme.on_change(lambda c: (self._cache.clear(), self._draw()))
+
+    def _natural_width(self) -> int:
+        w = self.theme.f_btn_big.measure(self.text) + 2 * self.padx
+        return w + (26 if self.icon_name else 0)
+
+    def _set(self, **kw):
+        for k, v in kw.items():
+            setattr(self, k, v)
+        self._draw()
+
+    def _release(self, e):
+        inside = 0 <= e.x < self.winfo_width() and 0 <= e.y < self.winfo_height()
+        was = self.pressed
+        self._set(pressed=False)
+        if was and inside:
+            self.invoke()
+
+    def invoke(self):
+        if self.state != "disabled" and self.command:
+            self.command()
+
+    def _bg(self, w, h, mode):
+        key = (w, h, mode)
+        img = self._cache.get(key)
+        if img is None:
+            c = self.theme.c
+            if mode == "disabled":
+                base = rounded_image(w, h, self.r, c["surface_alt"])
+            else:
+                lift = {"hover": 0.10, "pressed": -0.0}.get(mode, 0.0)
+                base = gradient_image(w, h, self.r, self.theme.grad, lift=lift)
+            img = ImageTk.PhotoImage(_flatten(base, c[self.on]))
+            self._cache[key] = img
+        return img
+
+    def _draw(self):
+        c = self.theme.c
+        w = max(self.winfo_width(), 2)
+        h = self.h
+        self.delete("all")
+        self.configure(bg=c[self.on])
+        disabled = self.state == "disabled"
+        mode = "disabled" if disabled else ("pressed" if self.pressed else
+                                            ("hover" if self.hover else "normal"))
+        self.create_image(0, 0, image=self._bg(w, h, mode), anchor="nw")
+        fg = c["text_faint"] if disabled else "#ffffff"
+        font = self.theme.f_btn_big
+        tw = font.measure(self.text)
+        total = tw + (26 if self.icon_name else 0)
+        x = (w - total) // 2
+        y = h // 2 + (1 if self.pressed else 0)
+        if self.icon_name:
+            self._icon = icons.photo(self.icon_name, 18, fg)
+            self.create_image(x, y, image=self._icon, anchor="w")
+            x += 26
+        self.create_text(x, y, text=self.text, fill=fg, font=font, anchor="w")
+        self.configure(cursor="arrow" if disabled else "hand2")
+
+    def configure(self, cnf=None, **kw):
+        changed = False
+        for key in ("state", "text", "command"):
+            if key in kw:
+                setattr(self, key, kw.pop(key))
+                changed = True
+        if "text" in (cnf or {}):
+            self.text = cnf.pop("text")
+        res = super().configure(cnf, **kw) if (cnf or kw) else None
+        if changed:
+            self._draw()
+        return res
+
+    config = configure
+
+    def cget(self, key):
+        if key in ("state", "text"):
+            return getattr(self, key)
+        return super().cget(key)
+
+
+class Tooltip:
+    """Chú thích nhỏ hiện bên phải widget (dùng khi sidebar thu gọn)."""
+
+    def __init__(self, widget, theme: Theme, text_fn):
+        self.widget, self.theme, self.text_fn = widget, theme, text_fn
+        self.tip = None
+        widget.bind("<Enter>", self.show, add="+")
+        widget.bind("<Leave>", self.hide, add="+")
+
+    def show(self, _e=None):
+        text = self.text_fn()
+        if not text or self.tip:
+            return
+        c = self.theme.c
+        self.tip = tk.Toplevel(self.widget)
+        self.tip.wm_overrideredirect(True)
+        x = self.widget.winfo_rootx() + self.widget.winfo_width() + 10
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() // 2 - 14
+        self.tip.wm_geometry(f"+{x}+{y}")
+        tk.Label(self.tip, text=text, bg=c["surface_hi"], fg=c["text"],
+                 font=self.theme.f_small, padx=10, pady=5).pack()
+
+    def hide(self, _e=None):
+        if self.tip:
+            self.tip.destroy()
+            self.tip = None
+
+
+class NavItem(tk.Canvas):
+    """Mục điều hướng: icon 20px + nhãn; mục đang chọn nền primary/10, chữ primary,
+    vạch sáng bên trái. Khi sidebar thu gọn chỉ còn icon + tooltip."""
+
+    H = 42
+
+    def __init__(self, parent, theme: Theme, icon: str, label: str, command=None,
+                 icon_color=None):
+        super().__init__(parent, height=self.H, bd=0, highlightthickness=0, cursor="hand2")
+        self.theme = theme
+        self.icon_name = icon
+        self.label = label
+        self.command = command
+        self.icon_color = icon_color          # hàm trả về màu riêng (mặt trời / mặt trăng)
+        self.active = False
+        self.hover = False
+        self.collapsed = False
+        self.bind("<Configure>", lambda e: self._draw())
+        self.bind("<Enter>", lambda e: self._set(hover=True))
+        self.bind("<Leave>", lambda e: self._set(hover=False))
+        self.bind("<ButtonRelease-1>", self._click)
+        Tooltip(self, theme, lambda: self.label if self.collapsed else "")
+        theme.on_change(lambda c: self._draw())
+
+    def _click(self, e):
+        if 0 <= e.x < self.winfo_width() and 0 <= e.y < self.winfo_height() and self.command:
+            self.command()
+
+    def _set(self, **kw):
+        for k, v in kw.items():
+            setattr(self, k, v)
+        self._draw()
+
+    def set(self, icon: str | None = None, label: str | None = None):
+        if icon:
+            self.icon_name = icon
+        if label is not None:
+            self.label = label
+        self._draw()
+
+    def _draw(self):
+        c = self.theme.c
+        w = max(self.winfo_width(), 2)
+        h = self.H
+        self.delete("all")
+        self.configure(bg=c["bg"])
+        fill = None
+        if self.active:
+            fill = c["accent_10"]
+        elif self.hover:
+            fill = c["surface_alt"]
+        if fill:
+            self._bgimg = ImageTk.PhotoImage(_flatten(rounded_image(w, h, 12, fill), c["bg"]))
+            self.create_image(0, 0, image=self._bgimg, anchor="nw")
+        if self.active and not self.collapsed:
+            # vạch sáng bên trái
+            bar = rounded_image(4, 20, 2, c["accent"])
+            self._barimg = ImageTk.PhotoImage(_flatten(bar, fill))
+            self.create_image(0, h // 2, image=self._barimg, anchor="w")
+        if self.icon_color and not self.active:
+            col = self.icon_color()
+        else:
+            col = c["accent"] if self.active else (c["text"] if self.hover else c["text_dim"])
+        self._icon = icons.photo(self.icon_name, 20, col)
+        if self.collapsed:
+            self.create_image(w // 2, h // 2, image=self._icon)
+        else:
+            self.create_image(14, h // 2, image=self._icon, anchor="w")
+            fg = c["accent"] if self.active else (c["text"] if self.hover else c["text_dim"])
+            self.create_text(46, h // 2, text=self.label, anchor="w", fill=fg,
+                             font=self.theme.f_nav)
+
+
+class GradientDivider(tk.Canvas):
+    """Đường kẻ 1px mờ dần hai đầu — thay cho <hr> cứng."""
+
+    def __init__(self, parent, theme: Theme, on: str = "bg"):
+        super().__init__(parent, height=1, bd=0, highlightthickness=0)
+        self.theme, self.on = theme, on
+        self.bind("<Configure>", lambda e: self._draw())
+        theme.on_change(lambda c: self._draw())
+
+    def _draw(self):
+        c = self.theme.c
+        w = max(self.winfo_width(), 2)
+        line = Image.new("RGBA", (w, 1))
+        col = _rgb(c["border"])
+        for x in range(w):
+            t = x / max(1, w - 1)
+            a = int(255 * min(1.0, 2.2 * min(t, 1 - t)))
+            line.putpixel((x, 0), col + (a,))
+        self._img = ImageTk.PhotoImage(_flatten(line, c[self.on]))
+        self.delete("all")
+        self.configure(bg=c[self.on])
+        self.create_image(0, 0, image=self._img, anchor="nw")
 
 
 class Card(ttk.Frame):
-    """Khối nội dung nền surface, có viền 1px và tiêu đề tùy chọn.
+    """Khối nội dung bo góc nền surface, viền 1px, tiêu đề + ô icon tuỳ chọn.
 
     Bản thân Card CHÍNH LÀ vùng nội dung: widget con có thể dùng pack hoặc
     grid tùy ý vì phần tiêu đề nằm ở frame anh em, không nằm trong Card.
     Dùng .grid_in()/.place_in() để đặt Card vào cha (thay cho .grid()/.pack()).
     """
 
+    RADIUS = 12
+
     def __init__(self, parent, theme: Theme, title: str = "", subtitle: str = "",
                  padding: int = 18, accent: str = "", icon: str = "", **kw):
         self.theme = theme
         self.accent = accent
-        self.outer = tk.Frame(parent, bg=theme.c["border_soft"], highlightthickness=0, bd=0)
-        self.bar = None
-        if accent:
-            # vạch màu mỏng trên đầu thẻ — nhìn là biết thẻ thuộc nhóm nào
-            self.bar = tk.Frame(self.outer, bg=self._accent_color(), height=3,
-                                highlightthickness=0, bd=0)
-            self.bar.pack(fill="x", side="top")
-        self.container = ttk.Frame(self.outer, style="Surface.TFrame", padding=padding)
-        self.container.pack(fill="both", expand=True, padx=1, pady=(0 if accent else 1, 1))
-        theme.on_change(self._on_theme)
+        pad = max(0, padding - self.RADIUS) if padding > 2 else 0
+        self.box = RoundBox(parent, theme, fill="surface", border="border_soft", on="bg",
+                            radius=self.RADIUS, padding=pad)
+        self.outer = self.box.outer
+        self.container = self.box.body
 
         if title:
             head = ttk.Frame(self.container, style="Surface.TFrame")
-            head.pack(fill="x", pady=(0, 14))
-            row = ttk.Frame(head, style="Surface.TFrame")
-            row.pack(fill="x")
-            if icon:
-                self.icon_lbl = ttk.Label(row, text=icon, style="H2.TLabel")
-                self.icon_lbl.pack(side="left", padx=(0, 9))
-                if accent:
-                    self.icon_lbl.configure(foreground=self._accent_color())
-            ttk.Label(row, text=title, style="H2.TLabel").pack(side="left")
+            head.pack(fill="x", pady=(0, 12))
+            name = icons.from_glyph(icon) if icon else ""
+            if name:
+                self.icon_tile = IconTile(head, theme, name,
+                                          color=self._accent_color, size=34)
+                self.icon_tile.pack(side="left", anchor="n", padx=(0, 12))
+            text = ttk.Frame(head, style="Surface.TFrame")
+            text.pack(side="left", fill="x", expand=True)
+            ttk.Label(text, text=title, style="H2.TLabel").pack(anchor="w")
             if subtitle:
-                ttk.Label(head, text=subtitle, style="SurfaceDim.TLabel",
-                          wraplength=860, justify="left").pack(anchor="w", pady=(4, 0))
+                ttk.Label(text, text=subtitle, style="SurfaceDim.TLabel",
+                          wraplength=820, justify="left").pack(anchor="w", pady=(2, 0))
 
         super().__init__(self.container, style="Surface.TFrame", **kw)
         super().pack(fill="both", expand=True)
@@ -55,14 +430,6 @@ class Card(ttk.Frame):
         th = self.theme
         return (th.section.get(self.accent) or th.tile.get(self.accent)
                 or th.mode_color.get(self.accent) or th.c["accent"])
-
-    def _on_theme(self, c):
-        self.outer.configure(bg=c["border_soft"])
-        if self.bar is not None:
-            color = self._accent_color()
-            self.bar.configure(bg=color)
-            if hasattr(self, "icon_lbl"):
-                self.icon_lbl.configure(foreground=color)
 
     def place_in(self, **kw):
         self.outer.pack(**kw)
@@ -80,7 +447,8 @@ class ScrollFrame(ttk.Frame):
         super().__init__(parent, **kw)
         self.theme = theme
         self.canvas = tk.Canvas(self, bg=theme.c["bg"], highlightthickness=0, bd=0)
-        self.vbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.vbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview,
+                                  style="Panel.Vertical.TScrollbar")
         self.inner = ttk.Frame(self.canvas)
         self._win = self.canvas.create_window((0, 0), window=self.inner, anchor="nw")
         self.canvas.configure(yscrollcommand=self.vbar.set)
@@ -125,16 +493,21 @@ class SegmentedTabs(ttk.Frame):
     """
 
     def __init__(self, parent, theme: Theme, options, on_change=None, **kw):
-        super().__init__(parent, style="SurfaceAlt.TFrame", padding=5, **kw)
+        super().__init__(parent, style="TFrame", **kw)
         self.theme = theme
         self.on_change = on_change
         self.options = list(options)
         self.buttons: dict[str, ttk.Button] = {}
+        # rãnh bo góc nền muted, tab đang chọn nổi lên (SegmentedControl)
+        track = RoundBox(self, theme, fill="surface_alt", border=None, on="bg", radius=6,
+                         body_style="SurfaceAlt.TFrame")
+        track.outer.pack(fill="x", expand=True)
+        host = track.body
         for i, (key, label) in enumerate(self.options):
-            b = ttk.Button(self, text=label, style="Tab.TButton",
+            b = ttk.Button(host, text=label, style="Tab.TButton",
                            command=lambda k=key: self.select(k))
             b.grid(row=0, column=i, padx=(0 if i == 0 else 4, 0), sticky="ew")
-            self.columnconfigure(i, weight=1)
+            host.columnconfigure(i, weight=1)
             self.buttons[key] = b
         self.current = self.options[0][0] if self.options else ""
         self._paint()
@@ -316,42 +689,33 @@ class PathPicker(ttk.Frame):
 
 
 class StatTile(ttk.Frame):
-    """Ô số liệu: giá trị lớn + nhãn nhỏ."""
+    """Ô số liệu: ô icon màu + giá trị lớn + nhãn nhỏ, trong khung bo góc."""
 
     def __init__(self, parent, theme: Theme, label: str, value: str = "—",
                  color_key: str = "", icon: str = "", **kw):
         self.theme = theme
         self.color_key = color_key
-        self.outer = tk.Frame(parent, bg=theme.c["border_soft"])
-        self.bar = tk.Frame(self.outer, bg=self._color(), height=3,
-                            highlightthickness=0, bd=0)
-        self.bar.pack(fill="x", side="top")
-        super().__init__(self.outer, style="Surface.TFrame", padding=(18, 14), **kw)
-        super().pack(fill="both", expand=True, padx=1, pady=(0, 1))
-        theme.on_change(self._on_theme)
+        self.box = RoundBox(parent, theme, fill="surface", border="border_soft", on="bg",
+                            radius=12, padding=(4, 2))
+        self.outer = self.box.outer
+        super().__init__(self.box.body, style="Surface.TFrame", **kw)
+        super().pack(fill="both", expand=True)
+        self.columnconfigure(1, weight=1)
 
+        name = icons.from_glyph(icon) if icon else ""
+        if name:
+            IconTile(self, theme, name, color=self._color, size=40).grid(
+                row=0, column=0, rowspan=2, sticky="w", padx=(0, 12))
         self.value_lbl = ttk.Label(self, text=value, style=self._value_style())
-        self.value_lbl.pack(anchor="w")
-        row = ttk.Frame(self, style="Surface.TFrame")
-        row.pack(anchor="w", fill="x", pady=(3, 0))
-        if icon:
-            self.icon_lbl = ttk.Label(row, text=icon, style="SurfaceDim.TLabel")
-            self.icon_lbl.pack(side="left", padx=(0, 6))
-            self.icon_lbl.configure(foreground=self._color())
-        ttk.Label(row, text=label, style="SurfaceDim.TLabel").pack(side="left")
+        self.value_lbl.grid(row=0, column=1, sticky="sw")
+        ttk.Label(self, text=label, style="SurfaceDim.TLabel").grid(
+            row=1, column=1, sticky="nw")
 
     def _color(self) -> str:
         return self.theme.tile.get(self.color_key) or self.theme.c["accent"]
 
     def _value_style(self) -> str:
         return f"{self.color_key}.Stat.TLabel" if self.color_key else "Stat.TLabel"
-
-    def _on_theme(self, c):
-        self.outer.configure(bg=c["border_soft"])
-        self.bar.configure(bg=self._color())
-        self.value_lbl.configure(style=self._value_style())
-        if hasattr(self, "icon_lbl"):
-            self.icon_lbl.configure(foreground=self._color())
 
     def set(self, value: str):
         self.value_lbl.configure(text=str(value))
