@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.5.3
+# CapCut Draft Studio 0.5.4
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,11 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.5.4
+
+- **Sửa lỗi `SegmentOverlap` khi TẠO PROJECT có nhạc nền.** Nhạc intro (kéo dài tới 59s) và nhạc thân bài (vào từ giây 12) từng bị đặt chồng lên cùng một track; nay mỗi đoạn tự vào track còn trống. Bỏ luôn các mẩu nhạc vụn dưới 1 giây ở cuối video.
+- **Sửa lỗi tải bản cập nhật xong mà bộ cài không mở.** Bản 0.5.2 gọi tiến trình chờ sai cách nên nó tắt ngay. Nay tool kiểm tra tiến trình chờ còn sống, không thì mở bộ cài trực tiếp; và nếu lần trước đã tải mà chưa cài, tool hỏi mở luôn bộ cài thay vì tải lại.
 
 ## Mới ở 0.5.3
 

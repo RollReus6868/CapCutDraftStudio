@@ -161,15 +161,32 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
     if s.enable_bgm and a.bgm_files:
         roles=resolve_music_roles(s,a.bgm_files); intros=[x for x in roles if x[1]]; bgs=[x for x in roles if x[2]]
         bg_start=off      # nhạc nền bắt đầu cùng cảnh đầu tiên (sau video intro)
+        # Mỗi track nhạc ghi nhớ thời điểm đoạn cuối của nó kết thúc. Nhạc intro
+        # kéo dài tới bgm_intro_max_dur (59s) trong khi nhạc thân bài vào từ giây
+        # bgm_intro_high_dur (12s) — hai đoạn CHỒNG nhau, nên không được nằm cùng
+        # một track (pycapcut báo SegmentOverlap). Luôn đặt đoạn mới vào track đã
+        # trống tại thời điểm đó, thiếu thì mở thêm track.
+        track_end={"bgm_a":off,"bgm_b":off}
+        def pick_track(at: float) -> str:
+            for name,end in sorted(track_end.items(),key=lambda kv:kv[1]):
+                if end<=at+1e-6:return name
+            name=f"bgm_{chr(ord('a')+len(track_end))}"
+            script.add_track(cc.TrackType.audio,name); track_end[name]=off
+            return name
         if intros:
             f,_,_,mul=intros[0]; dur=min(media_duration_sec(f),s.bgm_intro_max_dur,total-off)
             add_audio(script,"bgm_a",f,off,dur,s.bgm_intro_vol_high*mul,0,min(1.0,dur/3)); bg_start=off+min(s.bgm_intro_high_dur,dur)
+            track_end["bgm_a"]=off+dur
         if bgs and bg_start<total:
-            cursor=bg_start; toggle=0; guard=0
+            cursor=bg_start; guard=0
             while cursor<total-0.02 and guard<2000:
+                # Dưới 1 giây còn lại: đoạn trước đang mờ dần tới gần cuối rồi, thêm
+                # một mẩu nhạc vụn chỉ sinh ra hàng loạt đoạn 0.1s chồng nhau.
+                if guard>0 and total-cursor<1.0:break
                 f,_,_,mul=bgs[guard%len(bgs)]; fd=media_duration_sec(f); want=min(fd,total-cursor); xf=min(s.crossfade_sec,want/3)
-                track="bgm_a" if toggle%2==0 else "bgm_b"; add_audio(script,track,f,cursor,want,s.bgm_body_vol*mul,xf if cursor>bg_start else 0,xf)
-                cursor += max(0.05,want-xf); toggle+=1; guard+=1
+                track=pick_track(cursor); add_audio(script,track,f,cursor,want,s.bgm_body_vol*mul,xf if cursor>bg_start else 0,xf)
+                track_end[track]=cursor+want
+                cursor += max(0.05,want-xf); guard+=1
     # SFX placed at scene starts, muted library preloaded after timeline
     for i,it in enumerate(placed):
         t=plan[i%len(plan)].start; d=min(2.0,media_duration_sec(Path(it["path"])),max(0.1,total-t))

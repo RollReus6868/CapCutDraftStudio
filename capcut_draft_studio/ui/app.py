@@ -24,7 +24,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.5.3"
+APP_VERSION = "0.5.4"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -900,6 +900,24 @@ class App:
             return
         self._update_info = info
         self.log(f"[UPDATE] Có bản mới {info.version} ({info.size_mb:.1f} MB)")
+        # Đã tải sẵn từ lần trước mà vẫn chạy bản cũ = lần trước bộ cài không mở
+        # được. Đừng tải lại lần nữa; mở thẳng bộ cài (đã kiểm SHA-256 lại).
+        cached = DOWNLOADS / info.name
+        try:
+            ready = cached.is_file() and updater.verify_package(cached, info.sha256)
+        except OSError:
+            ready = False
+        if ready:
+            if messagebox.askyesno(
+                    "Cài bản cập nhật",
+                    f"Bản {info.version} đã được tải về trước đó nhưng chưa cài xong "
+                    f"(bạn vẫn đang dùng {APP_VERSION}).\n\n"
+                    "Mở bộ cài ngay bây giờ? Tool sẽ tự đóng lại.\n\n"
+                    f"File cài đặt: {cached}"):
+                self.log(f"[UPDATE] Mở bộ cài đã tải sẵn: {cached}")
+                updater.launch_installer(cached)
+                self.root.after(200, self._quit_for_update)
+            return
         notes = (info.notes or "").strip()
         if len(notes) > 600:
             notes = notes[:600] + "…"

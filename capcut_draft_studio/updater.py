@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -226,17 +227,24 @@ def _windows_deferred_launch(path: Path) -> bool:
               f"Start-Process -FilePath '{target}'")
     cmd = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
            "-WindowStyle", "Hidden", "-Command", script]
+    # KHÔNG dùng DETACHED_PROCESS: PowerShell không có console sẽ thoát ngay mà
+    # không chạy lệnh nào — đó là lỗi của 0.5.2 (tải xong, tool đóng, bộ cài
+    # không bao giờ mở). CREATE_NO_WINDOW vẫn cho nó một console ẩn.
     base = (getattr(subprocess, "CREATE_NO_WINDOW", 0)
             | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
     # Tách khỏi job của app (nếu có) để tiến trình chờ không bị giết theo app.
     for flags in (base | getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0), base):
         try:
-            subprocess.Popen(cmd, creationflags=flags, close_fds=True,
-                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
-            return True
+            proc = subprocess.Popen(cmd, creationflags=flags, close_fds=True,
+                                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL)
         except OSError:
             continue
+        # Tiến trình chờ phải còn sống (nó đang đợi app thoát). Chết ngay nghĩa
+        # là không chạy được → để launch_installer mở bộ cài trực tiếp.
+        time.sleep(0.8)
+        if proc.poll() is None:
+            return True
     return False
 
 
