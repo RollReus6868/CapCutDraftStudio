@@ -50,51 +50,160 @@ def _manifest_texts(path: Path) -> dict[int,str]:
             if isinstance(item,dict): add(item.get("scene_id",item.get("scene",item.get("id",item.get("number")))),item)
     return out
 
-def _find_header(rows):
-    script_terms=("script","text","content","narration","thoại","thoai","kịch","kich","lời","loi","nội dung","noi dung")
-    for i,row in enumerate(rows[:20]):
-        vals=[str(x or "").strip().lower() for x in row]
-        if any(any(t in v for t in script_terms) for v in vals): return i
-    return 0
+# --------------------------------------------------------------------------- #
+# Excel lời thoại
+#
+# Mặc định (file phân cảnh chuẩn): cột A = số thứ tự cảnh, cột B = lời thoại,
+# có hoặc không có dòng tiêu đề đều được. Nếu file có dòng tiêu đề rõ ràng
+# (vd "STT | Lời thoại") thì tool tìm cột theo tên; người dùng cũng có thể gõ
+# tên cột, chữ cái cột ("B") hoặc số thứ tự cột ("2") vào ô Cột lời thoại /
+# Cột số cảnh để chỉ định thẳng.
+# --------------------------------------------------------------------------- #
+SCRIPT_TERMS=("script","text","content","narration","voice","thoại","thoai","kịch","kich",
+              "lời","loi","nội dung","noi dung","dialog")
+SCENE_TERMS=("scene","panel","stt","number","cảnh","canh","số","so","#","index","no.","id")
+DEFAULT_SCENE_COL=0     # cột A
+DEFAULT_SCRIPT_COL=1    # cột B
+
+
+def _is_number(v) -> bool:
+    if isinstance(v,(int,float)) and not isinstance(v,bool): return True
+    try: float(str(v).strip()); return True
+    except (TypeError,ValueError): return False
+
+
+def _looks_like_header(row) -> bool:
+    """Dòng tiêu đề thật: ô ngắn, ô đầu không phải số, có ít nhất một tên cột quen."""
+    vals=[str(v).strip() for v in row if v not in (None,"") and str(v).strip()]
+    if not vals or len(vals)>30: return False
+    if row and row[0] not in (None,"") and _is_number(row[0]): return False
+    if any(len(v)>40 for v in vals): return False
+    low=[v.lower() for v in vals]
+    terms=SCRIPT_TERMS+SCENE_TERMS
+    return any(v==t or v.startswith(t) or t in v.split() for v in low for t in terms)
+
+
+def _find_header(rows) -> int:
+    """Chỉ số dòng tiêu đề, hoặc -1 nếu file không có tiêu đề (dữ liệu từ dòng 1)."""
+    for i,row in enumerate(rows[:5]):
+        if row and _looks_like_header(row): return i
+        if row and any(v not in (None,"") for v in row):
+            # dòng dữ liệu đầu tiên đã xuất hiện mà chưa thấy tiêu đề → không có
+            if _is_number(row[0]) or (len(row)>1 and len(str(row[1] or ""))>40): return -1
+    return -1
+
+
+def _col_letter(i: int) -> str:
+    s=""; i+=1
+    while i: i,r=divmod(i-1,26); s=chr(65+r)+s
+    return s
+
+
+def _resolve_col(spec: str, headers: list[str]) -> int | None:
+    """'B' / 'b' → 1, '2' → 1, tên tiêu đề → vị trí của nó, '' → None."""
+    spec=(spec or "").strip()
+    if not spec: return None
+    for i,h in enumerate(headers):
+        if h and h.strip().lower()==spec.lower(): return i
+    if spec.isdigit() and int(spec)>=1: return int(spec)-1
+    m=re.fullmatch(r"(?i)(?:cột\s*|col(?:umn)?\s*)?([a-z]{1,2})",spec)
+    if m:
+        n=0
+        for ch in m.group(1).upper(): n=n*26+ord(ch)-64
+        return n-1
+    m=re.match(r"(?i)^cột\s+([a-z]{1,2})\b",spec)
+    if m: return _resolve_col(m.group(1),[])
+    return None
+
+
+def _guess_col(headers: list[str], terms, exclude=None) -> int | None:
+    for i,h in enumerate(headers):
+        if i==exclude: continue
+        hl=h.lower()
+        if hl and any(hl==t or hl.startswith(t) or t in hl.split() for t in terms): return i
+    for i,h in enumerate(headers):
+        if i==exclude: continue
+        hl=h.lower()
+        if hl and any(t in hl for t in terms if len(t)>2): return i
+    return None
+
 
 def excel_columns(path: Path, sheet_name: str="") -> tuple[list[str],list[str]]:
+    """(danh sách sheet, tên các cột). File không có tiêu đề → 'Cột A', 'Cột B'…"""
     import openpyxl
     wb=openpyxl.load_workbook(path,read_only=True,data_only=True)
-    sheets=wb.sheetnames
-    ws=wb[sheet_name] if sheet_name in wb.sheetnames else wb[wb.sheetnames[0]]
-    rows=list(ws.iter_rows(min_row=1,max_row=20,values_only=True))
+    try:
+        sheets=wb.sheetnames
+        ws=wb[sheet_name] if sheet_name in wb.sheetnames else wb[wb.sheetnames[0]]
+        rows=list(ws.iter_rows(min_row=1,max_row=20,values_only=True))
+    finally:
+        wb.close()
+    if not rows: return sheets,[]
     idx=_find_header(rows)
-    headers=[str(v or "").strip() for v in rows[idx]]
-    wb.close(); return sheets,headers
+    if idx>=0:
+        return sheets,[str(v or "").strip() or f"Cột {_col_letter(i)}" for i,v in enumerate(rows[idx])]
+    width=max(len(r) for r in rows)
+    return sheets,[f"Cột {_col_letter(i)}" for i in range(width)]
+
+
+def guess_excel_columns(headers: list[str]) -> tuple[str,str]:
+    """(cột lời thoại, cột số cảnh) để điền sẵn vào giao diện."""
+    if headers and all(h.startswith("Cột ") for h in headers):
+        return (headers[DEFAULT_SCRIPT_COL] if len(headers)>1 else "",
+                headers[DEFAULT_SCENE_COL] if headers else "")
+    sidx=_guess_col(headers,SCRIPT_TERMS)
+    nidx=_guess_col(headers,SCENE_TERMS,exclude=sidx)
+    if sidx is None and len(headers)>1: sidx=DEFAULT_SCRIPT_COL
+    if nidx is None and headers and sidx!=DEFAULT_SCENE_COL: nidx=DEFAULT_SCENE_COL
+    return (headers[sidx] if sidx is not None else "",
+            headers[nidx] if nidx is not None else "")
+
 
 def _excel_texts(path: Path, script_col: str, scene_col: str="", sheet_name: str="") -> dict[int,str]:
     import openpyxl
     wb=openpyxl.load_workbook(path,read_only=True,data_only=True)
-    ws=wb[sheet_name] if sheet_name in wb.sheetnames else wb[wb.sheetnames[0]]
-    rows=list(ws.iter_rows(values_only=True)); hidx=_find_header(rows)
-    headers=[str(v or "").strip() for v in rows[hidx]]
-    def col(name, candidates):
-        if name:
-            for i,h in enumerate(headers):
-                if h.strip().lower()==name.strip().lower(): return i
-        for i,h in enumerate(headers):
-            hl=h.lower()
-            if any(c in hl for c in candidates): return i
-        return None
-    sidx=col(script_col,("script","text","content","narration","thoại","thoai","kịch","kich","lời","loi","nội dung","noi dung"))
-    nidx=col(scene_col,("scene","panel","stt","number","cảnh","canh","số","so","#","index"))
-    if sidx is None: raise ValueError("Không tìm thấy cột lời thoại trong Excel")
+    try:
+        ws=wb[sheet_name] if sheet_name in wb.sheetnames else wb[wb.sheetnames[0]]
+        rows=list(ws.iter_rows(values_only=True))
+    finally:
+        wb.close()
+    rows=[r for r in rows if r is not None]
+    if not rows: raise ValueError("File Excel trống")
+    hidx=_find_header(rows)
+    headers=[str(v or "").strip() for v in rows[hidx]] if hidx>=0 else []
+    width=max(len(r) for r in rows)
+    if not headers: headers=[f"Cột {_col_letter(i)}" for i in range(width)]
+
+    sidx=_resolve_col(script_col,headers)
+    nidx=_resolve_col(scene_col,headers)
+    if sidx is None:
+        sidx=_guess_col(headers,SCRIPT_TERMS) if hidx>=0 else None
+        if sidx is None: sidx=DEFAULT_SCRIPT_COL
+    if nidx is None:
+        nidx=_guess_col(headers,SCENE_TERMS,exclude=sidx) if hidx>=0 else None
+        if nidx is None and sidx!=DEFAULT_SCENE_COL: nidx=DEFAULT_SCENE_COL
+    if sidx>=width and script_col:
+        sidx=DEFAULT_SCRIPT_COL           # tên cột cũ không còn khớp → dùng mặc định
+    if nidx is not None and nidx>=width:
+        nidx=DEFAULT_SCENE_COL if sidx!=DEFAULT_SCENE_COL else None
+    if sidx>=width:
+        raise ValueError(f"Excel chỉ có {width} cột — không có cột lời thoại "
+                         f"{_col_letter(sidx)}. Mặc định: cột A = số cảnh, cột B = lời thoại.")
+
     out={}; auto=1
     for row in rows[hidx+1:]:
         if sidx>=len(row):continue
-        txt=str(row[sidx] or "").strip()
+        txt=str(row[sidx] if row[sidx] is not None else "").strip()
         if not txt:continue
         n=auto
         if nidx is not None and nidx<len(row) and row[nidx] not in (None,""):
-            try:n=int(float(row[nidx]))
-            except Exception:continue
+            try:n=int(float(str(row[nidx]).strip()))
+            except Exception:continue    # dòng ghi chú / tiêu đề phụ → bỏ qua
         out[n]=txt; auto+=1
-    wb.close(); return out
+    if not out:
+        raise ValueError("Không đọc được dòng lời thoại nào từ Excel. Mặc định: cột A = số "
+                         "cảnh, cột B = lời thoại; hoặc gõ tên/chữ cái cột ở Cài đặt → Phụ đề.")
+    return out
 
 def load_scene_texts(s: Settings, plan, log: LogFn=print) -> dict[int,str]:
     """`plan` nhận list[ScenePlan] hoặc thẳng list số cảnh."""

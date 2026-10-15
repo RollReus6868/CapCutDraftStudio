@@ -95,6 +95,19 @@ class Settings:
     enable_slow: bool = True
     enable_cut: bool = True
     register_root_meta: bool = True
+    # --- intro / outro (0.5.2): video chèn trước cảnh đầu / sau cảnh cuối ---
+    enable_intro: bool = False
+    intro_path: Path | None = None
+    enable_outro: bool = False
+    outro_path: Path | None = None
+
+    def intro_file(self) -> Path | None:
+        p = self.intro_path
+        return Path(p) if self.enable_intro and p and Path(p).is_file() else None
+
+    def outro_file(self) -> Path | None:
+        p = self.outro_path
+        return Path(p) if self.enable_outro and p and Path(p).is_file() else None
 
     def jsonable(self) -> dict:
         d = asdict(self)

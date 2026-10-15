@@ -192,10 +192,52 @@ def download(info: UpdateInfo, dest_dir: Path, progress=None, cancel=None,
     return target
 
 
+def _app_pids() -> list[int]:
+    """PID của app đang chạy. Bản .exe một-file của PyInstaller có HAI tiến trình
+    (trình mở gói + Python) và cả hai đều giữ file .exe — phải chờ cả hai thoát."""
+    pids = [os.getpid()]
+    if getattr(sys, "frozen", False):
+        try:
+            ppid = os.getppid()
+            if ppid and ppid != os.getpid():
+                pids.append(ppid)
+        except OSError:
+            pass
+    return pids
+
+
+def _windows_deferred_launch(path: Path) -> bool:
+    """Chạy bộ cài SAU KHI app đã thoát hẳn.
+
+    Mở bộ cài ngay trong lúc app còn chạy thì file .exe cũ đang bị khoá: bộ cài
+    báo lỗi không ghi đè được (hoặc bảng "ứng dụng đang dùng file"), dù sau đó
+    tool vẫn mở được. Một tiến trình PowerShell ẩn đứng chờ app thoát rồi mới
+    gọi bộ cài.
+    """
+    pids = ",".join(str(p) for p in _app_pids())
+    target = str(path).replace("'", "''")
+    script = (f"Wait-Process -Id {pids} -Timeout 60 -ErrorAction SilentlyContinue; "
+              "Start-Sleep -Milliseconds 800; "
+              f"Start-Process -FilePath '{target}'")
+    try:
+        subprocess.Popen(
+            ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+             "-WindowStyle", "Hidden", "-Command", script],
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            | getattr(subprocess, "DETACHED_PROCESS", 0),
+            close_fds=True)
+        return True
+    except OSError:
+        return False
+
+
 def launch_installer(path: Path) -> None:
-    """Mở bộ cài vừa tải; app nên tự thoát ngay sau đó."""
+    """Mở bộ cài vừa tải; app PHẢI tự thoát ngay sau đó (Windows: bộ cài chỉ chạy
+    khi app đã thoát hẳn)."""
     path = Path(path)
     if os.name == "nt":
+        if getattr(sys, "frozen", False) and _windows_deferred_launch(path):
+            return
         os.startfile(str(path))          # noqa: S606 - đã xác thực SHA-256
     elif sys.platform == "darwin":
         subprocess.Popen(["open", str(path)])

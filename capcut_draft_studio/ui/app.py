@@ -24,7 +24,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.5.1"
+APP_VERSION = "0.5.2"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -163,6 +163,8 @@ STR_DEFAULTS = {
     "render_engine": "ffmpeg", "render_res": "source", "render_fps": 0,
     "render_crf": 20, "render_preset": "medium", "render_codec": "h264",
     "render_hw": "auto", "render_audio_kbps": 192, "render_out_dir": "",
+    # --- 0.5.2 ---
+    "intro_path": "", "outro_path": "",
 }
 
 #: Ô tích ở thẻ "Chức năng" của trang Tổng quan
@@ -180,6 +182,8 @@ OTHER_BOOLS = {
     "render_rebuild_draft": True,
     "render_open_when_done": True,
     "auto_update_check": True,
+    "enable_intro": False,
+    "enable_outro": False,
 }
 
 PERSIST_KEYS = list(STR_DEFAULTS.keys())
@@ -636,6 +640,16 @@ class App:
             raw = str(d.get(key, "") or "").strip()
             return Path(raw) if raw else None
 
+        # --- intro / outro ---
+        for part, label in (("intro", "intro"), ("outro", "outro")):
+            on = bool(d.get(f"enable_{part}", False))
+            path = opt(f"{part}_path")
+            if on and (path is None or not path.is_file()):
+                raise BuildError(f"Đã bật chèn {label} nhưng chưa chọn file {label} hợp lệ "
+                                 "(Cài đặt → Nâng cao → Intro & Outro).")
+            kw[f"enable_{part}"] = on
+            kw[f"{part}_path"] = path
+
         return Settings(ip, ch, name, cap, SFX_LIBRARY, SUB_STYLES,
                         opt("logo_path"), opt("claim_path"), opt("bgm_dir"),
                         opt("subtitle_file"), **kw)
@@ -968,7 +982,7 @@ class App:
                             "Đã tải xong và kiểm tra mã SHA-256 hợp lệ.\n\n"
                             "Đóng tool và chạy bộ cài ngay bây giờ?"):
                         updater.launch_installer(Path(payload))
-                        self.root.after(400, self.root.destroy)
+                        self.root.after(200, self._quit_for_update)
                 elif kind == "uperr":
                     self._checking_update = False
                     self.set_status("Cập nhật thất bại")
@@ -1039,6 +1053,15 @@ class App:
     def log(self, message: str):
         if hasattr(self, "logview") and isinstance(self.logview, LogView):
             self.logview.append(message)
+
+    def _quit_for_update(self):
+        """Lưu cấu hình rồi thoát hẳn để bộ cài ghi đè được file .exe."""
+        self.cancel_flag.set()
+        try:
+            self.persist()
+        except Exception:
+            pass
+        self.root.destroy()
 
     def on_close(self):
         if self.running and not messagebox.askyesno(

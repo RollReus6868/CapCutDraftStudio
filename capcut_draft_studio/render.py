@@ -737,6 +737,59 @@ class Renderer:
                        "-movflags", "+faststart",
                        "-t", f"{self.job.duration:.4f}", str(out)]
 
+    # -- bước 5: intro / outro ------------------------------------------- #
+    def _wrap_parts(self) -> list[tuple[str, Path, float]]:
+        """[(nhãn, file, độ dài)] của intro/outro đang bật."""
+        from .capcut_engine import clip_len
+        out = []
+        for label, path in (("intro", self.s.intro_file()), ("outro", self.s.outro_file())):
+            if path:
+                out.append((label, path, clip_len(path, label)))
+        return out
+
+    def wrap_args(self, main: Path, wrap: list[tuple[str, Path, float]],
+                  out: Path) -> tuple[list[str], float]:
+        """Ghép intro + video chính + outro. Mọi đoạn được đưa về cùng khung hình,
+        fps và định dạng tiếng; đoạn không có tiếng được lấp bằng khoảng lặng."""
+        w, h, fps = self.w, self.h, self.fps
+        parts: list[tuple[Path, float]] = []
+        for label, path, dur in wrap:
+            if label == "intro":
+                parts.append((path, dur))
+        parts.append((main, self.job.duration))
+        for label, path, dur in wrap:
+            if label == "outro":
+                parts.append((path, dur))
+        args: list[str] = []
+        for path, _ in parts:
+            args += ["-i", str(path)]
+        chains: list[str] = []
+        joined = ""
+        extra = len(parts)
+        for i, (path, dur) in enumerate(parts):
+            chains.append(f"[{i}:v]trim=duration={dur:.4f},setpts=PTS-STARTPTS,"
+                          f"scale={w}:{h}:force_original_aspect_ratio=decrease,"
+                          f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,"
+                          f"fps={fps},format=yuv420p[v{i}]")
+            if probe_has_audio(self.ffprobe, path):
+                src = f"[{i}:a]"
+            else:
+                args += ["-f", "lavfi", "-t", f"{dur:.4f}", "-i",
+                         "anullsrc=r=48000:cl=stereo"]
+                src = f"[{extra}:a]"
+                extra += 1
+            chains.append(f"{src}atrim=duration={dur:.4f},asetpts=PTS-STARTPTS,"
+                          f"aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,"
+                          f"apad=whole_dur={dur:.4f}[a{i}]")
+            joined += f"[v{i}][a{i}]"
+        chains.append(f"{joined}concat=n={len(parts)}:v=1:a=1[vout][aout]")
+        total = sum(d for _, d in parts)
+        return args + ["-filter_complex", ";".join(chains), "-map", "[vout]", "-map", "[aout]",
+                       "-c:v", self.encoder,
+                       *quality_args(self.encoder, self.s.render_crf, self.s.render_preset),
+                       "-c:a", "aac", "-b:a", f"{self.s.render_audio_kbps}k",
+                       "-movflags", "+faststart", str(out)], total
+
     # -- điều phối -------------------------------------------------------- #
     def run(self) -> Path:
         job = self.job
@@ -753,8 +806,18 @@ class Renderer:
                                   self._build_bgm(), self._build_sfx()) if t]
             self._finish_phase("audio")
             self.log(f"[RENDER] Đang trộn {len(tracks)} đường tiếng và ghi file cuối…")
-            self._ffmpeg(self.final_args(video, tracks, job.out_path),
-                         job.duration, "final")
+            wrap = self._wrap_parts()
+            if wrap:
+                main = self.work / "main.mp4"
+                self._ffmpeg(self.final_args(video, tracks, main), job.duration, "final",
+                             0.0, 0.75)
+                names = " + ".join(lbl for lbl, _, _ in wrap)
+                self.log(f"[RENDER] Đang ghép {names} vào video…")
+                args, total = self.wrap_args(main, wrap, job.out_path)
+                self._ffmpeg(args, total, "final", 0.75, 0.25)
+            else:
+                self._ffmpeg(self.final_args(video, tracks, job.out_path),
+                             job.duration, "final")
             self._finish_phase("final")
         except Cancelled:
             job.status = "cancelled"

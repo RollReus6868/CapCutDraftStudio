@@ -22,6 +22,8 @@ DEFAULT_CHANNEL_KEYS = {
     "sub_shadow_smoothing", "sub_shadow_color",
     "render_engine", "render_res", "render_fps", "render_crf", "render_preset",
     "render_codec", "render_audio_kbps", "render_burn_subs", "render_hw",
+    # --- thêm từ 0.5.2 ---
+    "enable_intro", "intro_path", "enable_outro", "outro_path",
 }
 
 def load_json(path: Path, default):

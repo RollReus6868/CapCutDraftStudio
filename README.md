@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.5.1
+# CapCut Draft Studio 0.5.2
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,18 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.5.2
+
+- **Excel lời thoại không cần dòng tiêu đề.** Mặc định cột A = số thứ tự cảnh,
+  cột B = lời thoại (đúng dạng file phân cảnh). File có tiêu đề kiểu
+  "STT | Lời thoại" vẫn được nhận theo tên. Ở *Cài đặt → Phụ đề* có thể gõ tên
+  cột, chữ cái cột (B) hoặc số cột (2) để chỉ định thẳng.
+- **Intro & Outro.** *Cài đặt → Nâng cao → Intro & Outro*: chọn video chèn trước
+  cảnh đầu và sau cảnh cuối, giữ tiếng gốc của file. Áp cho cả draft CapCut lẫn
+  file mp4 render ra; nhạc nền, logo, claim và phụ đề vẫn chỉ nằm trên phần nội dung.
+- **Cập nhật êm hơn.** Bộ cài chỉ chạy khi tool đã thoát hẳn, nên không còn báo
+  lỗi "file đang được sử dụng" khi cài đè bản mới.
 
 ## Mới ở 0.4.0
 

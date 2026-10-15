@@ -16,7 +16,7 @@ from tkinter import filedialog, messagebox, ttk
 from .. import animations, gaps, render
 from ..media import harvest_sfx_from_capcut, list_bgm_files, list_sfx_items
 from ..styles import harvest_sub_styles, list_sub_styles
-from ..subtitles import excel_columns
+from ..subtitles import excel_columns, guess_excel_columns
 from .widgets import (Badge, Card, GapDialog, LogView, MappedCombobox, PathPicker,
                       ScrollFrame, SegmentedTabs, SliderField, StatTile, field_row,
                       labeled_combo)
@@ -657,13 +657,15 @@ def build_subtitle(app, page):
     cols = ttk.Frame(src, style="Surface.TFrame")
     cols.grid(row=3, column=0, columnspan=2, sticky="ew")
     for i in range(3):
-        cols.columnconfigure(i, weight=1)
+        cols.columnconfigure(i, weight=1, uniform="xlcols")
     field_row(cols, th, "Sheet", app.vars["excel_sheet"]).grid(
         row=0, column=0, sticky="ew", padx=(0, 14))
-    field_row(cols, th, "Cột lời thoại", app.vars["excel_script_col"]).grid(
-        row=0, column=1, sticky="ew", padx=(0, 14))
-    field_row(cols, th, "Cột số cảnh", app.vars["excel_scene_col"]).grid(
-        row=0, column=2, sticky="ew")
+    field_row(cols, th, "Cột lời thoại", app.vars["excel_script_col"],
+              hint="Để trống = cột B. Gõ được tên cột, chữ cái (B) hoặc số (2).").grid(
+        row=0, column=1, sticky="new", padx=(0, 14))
+    field_row(cols, th, "Cột số cảnh", app.vars["excel_scene_col"],
+              hint="Để trống = cột A (STT).").grid(
+        row=0, column=2, sticky="new")
 
     style_card = Card(host, th, "Kiểu chữ & chuyển cảnh",
                       "Nhập style từ các draft CapCut có sẵn rồi áp lại sau khi import SRT.")
@@ -740,10 +742,7 @@ def _load_excel(app):
         messagebox.showerror("Không đọc được Excel", str(e))
         return
     app.vars["excel_sheet"].set(sheets[0] if sheets else "")
-    script = next((h for h in headers if any(
-        x in h.lower() for x in ("script", "text", "content", "thoại", "loi", "lời"))), "")
-    scene = next((h for h in headers if any(
-        x in h.lower() for x in ("scene", "stt", "panel", "cảnh"))), "")
+    script, scene = guess_excel_columns(headers)
     app.vars["excel_script_col"].set(script)
     app.vars["excel_scene_col"].set(scene)
     app.log(f"[OK] Excel: {len(headers)} cột — {', '.join(headers[:10])}")
@@ -814,8 +813,28 @@ def build_advanced(app, page):
                on_change=lambda *_: refresh_music(app)).grid(
         row=1, column=0, sticky="ew", padx=(0, 16), pady=(14, 0))
 
+    vid_types = [("Video", "*.mp4 *.mov *.mkv *.avi *.webm *.m4v"), ("Tất cả", "*.*")]
+    io = Card(host, th, "Intro & Outro",
+              "Video chèn vào trước cảnh đầu tiên và sau cảnh cuối cùng, giữ nguyên "
+              "tiếng gốc của file. Áp cho cả draft CapCut lẫn file mp4 render ra.",
+              accent="render", icon="▶")
+    io.grid_in(row=2, column=0, sticky="ew", pady=(0, 16))
+    io.columnconfigure(0, weight=1)
+    io.columnconfigure(1, weight=1)
+    for col, (part, label) in enumerate((("intro", "intro"), ("outro", "outro"))):
+        cell = ttk.Frame(io, style="Surface.TFrame")
+        cell.grid(row=0, column=col, sticky="new", padx=(0, 16) if col == 0 else 0)
+        cell.columnconfigure(0, weight=1)
+        ttk.Checkbutton(cell, text=f"Chèn {label}",
+                        variable=app.boolvars[f"enable_{part}"]).grid(
+            row=0, column=0, sticky="w", pady=(0, 8))
+        PathPicker(cell, th, f"File video {label}", app.vars[f"{part}_path"], "file",
+                   filetypes=vid_types,
+                   on_change=lambda *_, p=part: app.boolvars[f"enable_{p}"].set(True)).grid(
+            row=1, column=0, sticky="ew")
+
     audio = Card(host, th, "Âm lượng", "Hệ số nhân so với âm lượng gốc của file.")
-    audio.grid_in(row=2, column=0, sticky="ew", pady=(0, 16))
+    audio.grid_in(row=3, column=0, sticky="ew", pady=(0, 16))
     _grid_fields(app, audio, th, [
         ("Giọng đọc", "voice_vol", "Mặc định 3.16"),
         ("Nhạc nền (thân bài)", "bgm_body_vol", "Mặc định 0.18"),
@@ -827,7 +846,7 @@ def build_advanced(app, page):
     ])
 
     video = Card(host, th, "Hình ảnh & chuyển cảnh")
-    video.grid_in(row=3, column=0, sticky="ew", pady=(0, 16))
+    video.grid_in(row=4, column=0, sticky="ew", pady=(0, 16))
     _grid_fields(app, video, th, [
         ("Tốc độ chậm tối thiểu", "min_speed", "Dưới mức này sẽ đổi sang ảnh"),
         ("Thời lượng chuyển cảnh", "trans_dur", "giây"),
@@ -835,7 +854,7 @@ def build_advanced(app, page):
     ])
 
     logo = Card(host, th, "Vị trí logo", "Toạ độ theo hệ của CapCut: -1 đến 1.")
-    logo.grid_in(row=4, column=0, sticky="ew", pady=(0, 16))
+    logo.grid_in(row=5, column=0, sticky="ew", pady=(0, 16))
     _grid_fields(app, logo, th, [
         ("Logo X", "logo_x", "Dương = sang phải"),
         ("Logo Y", "logo_y", "Âm = xuống dưới"),
@@ -843,7 +862,7 @@ def build_advanced(app, page):
     ])
 
     note = Card(host, th, "Cập nhật & bảo mật")
-    note.grid_in(row=5, column=0, sticky="ew")
+    note.grid_in(row=6, column=0, sticky="ew")
     note.columnconfigure(0, weight=1)
     ttk.Label(note, text="Tool kiểm tra bản mới trên GitHub Releases. File cài đặt tải về "
                          "chỉ được chạy khi mã SHA-256 khớp đúng bảng băm công bố kèm bản "

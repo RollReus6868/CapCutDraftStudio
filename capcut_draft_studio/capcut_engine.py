@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json, math, os, shutil, time
+from dataclasses import replace
 from pathlib import Path
 from . import animations
 from .models import Settings, Assets, ScenePlan, LogFn
@@ -80,10 +81,26 @@ def register_root_meta(draft_path: Path, log: LogFn=print) -> None:
         log("[BUILD] Đã đăng ký project vào root_meta_info.json (có backup).")
     except Exception as e:log(f"[WARN] Không đăng ký được root_meta_info.json: {e}")
 
+def clip_len(path: Path, label: str) -> float:
+    """Độ dài (giây) của file intro/outro; báo lỗi dễ hiểu nếu không đọc được."""
+    try:
+        d=float(media_duration_sec(Path(path)))
+    except Exception as e:
+        raise BuildError(f"Không đọc được độ dài file {label}: {Path(path).name} ({e})") from e
+    if d<=0.05:raise BuildError(f"File {label} quá ngắn hoặc hỏng: {Path(path).name}")
+    return d
+
 def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_out_dir: Path|None=None,
           progress=None, cancel=None) -> Path:
     progress = progress or _noop_progress
     if not plan:raise BuildError("Plan rỗng")
+    # Intro: đẩy toàn bộ timeline lùi lại đúng bằng độ dài intro. Outro: nối sau cảnh cuối.
+    intro,outro=s.intro_file(),s.outro_file()
+    off=clip_len(intro,"intro") if intro else 0.0
+    outro_len=clip_len(outro,"outro") if outro else 0.0
+    if off>0:
+        plan=[replace(p,start=p.start+off) for p in plan]
+        log(f"[BUILD] Intro: {intro.name} ({off:.2f}s) — các cảnh lùi lại {off:.2f}s")
     if not s.capcut_drafts.is_dir():raise BuildError(f"Không thấy CapCut drafts folder: {s.capcut_drafts}")
     cc=_cc(); log(f"[BUILD] Tạo draft '{s.draft_name}' ({s.width}x{s.height} @{s.fps}fps)...")
     anim_picker=animations.AnimPicker(s.image_anim); anim_used: dict[str,int]={}
@@ -99,6 +116,8 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
     if placed:script.add_track(cc.TrackType.audio,"sfx")
     if muted:script.add_track(cc.TrackType.audio,"sfx_kho",mute=True)
     total=plan[-1].end; trans=_resolve_transition(cc,s.transition_type)
+    if intro:
+        script.add_segment(cc.VideoSegment(str(intro),cc.trange("0s",_sec(off))),"main")
     # visuals + voice
     for idx,p in enumerate(plan):
         _check(cancel); progress("build", idx, len(plan))
@@ -121,6 +140,9 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
         script.add_segment(seg,"main")
         if (idx+1)%50==0:log(f"[BUILD] ... {idx+1}/{len(plan)}")
     progress("build", len(plan), len(plan))
+    if outro:
+        script.add_segment(cc.VideoSegment(str(outro),cc.trange(_sec(total),_sec(outro_len))),"main")
+        log(f"[BUILD] Outro: {outro.name} ({outro_len:.2f}s)")
     if anim_used:
         detail=", ".join(f"{animations.BY_KEY[k].label if k in animations.BY_KEY else k} {n}"
                          for k,n in sorted(anim_used.items(),key=lambda kv:-kv[1]))
@@ -128,20 +150,20 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
     # claim overlay
     if a.claim and s.enable_claim:
         script.add_track(cc.TrackType.video,"claim",relative_index=2)
-        dur=min(s.claim_dur,total); script.add_segment(cc.VideoSegment(str(a.claim),cc.trange("0s",_sec(dur))),"claim")
+        dur=min(s.claim_dur,total-off); script.add_segment(cc.VideoSegment(str(a.claim),cc.trange(_sec(off),_sec(dur))),"claim")
     # logo overlay
     if a.logo and s.enable_logo:
         script.add_track(cc.TrackType.video,"logo",relative_index=3)
         cs=cc.ClipSettings(transform_x=s.logo_x,transform_y=s.logo_y,scale_x=s.logo_scale,scale_y=s.logo_scale)
-        script.add_segment(cc.VideoSegment(str(a.logo),cc.trange("0s",_sec(total)),clip_settings=cs),"logo")
+        script.add_segment(cc.VideoSegment(str(a.logo),cc.trange(_sec(off),_sec(total-off)),clip_settings=cs),"logo")
         log("[BUILD] Logo watermark OK")
     # BGM: first intro track then round-robin background with crossfades
     if s.enable_bgm and a.bgm_files:
         roles=resolve_music_roles(s,a.bgm_files); intros=[x for x in roles if x[1]]; bgs=[x for x in roles if x[2]]
-        bg_start=0.0
+        bg_start=off      # nhạc nền bắt đầu cùng cảnh đầu tiên (sau video intro)
         if intros:
-            f,_,_,mul=intros[0]; dur=min(media_duration_sec(f),s.bgm_intro_max_dur,total)
-            add_audio(script,"bgm_a",f,0,dur,s.bgm_intro_vol_high*mul,0,min(1.0,dur/3)); bg_start=min(s.bgm_intro_high_dur,dur)
+            f,_,_,mul=intros[0]; dur=min(media_duration_sec(f),s.bgm_intro_max_dur,total-off)
+            add_audio(script,"bgm_a",f,off,dur,s.bgm_intro_vol_high*mul,0,min(1.0,dur/3)); bg_start=off+min(s.bgm_intro_high_dur,dur)
         if bgs and bg_start<total:
             cursor=bg_start; toggle=0; guard=0
             while cursor<total-0.02 and guard<2000:
@@ -152,7 +174,7 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
     for i,it in enumerate(placed):
         t=plan[i%len(plan)].start; d=min(2.0,media_duration_sec(Path(it["path"])),max(0.1,total-t))
         add_audio(script,"sfx",Path(it["path"]),t,d,1.0)
-    shelf_cursor=total+1.0
+    shelf_cursor=total+outro_len+1.0
     for it in muted:
         try:d=min(2.0,media_duration_sec(Path(it["path"]))); add_audio(script,"sfx_kho",Path(it["path"]),shelf_cursor,d,1.0); shelf_cursor+=d+0.2
         except Exception:pass
