@@ -24,6 +24,8 @@ DEFAULT_CHANNEL_KEYS = {
     "render_codec", "render_audio_kbps", "render_burn_subs", "render_hw",
     # --- thêm từ 0.5.2 ---
     "enable_intro", "intro_path", "enable_outro", "outro_path",
+    # --- thêm từ 0.5.6 ---
+    "visual_zoom", "bgm_order",
 }
 
 def load_json(path: Path, default):

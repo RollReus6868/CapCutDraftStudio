@@ -49,6 +49,11 @@ GAP_MODE_CHOICES = (
     ("fixed", "Cố định — mọi cảnh nghỉ như nhau"),
 )
 
+BGM_ORDER_CHOICES = (
+    ("number", "Theo số thứ tự file (1, 2, 3 … 10, 11)"),
+    ("random", "Ngẫu nhiên — mỗi lần dựng một thứ tự khác"),
+)
+
 HW_CHOICES = (
     ("auto", "Tự động — dùng card đồ hoạ nếu có"),
     ("cpu", "Chỉ CPU — chậm hơn nhưng chắc chắn chạy"),
@@ -452,15 +457,22 @@ def build_music(app, page):
 
     bar = Card(page, th, padding=14)
     bar.grid_in(row=0, column=0, sticky="ew", pady=(0, 12))
-    ttk.Label(bar, text="Intro = mở đầu (to hơn) · Nền = phát xoay vòng suốt video · "
+    top = ttk.Frame(bar, style="Surface.TFrame")
+    top.pack(fill="x")
+    ttk.Label(top, text="Intro = mở đầu (to hơn) · Nền = phát xoay vòng suốt video · "
                         "Hệ số nhân với âm lượng gốc.",
               style="SurfaceDim.TLabel").pack(side="left")
-    ttk.Button(bar, text="Làm mới", style="Ghost.TButton",
+    ttk.Button(top, text="Làm mới", style="Ghost.TButton",
                command=lambda: refresh_music(app)).pack(side="right")
-    ttk.Button(bar, text="Mở folder", style="Ghost.TButton",
+    ttk.Button(top, text="Mở folder", style="Ghost.TButton",
                command=lambda: _open_folder(app.bgm_folder())).pack(side="right", padx=(0, 6))
-    ttk.Button(bar, text="Thêm file nhạc…", style="Secondary.TButton",
+    ttk.Button(top, text="Thêm file nhạc…", style="Secondary.TButton",
                command=lambda: _add_music(app)).pack(side="right", padx=(0, 8))
+    order = ttk.Frame(bar, style="Surface.TFrame")
+    order.pack(fill="x", pady=(10, 0))
+    ttk.Label(order, text="Thứ tự chèn nhạc nền:", style="Field.TLabel").pack(side="left")
+    MappedCombobox(order, app.vars["bgm_order"], BGM_ORDER_CHOICES, fallback="number",
+                   width=40).pack(side="left", padx=(10, 0))
 
     card = Card(page, th, padding=14)
     card.grid_in(row=1, column=0, sticky="nsew")
@@ -848,6 +860,8 @@ def build_advanced(app, page):
     video = Card(host, th, "Hình ảnh & chuyển cảnh")
     video.grid_in(row=4, column=0, sticky="ew", pady=(0, 16))
     _grid_fields(app, video, th, [
+        ("Phóng to hình/video (%)", "visual_zoom", "Mặc định 102 — lấp viền đen khi "
+                                                   "ảnh/video không đúng khung"),
         ("Tốc độ chậm tối thiểu", "min_speed", "Dưới mức này sẽ đổi sang ảnh"),
         ("Thời lượng chuyển cảnh", "trans_dur", "giây"),
         ("Thời lượng claim", "claim_dur", "giây"),

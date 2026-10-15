@@ -51,9 +51,24 @@ def find_named(folder: Path, stems: tuple[str, ...], exts=IMAGE_EXTS) -> Path | 
         if f.is_file() and f.stem.lower() in ss and f.suffix.lower() in exts: return f
     return None
 
+def first_image(folder: Path) -> Path | None:
+    """Ảnh đầu tiên (theo tên) trong thư mục riêng như Logo/ hay Text Claim/.
+
+    Người dùng hay đặt tên tuỳ ý (vd `Logo/WM.png`) chứ không đặt đúng `logo.png`;
+    thư mục đã mang tên Logo thì ảnh trong đó chính là logo.
+    """
+    if not folder.is_dir(): return None
+    for f in sorted(folder.iterdir(), key=lambda p: p.name.lower()):
+        if f.is_file() and f.suffix.lower() in IMAGE_EXTS: return f
+    return None
+
 def list_bgm_files(folder: Path) -> list[Path]:
     if not folder.is_dir(): return []
-    return sorted([f for f in folder.rglob("*") if f.is_file() and f.suffix.lower() in AUDIO_EXTS and f.stem.lower() != "impact"], key=lambda p:p.name.lower())
+    return sorted([f for f in folder.rglob("*") if f.is_file() and f.suffix.lower() in AUDIO_EXTS and f.stem.lower() != "impact"], key=lambda p:natural_key(p.name))
+
+def natural_key(name: str):
+    """Sắp xếp tự nhiên: 1, 2, 3 … 10, 11 thay vì 1, 10, 11, 2."""
+    return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", name)]
 
 def list_sfx_items(sfx_library: Path, channel_dir: Path) -> list[dict]:
     items=[]; seen=set()
@@ -86,8 +101,8 @@ def scan_assets(s: Settings, log: LogFn = print) -> Assets:
         texts=scan_numbered(s.input_dir/"Texts",{".txt"},log),
     )
     if not a.audios: raise BuildError(f"Không tìm thấy audio đánh số trong {adir}")
-    a.logo=_override_file(s.logo_path, find_named(s.channel_dir/"Logo",("logo",)) or find_named(s.channel_dir,("logo",)), "Logo", log) if s.enable_logo else None
-    a.claim=_override_file(s.claim_path, find_named(s.channel_dir/"Text Claim",("text claim","claim")) or find_named(s.channel_dir,("text claim","claim")), "Claim", log) if s.enable_claim else None
+    a.logo=_override_file(s.logo_path, find_named(s.channel_dir/"Logo",("logo",)) or find_named(s.channel_dir,("logo",)) or first_image(s.channel_dir/"Logo"), "Logo", log) if s.enable_logo else None
+    a.claim=_override_file(s.claim_path, find_named(s.channel_dir/"Text Claim",("text claim","claim")) or find_named(s.channel_dir,("text claim","claim")) or first_image(s.channel_dir/"Text Claim"), "Claim", log) if s.enable_claim else None
     bgm_src=Path(s.bgm_dir) if s.bgm_dir and Path(s.bgm_dir).is_dir() else s.channel_dir/"BGM"
     a.bgm_files=list_bgm_files(bgm_src) if s.enable_bgm else []
     a.impact=find_named(bgm_src,("impact",),AUDIO_EXTS) if s.enable_impact else None

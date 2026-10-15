@@ -268,20 +268,31 @@ def atempo_chain(speed: float) -> str | None:
     return ",".join(parts) if parts else None
 
 
+def _zoom_fill(w: int, h: int, zoom: float) -> str:
+    """Phủ kín khung w×h, phóng thêm `zoom` (1.02 = 102%) rồi cắt giữa."""
+    if abs(zoom - 1.0) < 1e-6:
+        return f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h},setsar=1"
+    zw, zh = _even(w * zoom), _even(h * zoom)
+    return (f"scale={zw}:{zh}:force_original_aspect_ratio=increase,"
+            f"crop={w}:{h},setsar=1")
+
+
 def kenburns_filter(anim_key: str, duration: float, fps: int, w: int, h: int,
-                    supersample: int = 4) -> str:
+                    supersample: int = 4, zoom: float = 1.0) -> str:
     """Chuỗi filter ffmpeg mô phỏng hiệu ứng Ken Burns của tool.
 
     Hệ toạ độ của tool: `position_x/y` tính theo NỬA khung hình, y dương là
     LÊN. zoompan làm việc trên ảnh đã phóng `supersample` lần, nên 1 pixel đầu
-    ra tương ứng `supersample/zoom` pixel đầu vào.
+    ra tương ứng `supersample/zoom` pixel đầu vào. `zoom` = mức phóng chung
+    (Settings.visual_zoom / 100), nhân vào mức phóng của hiệu ứng.
     """
     fill = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
             f"crop={w}:{h},setsar=1")
     specs = {name: (a, b) for name, a, b in animations.keyframes_for(anim_key)}
     if not specs:
-        return fill
+        return _zoom_fill(w, h, zoom)
     z0, z1 = specs.get("uniform_scale", (1.0, 1.0))
+    z0, z1 = z0 * zoom, z1 * zoom
     x0, x1 = specs.get("position_x", (0.0, 0.0))
     y0, y1 = specs.get("position_y", (0.0, 0.0))
     frames = max(2, int(round(max(0.04, duration) * fps)))
@@ -298,12 +309,15 @@ def kenburns_filter(anim_key: str, duration: float, fps: int, w: int, h: int,
     return f"{fill},{big},{zp},setsar=1"
 
 
-def video_scene_filter(speed: float, fps: int, w: int, h: int) -> str:
+def video_scene_filter(speed: float, fps: int, w: int, h: int, zoom: float = 1.0) -> str:
     parts: list[str] = []
     if abs(float(speed) - 1.0) > 1e-6:
         parts.append(f"setpts=PTS/{float(speed):.6f}")
-    parts += [f"scale={w}:{h}:force_original_aspect_ratio=increase",
-              f"crop={w}:{h}", "setsar=1", f"fps={fps}"]
+    if abs(zoom - 1.0) < 1e-6:
+        parts += [f"scale={w}:{h}:force_original_aspect_ratio=increase",
+                  f"crop={w}:{h}", "setsar=1", f"fps={fps}"]
+    else:
+        parts += [_zoom_fill(w, h, zoom), f"fps={fps}"]
     return ",".join(parts)
 
 
@@ -390,6 +404,7 @@ class Renderer:
         self.ffmpeg, self.ffprobe = require_tools()
         self.w, self.h = target_size(self.s)
         self.fps = target_fps(self.s)
+        self.zoom = max(0.5, min(2.0, float(getattr(self.s, "visual_zoom", 100.0) or 100.0) / 100.0))
         self.encoder = pick_encoder(self.ffmpeg, getattr(self.s, "render_codec", "h264"),
                                     getattr(self.s, "render_hw", "auto"))
         self.trans = (float(self.s.trans_dur)
@@ -480,10 +495,10 @@ class Renderer:
                      "-i", str(p.visual_path)]
             picker = animations.AnimPicker(self.s.image_anim)
             key = picker.pick(i) if self.s.image_anim else animations.MODE_OFF
-            vf.append(kenburns_filter(key, length, self.fps, self.w, self.h))
+            vf.append(kenburns_filter(key, length, self.fps, self.w, self.h, zoom=self.zoom))
         else:
             args += ["-i", str(p.visual_path)]
-            vf.append(video_scene_filter(p.speed, self.fps, self.w, self.h))
+            vf.append(video_scene_filter(p.speed, self.fps, self.w, self.h, zoom=self.zoom))
             if self.trans and i < len(self.job.plan) - 1:
                 vf.append(f"tpad=stop_mode=clone:stop_duration={self.trans:.4f}")
         return args + ["-an", "-vf", ",".join(vf), "-t", f"{length:.4f}",
@@ -630,8 +645,14 @@ class Renderer:
             f, _, _, mul = intros[0]
             dur = min(media_duration_sec(f), self.s.bgm_intro_max_dur, total)
             piece = pdir / "b_intro.wav"
+            # to trong "Intro giữ to" giây đầu rồi hạ về "Intro nhỏ" (như draft CapCut)
+            hi = float(self.s.bgm_intro_vol_high) * mul
+            lo = float(self.s.bgm_intro_vol_low) * mul
+            hold = float(self.s.bgm_intro_high_dur)
+            vol = (f"volume='{hi:.4f}+({lo - hi:.4f})*clip((t-{hold:.3f})/1.0,0,1)':eval=frame"
+                   if dur > hold + 0.5 else f"volume={hi:.4f}")
             self._wav(["-i", str(f), "-vn", "-t", f"{dur:.4f}",
-                       "-af", f"volume={self.s.bgm_intro_vol_high * mul:.4f},"
+                       "-af", f"{vol},"
                               f"afade=t=out:st={max(0.0, dur - min(1.0, dur / 3)):.4f}"
                               f":d={min(1.0, dur / 3):.4f},apad", ], piece)
             pieces.append(piece)

@@ -95,6 +95,12 @@ class Settings:
     enable_slow: bool = True
     enable_cut: bool = True
     register_root_meta: bool = True
+    # --- 0.5.6 ---
+    #: Phóng to mọi ảnh/video (phần trăm). 100 = như cũ; giao diện mặc định 102
+    #: để lấp viền đen khi ảnh/video không đúng tỉ lệ khung hình.
+    visual_zoom: float = 100.0
+    #: "number" = chèn nhạc nền theo số thứ tự file (1, 2, 3 … 10); "random" = xáo trộn
+    bgm_order: str = "number"
     # --- intro / outro (0.5.2): video chèn trước cảnh đầu / sau cảnh cuối ---
     enable_intro: bool = False
     intro_path: Path | None = None

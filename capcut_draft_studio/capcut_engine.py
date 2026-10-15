@@ -1,10 +1,10 @@
 from __future__ import annotations
-import json, math, os, shutil, time
+import json, math, os, random, shutil, time
 from dataclasses import replace
 from pathlib import Path
 from . import animations
 from .models import Settings, Assets, ScenePlan, LogFn
-from .media import BuildError, media_duration_sec, _check, _noop_progress
+from .media import BuildError, media_duration_sec, natural_key, _check, _noop_progress
 from .subtitles import build_srt
 from .styles import inject_subtitle_style, merge_shadow
 
@@ -17,8 +17,12 @@ def _cc():
 
 def _sec(v: float) -> str: return f"{max(0.0,float(v)):.6f}s"
 
-def apply_anim_key(seg, key: str, duration: float) -> str:
-    """Gắn keyframe của MỘT hiệu ứng cụ thể vào segment. Trả về key đã dùng."""
+def apply_anim_key(seg, key: str, duration: float, zoom: float=1.0) -> str:
+    """Gắn keyframe của MỘT hiệu ứng cụ thể vào segment. Trả về key đã dùng.
+
+    `zoom` (vd 1.02) nhân vào keyframe phóng to; keyframe `uniform_scale` đè lên
+    clip_settings nên phải nhân ở đây, nếu không ảnh có hiệu ứng mất phần phóng to.
+    """
     cc=_cc()
     if key==animations.MODE_OFF or duration<=0: return animations.MODE_OFF
     specs=animations.keyframes_for(key)
@@ -26,11 +30,12 @@ def apply_anim_key(seg, key: str, duration: float) -> str:
     end=_sec(duration)
     for prop_name,start_val,end_val in specs:
         prop=getattr(cc.KeyframeProperty,prop_name)
-        seg.add_keyframe(prop,"0s",float(start_val))
-        seg.add_keyframe(prop,end,float(end_val))
+        mul=zoom if prop_name=="uniform_scale" else 1.0
+        seg.add_keyframe(prop,"0s",float(start_val)*mul)
+        seg.add_keyframe(prop,end,float(end_val)*mul)
     return key
 
-def apply_image_anim(seg, mode: str, duration: float, idx: int=0, picker=None) -> str:
+def apply_image_anim(seg, mode: str, duration: float, idx: int=0, picker=None, zoom: float=1.0) -> str:
     """Gắn hiệu ứng Ken Burns cho ảnh tĩnh.
 
     `picker` giữ trạng thái giữa các cảnh (cần cho chế độ ngẫu nhiên không lặp
@@ -38,7 +43,7 @@ def apply_image_anim(seg, mode: str, duration: float, idx: int=0, picker=None) -
     thích ngược với cách gọi cũ.
     """
     if picker is None: picker=animations.AnimPicker(mode)
-    return apply_anim_key(seg,picker.pick(idx),duration)
+    return apply_anim_key(seg,picker.pick(idx),duration,zoom)
 
 _AUDIO_MATERIALS: dict[str, object] = {}
 
@@ -81,15 +86,29 @@ def _resolve_transition(cc,name: str):
         try:return cc.TransitionType.叠化
         except Exception:return None
 
-def resolve_music_roles(s: Settings, files: list[Path]):
-    by_name={f.name:f for f in files}; out=[]
+BGM_LAYER=1   # relative_index của các track nhạc nền (xem chú thích ở build())
+
+def resolve_music_roles(s: Settings, files: list[Path], rng=None):
+    """[(file, là intro?, là nhạc nền?, hệ số âm lượng)] theo thứ tự sẽ chèn.
+
+    `s.bgm_order`: "number" = theo số trong tên file (1, 2 … 10, 11 — không phải
+    1, 10, 11, 2 như sắp xếp chữ); "random" = xáo trộn (truyền `rng` để cố định).
+    """
+    files=sorted(files,key=lambda f:natural_key(f.name)); out=[]
     if s.music_roles:
-        for name,r in s.music_roles.items():
-            f=by_name.get(name)
-            if not f:continue
+        for f in files:
+            r=s.music_roles.get(f.name)
+            if r is None:continue
             out.append((f,bool(r.get("intro")),bool(r.get("bg",True)),float(r.get("volume",r.get("volume_db",1.0)))))
     if not out:
-        for i,f in enumerate(files): out.append((f,i==0,True,1.0))
+        out=[(f,False,True,1.0) for f in files]
+        if str(getattr(s,"bgm_order","number"))=="random":
+            (rng or random.Random()).shuffle(out)
+        # mặc định bài ĐẦU TIÊN (sau khi sắp/xáo) làm intro như các bản trước
+        if out:out[0]=(out[0][0],True,True,1.0)
+        return out
+    if str(getattr(s,"bgm_order","number"))=="random":
+        (rng or random.Random()).shuffle(out)
     return out
 
 def register_root_meta(draft_path: Path, log: LogFn=print) -> None:
@@ -137,15 +156,20 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
         log(f"[BUILD] Hiệu ứng ảnh: {anim_picker.describe()}")
     folder=cc.DraftFolder(str(s.capcut_drafts)); script=folder.create_draft(s.draft_name,s.width,s.height,s.fps,allow_replace=True)
     script.add_track(cc.TrackType.video,"main",relative_index=0)
-    # Thứ tự layer (render_index cao = nằm trên trong timeline CapCut): giọng đọc
-    # và SFX ở trên, nhạc nền (bgm_*) nằm dưới giọng đọc.
-    if s.enable_voice:script.add_track(cc.TrackType.audio,"voice",relative_index=1)
-    if s.enable_bgm and a.bgm_files:
-        script.add_track(cc.TrackType.audio,"bgm_a"); script.add_track(cc.TrackType.audio,"bgm_b")
+    # Thứ tự hàng audio trong timeline CapCut: track có render_index NHỎ hơn nằm
+    # TRÊN (sát video). 0.5.5 làm ngược nên nhạc nền nằm trên giọng đọc. Nay:
+    # giọng đọc (0) → SFX (0) → nhạc nền (1) → kho SFX tắt tiếng (2).
+    if s.enable_voice:script.add_track(cc.TrackType.audio,"voice",relative_index=0)
     placed=[it for it in a.sfx_items if s.sfx_roles.get(it["name"])=="placed"]
     muted=[it for it in a.sfx_items if s.sfx_roles.get(it["name"])=="muted"]
-    if placed:script.add_track(cc.TrackType.audio,"sfx",relative_index=1)
-    if muted:script.add_track(cc.TrackType.audio,"sfx_kho",mute=True)
+    if placed:script.add_track(cc.TrackType.audio,"sfx",relative_index=0)
+    if s.enable_bgm and a.bgm_files:
+        script.add_track(cc.TrackType.audio,"bgm_a",relative_index=BGM_LAYER)
+        script.add_track(cc.TrackType.audio,"bgm_b",relative_index=BGM_LAYER)
+    if muted:script.add_track(cc.TrackType.audio,"sfx_kho",mute=True,relative_index=BGM_LAYER+1)
+    zoom=max(0.5,min(2.0,float(getattr(s,"visual_zoom",100.0) or 100.0)/100.0))
+    zoom_cs=(lambda:cc.ClipSettings(scale_x=zoom,scale_y=zoom)) if abs(zoom-1.0)>1e-6 else (lambda:None)
+    if abs(zoom-1.0)>1e-6:log(f"[BUILD] Phóng to hình/video: {zoom*100:.0f}%")
     total=plan[-1].end; trans=_resolve_transition(cc,s.transition_type)
     if intro:
         script.add_segment(cc.VideoSegment(str(intro),cc.trange("0s",_sec(off))),"main")
@@ -156,15 +180,16 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
         # HÌNH dài bằng giọng đọc + khoảng nghỉ, tiếng nói vẫn đúng độ dài gốc.
         slot=p.slot_duration
         vvol=float(getattr(s,"video_vol",1.0))
+        zkw={"clip_settings":zoom_cs()} if abs(zoom-1.0)>1e-6 else {}
         if p.mode=="IMAGE":
-            seg=cc.VideoSegment(str(p.visual_path),cc.trange(_sec(p.start),_sec(slot)))
-            used=apply_image_anim(seg,s.image_anim,slot,idx,anim_picker)
+            seg=cc.VideoSegment(str(p.visual_path),cc.trange(_sec(p.start),_sec(slot)),**zkw)
+            used=apply_image_anim(seg,s.image_anim,slot,idx,anim_picker,zoom=zoom)
             anim_used[used]=anim_used.get(used,0)+1
         elif p.mode=="CUT":
-            seg=cc.VideoSegment(str(p.visual_path),cc.trange(_sec(p.start),_sec(slot)),source_timerange=cc.trange("0s",_sec(slot)),speed=1.0,volume=vvol)
+            seg=cc.VideoSegment(str(p.visual_path),cc.trange(_sec(p.start),_sec(slot)),source_timerange=cc.trange("0s",_sec(slot)),speed=1.0,volume=vvol,**zkw)
         else:
             src_len=min(float(p.video_duration or slot),slot*p.speed)
-            seg=cc.VideoSegment(str(p.visual_path),cc.trange(_sec(p.start),_sec(slot)),source_timerange=cc.trange("0s",_sec(src_len)),speed=float(p.speed),volume=vvol)
+            seg=cc.VideoSegment(str(p.visual_path),cc.trange(_sec(p.start),_sec(slot)),source_timerange=cc.trange("0s",_sec(src_len)),speed=float(p.speed),volume=vvol,**zkw)
         if s.enable_transition and trans is not None and idx<len(plan)-1:
             try:seg.add_transition(trans,duration=cc.tim(_sec(min(s.trans_dur,slot/3))))
             except Exception as e:log(f"[WARN] Transition scene {p.number}: {e}")
@@ -202,11 +227,21 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
             for name,end in sorted(track_end.items(),key=lambda kv:kv[1]):
                 if end<=at+1e-6:return name
             name=f"bgm_{chr(ord('a')+len(track_end))}"
-            script.add_track(cc.TrackType.audio,name); track_end[name]=off
+            script.add_track(cc.TrackType.audio,name,relative_index=BGM_LAYER); track_end[name]=off
             return name
         if intros:
             f,_,_,mul=intros[0]; dur=min(audio_len(f),s.bgm_intro_max_dur,total-off)
-            add_audio(script,"bgm_a",f,off,dur,s.bgm_intro_vol_high*mul,0,min(1.0,dur/3)); bg_start=off+min(s.bgm_intro_high_dur,dur)
+            seg=add_audio(script,"bgm_a",f,off,dur,s.bgm_intro_vol_high*mul,0,min(1.0,dur/3)); bg_start=off+min(s.bgm_intro_high_dur,dur)
+            # Bài intro: to (Intro to) trong "Intro giữ to" giây đầu, rồi hạ về
+            # "Intro nhỏ" trong 1 giây. Trước 0.5.6 mức nhỏ không được dùng nên
+            # bài intro phát to suốt tới 59s, đè cả giọng đọc lẫn nhạc thân bài.
+            hi,lo,hold=float(s.bgm_intro_vol_high)*mul,float(s.bgm_intro_vol_low)*mul,float(s.bgm_intro_high_dur)
+            if dur>hold+0.5 and abs(hi-lo)>1e-6:
+                try:
+                    ramp=min(1.0,dur-hold)
+                    seg.add_keyframe(0,hi); seg.add_keyframe(int(hold*1e6),hi)
+                    seg.add_keyframe(int((hold+ramp)*1e6),lo)
+                except Exception as e:log(f"[WARN] Không đặt được âm lượng nhạc intro: {e}")
             track_end["bgm_a"]=off+dur
         if bgs and bg_start<total:
             cursor=bg_start; guard=0

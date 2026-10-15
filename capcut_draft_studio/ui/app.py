@@ -24,7 +24,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.5.5"
+APP_VERSION = "0.5.6"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -165,6 +165,8 @@ STR_DEFAULTS = {
     "render_hw": "auto", "render_audio_kbps": 192, "render_out_dir": "",
     # --- 0.5.2 ---
     "intro_path": "", "outro_path": "",
+    # --- 0.5.6 ---
+    "visual_zoom": 102, "bgm_order": "number",
 }
 
 #: Ô tích ở thẻ "Chức năng" của trang Tổng quan
@@ -626,6 +628,9 @@ class App:
             render_hw=str(d.get("render_hw", "auto")),
             render_audio_kbps=self._num(d, "render_audio_kbps", int, 192),
             render_burn_subs=bool(d.get("render_burn_subs", True)),
+            # --- 0.5.6 ---
+            visual_zoom=min(200.0, max(50.0, self._num(d, "visual_zoom", float, 102.0))),
+            bgm_order=str(d.get("bgm_order", "number") or "number"),
         )
         for k in BOOL_LABELS:
             kw[k] = bool(d.get(k, True))
@@ -770,6 +775,15 @@ class App:
         elif not render.ffmpeg_ready():
             messagebox.showerror("Thiếu ffmpeg", render.FFMPEG_HINT)
             return
+        # Việc chưa render của CHÍNH project đang mở lấy lại cài đặt hiện tại: trước
+        # đây hàng đợi giữ bản chụp lúc bấm "Thêm project", nên chỉnh âm lượng /
+        # logo sau đó không có tác dụng với file mp4.
+        cur = self.snapshot()
+        cur_input = str(cur.get("input_dir", "")).strip()
+        for item in self.render_queue:
+            if (item["status"] in ("pending", "error", "cancelled") and cur_input
+                    and str(item["values"].get("input_dir", "")).strip() == cur_input):
+                item["values"] = dict(cur)
         todo = [i for i in self.render_queue if i["status"] in ("pending", "error", "cancelled")]
         if not todo:
             if not messagebox.askyesno("Hàng đợi đã xong",

@@ -56,9 +56,12 @@ def test_bgm_longer_on_paper_than_its_audio_stream(tmp_path, monkeypatch):
     content = json.loads((path / "draft_content.json").read_text(encoding="utf-8"))
     tracks = {t["name"]: t for t in content["tracks"] if t.get("segments")}
     assert "voice" in tracks and "bgm_a" in tracks
+    # CapCut xếp hàng audio theo render_index TĂNG dần từ trên xuống, nên nhạc nền
+    # (dưới giọng đọc) phải có render_index LỚN hơn và đứng sau trong danh sách.
+    # 0.5.5 làm ngược và người dùng thấy nhạc nền nằm trên — đã sửa ở 0.5.6.
     voice_idx = tracks["voice"]["segments"][0]["render_index"]
     for name, t in tracks.items():
         if name.startswith("bgm"):
-            assert t["segments"][0]["render_index"] < voice_idx, "nhạc nền phải dưới giọng đọc"
+            assert t["segments"][0]["render_index"] > voice_idx, "nhạc nền phải dưới giọng đọc"
     order = [t["name"] for t in content["tracks"]]
-    assert order.index("bgm_a") < order.index("voice")
+    assert order.index("voice") < order.index("bgm_a")
