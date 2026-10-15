@@ -41,7 +41,15 @@ def _project(tmp_path: Path) -> Path:
     {},                                                    # mặc định: bài đầu vừa intro vừa nền
     {"a_intro.wav": {"intro": True, "bg": False}, "b_body.wav": {"intro": False, "bg": True}},
 ])
-def test_long_intro_music_does_not_overlap(tmp_path, roles):
+def test_long_intro_music_does_not_overlap(tmp_path, monkeypatch, roles):
+    # test_engine_mock.py thay sys.modules["pycapcut"] bằng bản giả và không trả
+    # lại — test này cần pycapcut THẬT để đọc draft_content.json.
+    import importlib
+    import sys
+    fake = sys.modules.get("pycapcut")
+    if fake is not None and getattr(fake, "__file__", None) is None:
+        monkeypatch.delitem(sys.modules, "pycapcut")
+        importlib.import_module("pycapcut")
     root = _project(tmp_path)
     s = Settings(input_dir=root, channel_dir=root / "CH", draft_name="bgm",
                  capcut_drafts=root / "drafts", enable_subtitles=False,
