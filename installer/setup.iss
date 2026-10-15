@@ -2,7 +2,7 @@
 ; Biên dịch: ISCC.exe /DMyAppVersion=0.4.0 installer\setup.iss
 
 #ifndef MyAppVersion
-  #define MyAppVersion "0.5.2"
+  #define MyAppVersion "0.5.3"
 #endif
 #define MyAppName "CapCut Draft Studio"
 #define MyAppExeName "CapCut Draft Studio.exe"
@@ -41,10 +41,16 @@ Name: "vi"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "Tao bieu tuong ngoai man hinh"; GroupDescription: "Tuy chon:"
 
+[InstallDelete]
+; Ban 0.5.3+ dong goi dang thu muc: xoa thu vien cua ban cu truoc khi chep ban moi
+; de khong con file .pyd/.dll cu lan vao. "bin" cu (ffmpeg) nay da nam trong _internal.
+Type: filesandordirs; Name: "{app}\_internal"
+Type: filesandordirs; Name: "{app}\bin"
+
 [Files]
-Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; Ca thu muc onedir: CapCut Draft Studio.exe + _internal\ (Python, thu vien, ffmpeg, assets)
+Source: "..\dist\{#MyAppName}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
-Source: "..\bin\*"; DestDir: "{app}\bin"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]

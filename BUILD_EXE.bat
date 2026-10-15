@@ -140,13 +140,13 @@ if errorlevel 1 (
 )
 
 REM ---------- 5. Ket qua ----------
-if not exist "dist\CapCut Draft Studio.exe" (
+if not exist "dist\CapCut Draft Studio\CapCut Draft Studio.exe" (
   call :fail "Chay xong nhung khong thay file .exe trong thu muc dist."
   exit /b 1
 )
 if exist "assets" (
-  if not exist "dist\assets" mkdir "dist\assets"
-  xcopy "assets" "dist\assets" /e /i /y /q >>"%LOG%" 2>&1
+  if not exist "dist\CapCut Draft Studio\assets" mkdir "dist\CapCut Draft Studio\assets"
+  xcopy "assets" "dist\CapCut Draft Studio\assets" /e /i /y /q >>"%LOG%" 2>&1
 )
 echo [5/5] Hoan tat. >> "%LOG%"
 
@@ -154,13 +154,13 @@ echo.
 echo ==========================================================
 echo   XONG!
 echo.
-echo   File chay:  %CD%\dist\CapCut Draft Studio.exe
+echo   File chay:  %CD%\dist\CapCut Draft Studio\CapCut Draft Studio.exe
 echo.
-echo   Copy ca thu muc "dist" sang may khac la dung duoc,
+echo   Copy ca thu muc "dist\CapCut Draft Studio" sang may khac la dung duoc,
 echo   khong can cai Python.
 echo ==========================================================
 echo.
-start "" "%CD%\dist"
+start "" "%CD%\dist\CapCut Draft Studio"
 pause
 exit /b 0
 

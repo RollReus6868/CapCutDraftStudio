@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.5.2
+# CapCut Draft Studio 0.5.3
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,14 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.5.3
+
+- **Bản Windows đóng gói dạng thư mục.** Không còn giải nén vào thư mục tạm
+  `%TEMP%\_MEI…` mỗi lần mở, nên hết lỗi *"Failed to load Python DLL …
+  python312.dll"* (do diệt virus / dọn rác chạm vào thư mục tạm). Tool cũng mở
+  nhanh hơn. Bộ cài tự xoá thư viện của bản cũ trước khi chép bản mới.
+- **Tự cập nhật chắc chắn hơn:** bộ cài luôn đợi tool đóng hẳn rồi mới chạy.
 
 ## Mới ở 0.5.2
 

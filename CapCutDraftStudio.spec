@@ -1,7 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec — chạy được trên cả Windows và macOS.
 
-* Windows : một file .exe duy nhất, không hiện cửa sổ console.
+* Windows : thư mục dist/CapCut Draft Studio/ (onedir), bộ cài Inno Setup cài
+            nguyên thư mục — KHÔNG dùng một-file (xem ghi chú ở nhánh Windows bên dưới).
 * macOS   : thư mục .app (onedir + BUNDLE) để khởi động nhanh và ký được.
 
 Thư mục `bin/` (nếu có) được gói kèm — workflow CI tải ffmpeg vào đó để
@@ -15,7 +16,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
 APP_NAME = "CapCut Draft Studio"
 BUNDLE_ID = "com.leo.capcutdraftstudio"
-VERSION = "0.5.2"
+VERSION = "0.5.3"
 
 ROOT = Path(SPECPATH)
 IS_MAC = sys.platform == "darwin"
@@ -122,9 +123,14 @@ if IS_MAC:
         },
     )
 else:
+    # Windows cũng đóng gói dạng THƯ MỤC (onedir) từ 0.5.3. Bản một-file cũ phải
+    # giải nén ~90 MB vào %TEMP%\_MEIxxxx mỗi lần mở; diệt virus / dọn rác chỉ
+    # cần chạm vào thư mục đó là hiện lỗi "Failed to load Python DLL
+    # ...python312.dll". Dạng thư mục chạy thẳng từ nơi cài, mở nhanh hơn.
     exe = EXE(
-        pyz, a.scripts, a.binaries, a.datas, [],
-        runtime_tmpdir=None,
+        pyz, a.scripts, [],
+        exclude_binaries=True,
         version=str(version_file) if version_file.is_file() else None,
         **common,
     )
+    coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name=APP_NAME)

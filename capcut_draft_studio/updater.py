@@ -216,19 +216,28 @@ def _windows_deferred_launch(path: Path) -> bool:
     """
     pids = ",".join(str(p) for p in _app_pids())
     target = str(path).replace("'", "''")
-    script = (f"Wait-Process -Id {pids} -Timeout 60 -ErrorAction SilentlyContinue; "
+    exe = str(Path(sys.executable).resolve()).replace("'", "''")
+    # Chờ mọi tiến trình đang chạy từ CHÍNH file .exe này (một-file có 2 tiến
+    # trình, dạng thư mục có 1) — không chờ tiến trình cha khác như Explorer.
+    script = (f"$ids = @({pids}) | Where-Object {{ $p = Get-Process -Id $_ -ErrorAction "
+              f"SilentlyContinue; $p -and $p.Path -eq '{exe}' }}; "
+              "if ($ids) { Wait-Process -Id $ids -Timeout 60 -ErrorAction SilentlyContinue }; "
               "Start-Sleep -Milliseconds 800; "
               f"Start-Process -FilePath '{target}'")
-    try:
-        subprocess.Popen(
-            ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-             "-WindowStyle", "Hidden", "-Command", script],
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
-            | getattr(subprocess, "DETACHED_PROCESS", 0),
-            close_fds=True)
-        return True
-    except OSError:
-        return False
+    cmd = ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+           "-WindowStyle", "Hidden", "-Command", script]
+    base = (getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
+    # Tách khỏi job của app (nếu có) để tiến trình chờ không bị giết theo app.
+    for flags in (base | getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0), base):
+        try:
+            subprocess.Popen(cmd, creationflags=flags, close_fds=True,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+            return True
+        except OSError:
+            continue
+    return False
 
 
 def launch_installer(path: Path) -> None:

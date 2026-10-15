@@ -65,9 +65,33 @@ jobs:
       - name: Kiểm tra .exe đã tạo
         shell: pwsh
         run: |
-          if (-not (Test-Path "dist\CapCut Draft Studio.exe")) {
-            throw "Khong thay file .exe trong dist"
+          # Từ 0.5.3 bản Windows là thư mục (onedir), không giải nén vào %TEMP%
+          $dir = "dist\CapCut Draft Studio"
+          if (-not (Test-Path "$dir\CapCut Draft Studio.exe")) {
+            throw "Khong thay file .exe trong $dir"
           }
+          if (-not (Get-ChildItem "$dir\_internal" -Filter "python3*.dll" -ErrorAction SilentlyContinue)) {
+            throw "Thieu python3xx.dll trong $dir\_internal"
+          }
+          if (-not (Test-Path "$dir\_internal\bin\ffmpeg.exe")) {
+            throw "Thieu ffmpeg.exe trong $dir\_internal\bin"
+          }
+          Get-ChildItem $dir | Format-Table Name, Length
+
+      - name: Chạy thử bản đóng gói
+        shell: pwsh
+        run: |
+          # Mở app thật 20 giây: lỗi khởi động sẽ ghi crash.log (xem launcher.py)
+          $exe = Resolve-Path "dist\CapCut Draft Studio\CapCut Draft Studio.exe"
+          $p = Start-Process -FilePath $exe -PassThru
+          Start-Sleep 20
+          $logs = @("dist\CapCut Draft Studio\crash.log", "$env:LOCALAPPDATA\CapCutDraftStudio\crash.log") |
+            Where-Object { Test-Path $_ }
+          $alive = -not $p.HasExited
+          Get-Process | Where-Object { $_.Path -eq "$exe" } | Stop-Process -Force -ErrorAction SilentlyContinue
+          if ($logs) { Get-Content $logs; throw "App bao loi khi khoi dong" }
+          if (-not $alive) { throw "App tu thoat ngay khi mo (ma $($p.ExitCode))" }
+          Write-Host "App chay on dinh 20 giay"
 
       - name: Tạo bộ cài bằng Inno Setup
         shell: pwsh
