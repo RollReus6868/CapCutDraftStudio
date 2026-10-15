@@ -40,9 +40,38 @@ def apply_image_anim(seg, mode: str, duration: float, idx: int=0, picker=None) -
     if picker is None: picker=animations.AnimPicker(mode)
     return apply_anim_key(seg,picker.pick(idx),duration)
 
+_AUDIO_MATERIALS: dict[str, object] = {}
+
+def _audio_material(cc, path: Path):
+    """AudioMaterial có cache — một bài nhạc nền được dùng lại nhiều lần."""
+    st=Path(path).stat()
+    key=(str(path),st.st_size,st.st_mtime_ns)
+    mat=_AUDIO_MATERIALS.get(key)
+    if mat is None:
+        mat=cc.AudioMaterial(str(path)); _AUDIO_MATERIALS[key]=mat
+    return mat
+
+def audio_len(path: Path) -> float:
+    """Độ dài dùng được của file âm thanh trên timeline CapCut.
+
+    pycapcut đo theo LUỒNG ÂM THANH, còn media_duration_sec đọc độ dài cả file
+    (General) — với mp3 có ảnh bìa / khung trống hai số lệch nhau vài giây
+    (180s vs 178.67s) và pycapcut báo "超出了素材时长". Lấy số nhỏ hơn.
+    """
+    dur=media_duration_sec(path)
+    try:
+        mdur=getattr(_audio_material(_cc(),path),"duration",None)
+        if isinstance(mdur,(int,float)) and mdur>0: dur=min(dur,mdur/1e6)
+    except Exception:
+        pass
+    return dur
+
 def add_audio(script, track: str, path: Path, start: float, want_len: float, volume: float=1.0, fade_in: float=0, fade_out: float=0):
-    cc=_cc(); dur=media_duration_sec(path); seg_len=max(0.02,min(want_len,dur))
-    seg=cc.AudioSegment(str(path),cc.trange(_sec(start),_sec(seg_len)),volume=float(volume))
+    cc=_cc(); dur=audio_len(path)
+    try:mat=_audio_material(cc,path)
+    except Exception:mat=str(path)
+    seg_len=max(0.02,min(want_len,dur)-1e-6)
+    seg=cc.AudioSegment(mat,cc.trange(_sec(start),_sec(seg_len)),volume=float(volume))
     if fade_in or fade_out: seg.add_fade(_sec(min(fade_in,seg_len/2)),_sec(min(fade_out,seg_len/2)))
     script.add_segment(seg,track); return seg
 
@@ -108,12 +137,14 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
         log(f"[BUILD] Hiệu ứng ảnh: {anim_picker.describe()}")
     folder=cc.DraftFolder(str(s.capcut_drafts)); script=folder.create_draft(s.draft_name,s.width,s.height,s.fps,allow_replace=True)
     script.add_track(cc.TrackType.video,"main",relative_index=0)
-    if s.enable_voice:script.add_track(cc.TrackType.audio,"voice")
+    # Thứ tự layer (render_index cao = nằm trên trong timeline CapCut): giọng đọc
+    # và SFX ở trên, nhạc nền (bgm_*) nằm dưới giọng đọc.
+    if s.enable_voice:script.add_track(cc.TrackType.audio,"voice",relative_index=1)
     if s.enable_bgm and a.bgm_files:
         script.add_track(cc.TrackType.audio,"bgm_a"); script.add_track(cc.TrackType.audio,"bgm_b")
     placed=[it for it in a.sfx_items if s.sfx_roles.get(it["name"])=="placed"]
     muted=[it for it in a.sfx_items if s.sfx_roles.get(it["name"])=="muted"]
-    if placed:script.add_track(cc.TrackType.audio,"sfx")
+    if placed:script.add_track(cc.TrackType.audio,"sfx",relative_index=1)
     if muted:script.add_track(cc.TrackType.audio,"sfx_kho",mute=True)
     total=plan[-1].end; trans=_resolve_transition(cc,s.transition_type)
     if intro:
@@ -174,7 +205,7 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
             script.add_track(cc.TrackType.audio,name); track_end[name]=off
             return name
         if intros:
-            f,_,_,mul=intros[0]; dur=min(media_duration_sec(f),s.bgm_intro_max_dur,total-off)
+            f,_,_,mul=intros[0]; dur=min(audio_len(f),s.bgm_intro_max_dur,total-off)
             add_audio(script,"bgm_a",f,off,dur,s.bgm_intro_vol_high*mul,0,min(1.0,dur/3)); bg_start=off+min(s.bgm_intro_high_dur,dur)
             track_end["bgm_a"]=off+dur
         if bgs and bg_start<total:
@@ -183,17 +214,17 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
                 # Dưới 1 giây còn lại: đoạn trước đang mờ dần tới gần cuối rồi, thêm
                 # một mẩu nhạc vụn chỉ sinh ra hàng loạt đoạn 0.1s chồng nhau.
                 if guard>0 and total-cursor<1.0:break
-                f,_,_,mul=bgs[guard%len(bgs)]; fd=media_duration_sec(f); want=min(fd,total-cursor); xf=min(s.crossfade_sec,want/3)
+                f,_,_,mul=bgs[guard%len(bgs)]; fd=audio_len(f); want=min(fd,total-cursor); xf=min(s.crossfade_sec,want/3)
                 track=pick_track(cursor); add_audio(script,track,f,cursor,want,s.bgm_body_vol*mul,xf if cursor>bg_start else 0,xf)
                 track_end[track]=cursor+want
                 cursor += max(0.05,want-xf); guard+=1
     # SFX placed at scene starts, muted library preloaded after timeline
     for i,it in enumerate(placed):
-        t=plan[i%len(plan)].start; d=min(2.0,media_duration_sec(Path(it["path"])),max(0.1,total-t))
+        t=plan[i%len(plan)].start; d=min(2.0,audio_len(Path(it["path"])),max(0.1,total-t))
         add_audio(script,"sfx",Path(it["path"]),t,d,1.0)
     shelf_cursor=total+outro_len+1.0
     for it in muted:
-        try:d=min(2.0,media_duration_sec(Path(it["path"]))); add_audio(script,"sfx_kho",Path(it["path"]),shelf_cursor,d,1.0); shelf_cursor+=d+0.2
+        try:d=min(2.0,audio_len(Path(it["path"]))); add_audio(script,"sfx_kho",Path(it["path"]),shelf_cursor,d,1.0); shelf_cursor+=d+0.2
         except Exception:pass
     # subtitles
     _check(cancel); progress("subtitles", 0, 1)
