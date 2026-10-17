@@ -101,6 +101,10 @@ class Settings:
     visual_zoom: float = 100.0
     #: "number" = chèn nhạc nền theo số thứ tự file (1, 2, 3 … 10); "random" = xáo trộn
     bgm_order: str = "number"
+    # --- 0.5.7: nhạc CID — 1 bài ngẫu nhiên trong folder, đặt ở cuối video ---
+    enable_cid: bool = False
+    cid_dir: Path | None = None
+    cid_vol: float = 1.0
     # --- intro / outro (0.5.2): video chèn trước cảnh đầu / sau cảnh cuối ---
     enable_intro: bool = False
     intro_path: Path | None = None

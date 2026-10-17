@@ -26,6 +26,8 @@ DEFAULT_CHANNEL_KEYS = {
     "enable_intro", "intro_path", "enable_outro", "outro_path",
     # --- thêm từ 0.5.6 ---
     "visual_zoom", "bgm_order",
+    # --- thêm từ 0.5.7 ---
+    "enable_cid", "cid_dir", "cid_vol",
 }
 
 def load_json(path: Path, default):

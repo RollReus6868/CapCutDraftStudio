@@ -404,6 +404,7 @@ class Renderer:
         self.ffmpeg, self.ffprobe = require_tools()
         self.w, self.h = target_size(self.s)
         self.fps = target_fps(self.s)
+        self._cid = None
         self.zoom = max(0.5, min(2.0, float(getattr(self.s, "visual_zoom", 100.0) or 100.0) / 100.0))
         self.encoder = pick_encoder(self.ffmpeg, getattr(self.s, "render_codec", "h264"),
                                     getattr(self.s, "render_hw", "auto"))
@@ -634,6 +635,9 @@ class Renderer:
         if not (self.s.enable_bgm and self.job.assets.bgm_files):
             return None
         total = self.job.duration
+        if self._cid:
+            # nhạc nền dừng (mờ dần) khi nhạc CID vào
+            total = min(total, self._cid[1] + min(float(self.s.crossfade_sec), 1.0))
         roles = resolve_music_roles(self.s, self.job.assets.bgm_files)
         intros = [r for r in roles if r[1]]
         bgs = [r for r in roles if r[2]]
@@ -673,6 +677,30 @@ class Renderer:
             cursor += want
             idx += 1
         return self._concat_wavs(pieces, self.work / "bgm.m4a", self.s.render_audio_kbps)
+
+    def _pick_cid(self):
+        """(file, bắt đầu, độ dài) của nhạc CID — chọn ngẫu nhiên 1 lần cho mỗi video."""
+        from .capcut_engine import audio_len, cid_window, pick_cid
+        f = pick_cid(self.s)
+        if not f:
+            return None
+        start, ln = cid_window(self.job.duration, 0.0, audio_len(f))
+        return (f, start, ln) if ln > 0.05 else None
+
+    def _build_cid(self) -> Path | None:
+        if not self._cid:
+            return None
+        f, start, ln = self._cid
+        fade = min(1.0, ln / 4)
+        vol = max(0.0, float(getattr(self.s, "cid_vol", 1.0)))
+        out = self.work / "cid.wav"
+        ms = int(round(start * 1000))
+        self._wav(["-t", f"{ln:.4f}", "-i", str(f), "-vn",
+                   "-af", f"volume={vol:.4f},afade=t=in:st=0:d={fade:.4f},"
+                          f"afade=t=out:st={max(0.0, ln - fade):.4f}:d={fade:.4f},"
+                          f"adelay={ms}|{ms},apad=whole_dur={self.job.duration:.4f}"], out)
+        self.log(f"[RENDER] Nhạc CID: {Path(f).name} ({ln:.1f}s) từ {start:.1f}s")
+        return out
 
     def _build_sfx(self) -> Path | None:
         from .media import media_duration_sec
@@ -823,8 +851,10 @@ class Renderer:
         try:
             segs = self._render_scenes()
             video = self._concat(segs)
+            self._cid = self._pick_cid()
             tracks = [t for t in (self._build_voice(), self._build_source_audio(),
-                                  self._build_bgm(), self._build_sfx()) if t]
+                                  self._build_bgm(), self._build_sfx(),
+                                  self._build_cid()) if t]
             self._finish_phase("audio")
             self.log(f"[RENDER] Đang trộn {len(tracks)} đường tiếng và ghi file cuối…")
             wrap = self._wrap_parts()

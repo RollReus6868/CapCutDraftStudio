@@ -24,7 +24,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.5.6"
+APP_VERSION = "0.5.7"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -167,6 +167,8 @@ STR_DEFAULTS = {
     "intro_path": "", "outro_path": "",
     # --- 0.5.6 ---
     "visual_zoom": 102, "bgm_order": "number",
+    # --- 0.5.7 ---
+    "cid_dir": "", "cid_vol": 1.0,
 }
 
 #: Ô tích ở thẻ "Chức năng" của trang Tổng quan
@@ -186,6 +188,7 @@ OTHER_BOOLS = {
     "auto_update_check": True,
     "enable_intro": False,
     "enable_outro": False,
+    "enable_cid": False,
 }
 
 PERSIST_KEYS = list(STR_DEFAULTS.keys())
@@ -654,6 +657,16 @@ class App:
                                  "(Cài đặt → Nâng cao → Intro & Outro).")
             kw[f"enable_{part}"] = on
             kw[f"{part}_path"] = path
+
+        # --- nhạc CID ---
+        cid_on = bool(d.get("enable_cid", False))
+        cid_dir = opt("cid_dir")
+        if cid_on and (cid_dir is None or not cid_dir.is_dir()):
+            raise BuildError("Đã bật nhạc CID nhưng chưa chọn folder nhạc CID hợp lệ "
+                             "(Cài đặt → Nâng cao → Nhạc CID cuối video).")
+        kw["enable_cid"] = cid_on
+        kw["cid_dir"] = cid_dir
+        kw["cid_vol"] = max(0.0, self._num(d, "cid_vol", float, 1.0))
 
         return Settings(ip, ch, name, cap, SFX_LIBRARY, SUB_STYLES,
                         opt("logo_path"), opt("claim_path"), opt("bgm_dir"),

@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.5.6
+# CapCut Draft Studio 0.5.7
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,12 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.5.7
+
+- **Nhạc CID cuối video** (Cài đặt → Nâng cao): chọn folder nhạc, mỗi lần dựng tool chọn ngẫu nhiên 1 bài đặt ở cuối video (kết thúc cùng cảnh cuối), có chỉnh âm lượng; nhạc nền mờ dần khi nhạc CID vào. Áp cho cả draft CapCut lẫn mp4.
+- **Sửa lỗi chèn video intro/outro:** file có tiếng dài hơn hình vài phần nghìn giây (vd 26,053s so với 26,050s) làm CapCut báo vượt độ dài tư liệu.
+- Nhật ký in rõ âm lượng giọng đọc / nhạc nền / bài intro mỗi lần TẠO PROJECT.
 
 ## Mới ở 0.5.6
 
