@@ -28,6 +28,8 @@ DEFAULT_CHANNEL_KEYS = {
     "visual_zoom", "bgm_order",
     # --- thêm từ 0.5.7 ---
     "enable_cid", "cid_dir", "cid_vol",
+    # --- thêm từ 0.5.8 ---
+    "enable_qr", "qr_path", "qr_x", "qr_y", "qr_scale", "qr_dur",
 }
 
 def load_json(path: Path, default):

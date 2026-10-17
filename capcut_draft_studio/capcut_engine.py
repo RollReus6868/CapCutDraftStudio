@@ -261,18 +261,25 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
         cs=cc.ClipSettings(transform_x=s.logo_x,transform_y=s.logo_y,scale_x=s.logo_scale,scale_y=s.logo_scale)
         script.add_segment(cc.VideoSegment(str(a.logo),cc.trange(_sec(off),_sec(total-off)),clip_settings=cs),"logo")
         log("[BUILD] Logo watermark OK")
-    # Nhạc CID: 1 bài ngẫu nhiên trong folder CID, kết thúc cùng cảnh cuối. Nhạc
-    # nền dừng (mờ dần) lúc CID vào để hai bài không chồng nhau.
+    # Nhạc CID (0.5.8): 1 bài ngẫu nhiên trong folder CID, đặt SAU điểm kết thúc
+    # video (sau cảnh cuối và outro), nguyên bài. Nhạc nền trong video giữ nguyên.
     bgm_total=total
     cid=pick_cid(s)
     if cid:
-        cid_start,cid_ln=cid_window(total,off,audio_len(cid))
+        cid_start=total+outro_len; cid_ln=audio_len(cid)
         script.add_track(cc.TrackType.audio,"cid",relative_index=BGM_LAYER)
-        add_audio(script,"cid",cid,cid_start,cid_ln,float(getattr(s,"cid_vol",1.0)),
-                  min(1.0,cid_ln/4),min(1.0,cid_ln/4))
-        bgm_total=min(total,cid_start+min(float(s.crossfade_sec),1.0))
+        add_audio(script,"cid",cid,cid_start,cid_ln,float(getattr(s,"cid_vol",1.0)))
         log(f"[BUILD] Nhạc CID: {cid.name} ({cid_ln:.1f}s, âm lượng {float(getattr(s,'cid_vol',1.0)):.2f}) "
-            f"từ {cid_start:.1f}s")
+            f"đặt sau video, từ {cid_start:.1f}s")
+    # Mã QR (0.5.8): góc dưới phải, dài bằng video intro (không có intro → qr_dur giây)
+    qr=s.qr_file() if hasattr(s,"qr_file") else None
+    if qr:
+        qlen=off if off>0 else max(0.5,float(getattr(s,"qr_dur",5.0)))
+        script.add_track(cc.TrackType.video,"qr",relative_index=4)
+        qcs=cc.ClipSettings(transform_x=float(s.qr_x),transform_y=float(s.qr_y),
+                            scale_x=float(s.qr_scale),scale_y=float(s.qr_scale))
+        script.add_segment(cc.VideoSegment(str(qr),cc.trange("0s",_sec(qlen)),clip_settings=qcs),"qr")
+        log(f"[BUILD] Mã QR: {qr.name} ({qlen:.1f}s)")
     # BGM: first intro track then round-robin background with crossfades
     if s.enable_bgm and a.bgm_files:
         total_all,total=total,bgm_total   # trong khối nhạc nền: "total" = điểm dừng nhạc nền
@@ -322,7 +329,7 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
     for i,it in enumerate(placed):
         t=plan[i%len(plan)].start; d=min(2.0,audio_len(Path(it["path"])),max(0.1,total-t))
         add_audio(script,"sfx",Path(it["path"]),t,d,1.0)
-    shelf_cursor=total+outro_len+1.0
+    shelf_cursor=total+outro_len+(audio_len(cid) if cid else 0.0)+1.0
     for it in muted:
         try:d=min(2.0,audio_len(Path(it["path"]))); add_audio(script,"sfx_kho",Path(it["path"]),shelf_cursor,d,1.0); shelf_cursor+=d+0.2
         except Exception:pass

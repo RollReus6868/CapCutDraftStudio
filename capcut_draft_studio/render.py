@@ -635,9 +635,6 @@ class Renderer:
         if not (self.s.enable_bgm and self.job.assets.bgm_files):
             return None
         total = self.job.duration
-        if self._cid:
-            # nhạc nền dừng (mờ dần) khi nhạc CID vào
-            total = min(total, self._cid[1] + min(float(self.s.crossfade_sec), 1.0))
         roles = resolve_music_roles(self.s, self.job.assets.bgm_files)
         intros = [r for r in roles if r[1]]
         bgs = [r for r in roles if r[2]]
@@ -677,30 +674,6 @@ class Renderer:
             cursor += want
             idx += 1
         return self._concat_wavs(pieces, self.work / "bgm.m4a", self.s.render_audio_kbps)
-
-    def _pick_cid(self):
-        """(file, bắt đầu, độ dài) của nhạc CID — chọn ngẫu nhiên 1 lần cho mỗi video."""
-        from .capcut_engine import audio_len, cid_window, pick_cid
-        f = pick_cid(self.s)
-        if not f:
-            return None
-        start, ln = cid_window(self.job.duration, 0.0, audio_len(f))
-        return (f, start, ln) if ln > 0.05 else None
-
-    def _build_cid(self) -> Path | None:
-        if not self._cid:
-            return None
-        f, start, ln = self._cid
-        fade = min(1.0, ln / 4)
-        vol = max(0.0, float(getattr(self.s, "cid_vol", 1.0)))
-        out = self.work / "cid.wav"
-        ms = int(round(start * 1000))
-        self._wav(["-t", f"{ln:.4f}", "-i", str(f), "-vn",
-                   "-af", f"volume={vol:.4f},afade=t=in:st=0:d={fade:.4f},"
-                          f"afade=t=out:st={max(0.0, ln - fade):.4f}:d={fade:.4f},"
-                          f"adelay={ms}|{ms},apad=whole_dur={self.job.duration:.4f}"], out)
-        self.log(f"[RENDER] Nhạc CID: {Path(f).name} ({ln:.1f}s) từ {start:.1f}s")
-        return out
 
     def _build_sfx(self) -> Path | None:
         from .media import media_duration_sec
@@ -765,6 +738,17 @@ class Renderer:
             vchain.append(f"{cur}[logo]overlay=x={x}:y={y}:shortest=1[v2]")
             cur = "[v2]"
             extra_index += 1
+        qr = s.qr_file() if hasattr(s, "qr_file") else None
+        if qr and not s.intro_file():
+            # không có video intro: mã QR hiện qr_dur giây đầu của video chính
+            qdur = min(float(s.qr_dur), self.job.duration)
+            args += ["-loop", "1", "-t", f"{qdur:.4f}", "-i", str(qr)]
+            qw, x, y = self._qr_size_pos(qr)
+            vchain.append(f"[{extra_index}:v]scale={qw}:-2,setsar=1[qr]")
+            vchain.append(f"{cur}[qr]overlay=x={x}:y={y}:eof_action=pass"
+                          f":enable='lt(t,{qdur:.4f})'[vq]")
+            cur = "[vq]"
+            extra_index += 1
         if (self.job.srt_path and s.render_burn_subs and s.enable_subtitles
                 and Path(self.job.srt_path).is_file()):
             vchain.append(f"{cur}subtitles=filename='{ass_escape(Path(self.job.srt_path))}'"
@@ -788,51 +772,86 @@ class Renderer:
 
     # -- bước 5: intro / outro ------------------------------------------- #
     def _wrap_parts(self) -> list[tuple[str, Path, float]]:
-        """[(nhãn, file, độ dài)] của intro/outro đang bật."""
-        from .capcut_engine import clip_len
+        """[(nhãn, file, độ dài)] của intro / outro / nhạc CID đang bật."""
+        from .capcut_engine import audio_len, clip_len, pick_cid
         out = []
         for label, path in (("intro", self.s.intro_file()), ("outro", self.s.outro_file())):
             if path:
                 out.append((label, path, clip_len(path, label)))
+        cid = pick_cid(self.s)
+        if cid:
+            # nhạc CID nằm SAU điểm kết thúc video, như trên timeline CapCut:
+            # CapCut xuất ra đoạn đuôi màn hình đen có nhạc, ở đây làm y hệt
+            out.append(("cid", cid, audio_len(cid)))
         return out
+
+    def _qr_size_pos(self, qr: Path) -> tuple[int, str, str]:
+        size = probe_size(self.ffprobe, qr) or (self.w, self.h)
+        fit = min(self.w / max(1, size[0]), self.h / max(1, size[1]))
+        qw = _even(max(8.0, size[0] * fit * float(self.s.qr_scale)))
+        x, y = overlay_position(self.s.qr_x, self.s.qr_y, self.w, self.h)
+        return qw, x, y
 
     def wrap_args(self, main: Path, wrap: list[tuple[str, Path, float]],
                   out: Path) -> tuple[list[str], float]:
-        """Ghép intro + video chính + outro. Mọi đoạn được đưa về cùng khung hình,
-        fps và định dạng tiếng; đoạn không có tiếng được lấp bằng khoảng lặng."""
+        """Ghép intro + video chính + outro (+ đuôi nhạc CID). Mọi đoạn được đưa về
+        cùng khung hình, fps và định dạng tiếng; đoạn không có tiếng được lấp bằng
+        khoảng lặng. Mã QR được phủ lên đoạn intro."""
         w, h, fps = self.w, self.h, self.fps
-        parts: list[tuple[Path, float]] = []
-        for label, path, dur in wrap:
-            if label == "intro":
-                parts.append((path, dur))
-        parts.append((main, self.job.duration))
-        for label, path, dur in wrap:
-            if label == "outro":
-                parts.append((path, dur))
+        parts: list[tuple[str, Path, float]] = []
+        parts += [p for p in wrap if p[0] == "intro"]
+        parts.append(("main", main, self.job.duration))
+        parts += [p for p in wrap if p[0] == "outro"]
+        parts += [p for p in wrap if p[0] == "cid"]
         args: list[str] = []
-        for path, _ in parts:
-            args += ["-i", str(path)]
+        n_in = 0
+
+        def add_input(*opts) -> int:
+            nonlocal n_in
+            args.extend(opts)
+            n_in += 1
+            return n_in - 1
+
         chains: list[str] = []
         joined = ""
-        extra = len(parts)
-        for i, (path, dur) in enumerate(parts):
-            chains.append(f"[{i}:v]trim=duration={dur:.4f},setpts=PTS-STARTPTS,"
+        qr = self.s.qr_file() if hasattr(self.s, "qr_file") else None
+        for i, (label, path, dur) in enumerate(parts):
+            if label == "cid":
+                vi = add_input("-f", "lavfi", "-t", f"{dur:.4f}", "-i",
+                               f"color=c=black:s={w}x{h}:r={fps}")
+                ai = add_input("-i", str(path))
+                chains.append(f"[{vi}:v]setsar=1,format=yuv420p[v{i}]")
+                vol = max(0.0, float(getattr(self.s, "cid_vol", 1.0)))
+                chains.append(f"[{ai}:a]atrim=duration={dur:.4f},asetpts=PTS-STARTPTS,"
+                              f"volume={vol:.4f},aresample=48000,"
+                              f"aformat=sample_fmts=fltp:channel_layouts=stereo,"
+                              f"apad=whole_dur={dur:.4f}[a{i}]")
+                joined += f"[v{i}][a{i}]"
+                continue
+            vi = add_input("-i", str(path))
+            lab = f"[vb{i}]" if (label == "intro" and qr) else f"[v{i}]"
+            chains.append(f"[{vi}:v]trim=duration={dur:.4f},setpts=PTS-STARTPTS,"
                           f"scale={w}:{h}:force_original_aspect_ratio=decrease,"
                           f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,"
-                          f"fps={fps},format=yuv420p[v{i}]")
+                          f"fps={fps},format=yuv420p{lab}")
+            if label == "intro" and qr:
+                qi = add_input("-loop", "1", "-t", f"{dur:.4f}", "-i", str(qr))
+                qw, x, y = self._qr_size_pos(qr)
+                chains.append(f"[{qi}:v]scale={qw}:-2,setsar=1[qr{i}]")
+                chains.append(f"[vb{i}][qr{i}]overlay=x={x}:y={y}:shortest=1,"
+                              f"format=yuv420p[v{i}]")
             if probe_has_audio(self.ffprobe, path):
-                src = f"[{i}:a]"
+                src = f"[{vi}:a]"
             else:
-                args += ["-f", "lavfi", "-t", f"{dur:.4f}", "-i",
-                         "anullsrc=r=48000:cl=stereo"]
-                src = f"[{extra}:a]"
-                extra += 1
+                ai = add_input("-f", "lavfi", "-t", f"{dur:.4f}", "-i",
+                               "anullsrc=r=48000:cl=stereo")
+                src = f"[{ai}:a]"
             chains.append(f"{src}atrim=duration={dur:.4f},asetpts=PTS-STARTPTS,"
                           f"aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,"
                           f"apad=whole_dur={dur:.4f}[a{i}]")
             joined += f"[v{i}][a{i}]"
         chains.append(f"{joined}concat=n={len(parts)}:v=1:a=1[vout][aout]")
-        total = sum(d for _, d in parts)
+        total = sum(d for _, _, d in parts)
         return args + ["-filter_complex", ";".join(chains), "-map", "[vout]", "-map", "[aout]",
                        "-c:v", self.encoder,
                        *quality_args(self.encoder, self.s.render_crf, self.s.render_preset),
@@ -851,10 +870,8 @@ class Renderer:
         try:
             segs = self._render_scenes()
             video = self._concat(segs)
-            self._cid = self._pick_cid()
             tracks = [t for t in (self._build_voice(), self._build_source_audio(),
-                                  self._build_bgm(), self._build_sfx(),
-                                  self._build_cid()) if t]
+                                  self._build_bgm(), self._build_sfx()) if t]
             self._finish_phase("audio")
             self.log(f"[RENDER] Đang trộn {len(tracks)} đường tiếng và ghi file cuối…")
             wrap = self._wrap_parts()

@@ -24,7 +24,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.5.7"
+APP_VERSION = "0.5.8"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -169,6 +169,8 @@ STR_DEFAULTS = {
     "visual_zoom": 102, "bgm_order": "number",
     # --- 0.5.7 ---
     "cid_dir": "", "cid_vol": 1.0,
+    # --- 0.5.8 ---
+    "qr_path": "", "qr_x": 0.84, "qr_y": -0.74, "qr_scale": 0.135, "qr_dur": 5.0,
 }
 
 #: Ô tích ở thẻ "Chức năng" của trang Tổng quan
@@ -189,6 +191,7 @@ OTHER_BOOLS = {
     "enable_intro": False,
     "enable_outro": False,
     "enable_cid": False,
+    "enable_qr": False,
 }
 
 PERSIST_KEYS = list(STR_DEFAULTS.keys())
@@ -667,6 +670,18 @@ class App:
         kw["enable_cid"] = cid_on
         kw["cid_dir"] = cid_dir
         kw["cid_vol"] = max(0.0, self._num(d, "cid_vol", float, 1.0))
+
+        # --- mã QR ---
+        qr_on = bool(d.get("enable_qr", False))
+        qr_path = opt("qr_path")
+        if qr_on and (qr_path is None or not qr_path.is_file()):
+            raise BuildError("Đã bật chèn mã QR nhưng chưa chọn file ảnh mã QR hợp lệ "
+                             "(Cài đặt → Nâng cao → Mã QR đầu video).")
+        kw.update(enable_qr=qr_on, qr_path=qr_path,
+                  qr_x=self._num(d, "qr_x", float, 0.84),
+                  qr_y=self._num(d, "qr_y", float, -0.74),
+                  qr_scale=max(0.01, self._num(d, "qr_scale", float, 0.135)),
+                  qr_dur=max(0.5, self._num(d, "qr_dur", float, 5.0)))
 
         return Settings(ip, ch, name, cap, SFX_LIBRARY, SUB_STYLES,
                         opt("logo_path"), opt("claim_path"), opt("bgm_dir"),

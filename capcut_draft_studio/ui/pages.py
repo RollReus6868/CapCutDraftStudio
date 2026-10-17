@@ -845,11 +845,31 @@ def build_advanced(app, page):
                    on_change=lambda *_, p=part: app.boolvars[f"enable_{p}"].set(True)).grid(
             row=1, column=0, sticky="ew")
 
+    qr = Card(host, th, "Mã QR đầu video",
+              "Ảnh mã QR đặt ở góc dưới bên phải, hiện từ đầu video và dài bằng video "
+              "intro (không có intro thì dùng số giây bên dưới).", accent="dashboard",
+              icon="▣")
+    qr.grid_in(row=3, column=0, sticky="ew", pady=(0, 16))
+    qr.columnconfigure(0, weight=1)
+    ttk.Checkbutton(qr, text="Chèn mã QR", variable=app.boolvars["enable_qr"]).grid(
+        row=0, column=0, sticky="w", pady=(0, 8))
+    PathPicker(qr, th, "Ảnh mã QR", app.vars["qr_path"], "file", filetypes=img_types,
+               on_change=lambda *_: app.boolvars["enable_qr"].set(True)).grid(
+        row=1, column=0, sticky="ew", pady=(0, 12))
+    qr_fields = ttk.Frame(qr, style="Surface.TFrame")      # _grid_fields dùng pack
+    qr_fields.grid(row=2, column=0, sticky="ew")
+    _grid_fields(app, qr_fields, th, [
+        ("QR X", "qr_x", "Mặc định 0.84 — dương = sang phải"),
+        ("QR Y", "qr_y", "Mặc định -0.74 — âm = xuống dưới"),
+        ("Cỡ QR", "qr_scale", "0.135 ≈ cao 13.5% khung hình"),
+        ("Giây (khi không có intro)", "qr_dur", "Mặc định 5"),
+    ])
+
     cid = Card(host, th, "Nhạc CID cuối video",
-               "Mỗi lần dựng, tool chọn NGẪU NHIÊN 1 bài trong folder này và đặt ở cuối "
-               "video (bài kết thúc cùng cảnh cuối). Nhạc nền mờ dần khi nhạc CID vào.",
+               "Mỗi lần dựng, tool chọn NGẪU NHIÊN 1 bài trong folder này và đặt SAU điểm "
+               "kết thúc video (sau cảnh cuối / outro). Nhạc nền trong video giữ nguyên.",
                accent="bgm", icon="♫")
-    cid.grid_in(row=3, column=0, sticky="ew", pady=(0, 16))
+    cid.grid_in(row=4, column=0, sticky="ew", pady=(0, 16))
     cid.columnconfigure(0, weight=1)
     ttk.Checkbutton(cid, text="Chèn nhạc CID", variable=app.boolvars["enable_cid"]).grid(
         row=0, column=0, sticky="w", pady=(0, 8))
@@ -865,7 +885,7 @@ def build_advanced(app, page):
     audio = Card(host, th, "Âm lượng", "Hệ số nhân so với âm lượng gốc của file. "
                  "\"Nhạc nền\" áp cho các bài NỀN; bài được tick Intro dùng \"Intro to\" "
                  "rồi hạ về \"Intro nhỏ\".")
-    audio.grid_in(row=4, column=0, sticky="ew", pady=(0, 16))
+    audio.grid_in(row=5, column=0, sticky="ew", pady=(0, 16))
     _grid_fields(app, audio, th, [
         ("Giọng đọc", "voice_vol", "Mặc định 3.16"),
         ("Nhạc nền (thân bài)", "bgm_body_vol", "Mặc định 0.18"),
@@ -877,7 +897,7 @@ def build_advanced(app, page):
     ])
 
     video = Card(host, th, "Hình ảnh & chuyển cảnh")
-    video.grid_in(row=5, column=0, sticky="ew", pady=(0, 16))
+    video.grid_in(row=6, column=0, sticky="ew", pady=(0, 16))
     _grid_fields(app, video, th, [
         ("Phóng to hình/video (%)", "visual_zoom", "Mặc định 102 — lấp viền đen khi "
                                                    "ảnh/video không đúng khung"),
@@ -887,7 +907,7 @@ def build_advanced(app, page):
     ])
 
     logo = Card(host, th, "Vị trí logo", "Toạ độ theo hệ của CapCut: -1 đến 1.")
-    logo.grid_in(row=6, column=0, sticky="ew", pady=(0, 16))
+    logo.grid_in(row=7, column=0, sticky="ew", pady=(0, 16))
     _grid_fields(app, logo, th, [
         ("Logo X", "logo_x", "Dương = sang phải"),
         ("Logo Y", "logo_y", "Âm = xuống dưới"),
@@ -895,7 +915,7 @@ def build_advanced(app, page):
     ])
 
     note = Card(host, th, "Cập nhật & bảo mật")
-    note.grid_in(row=7, column=0, sticky="ew")
+    note.grid_in(row=8, column=0, sticky="ew")
     note.columnconfigure(0, weight=1)
     ttk.Label(note, text="Tool kiểm tra bản mới trên GitHub Releases. File cài đặt tải về "
                          "chỉ được chạy khi mã SHA-256 khớp đúng bảng băm công bố kèm bản "

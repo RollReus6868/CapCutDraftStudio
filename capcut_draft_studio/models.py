@@ -105,6 +105,17 @@ class Settings:
     enable_cid: bool = False
     cid_dir: Path | None = None
     cid_vol: float = 1.0
+    # --- 0.5.8: mã QR góc dưới phải, dài bằng video intro ---
+    enable_qr: bool = False
+    qr_path: Path | None = None
+    qr_x: float = 0.84          # toạ độ CapCut (-1..1), dương = phải
+    qr_y: float = -0.74         # âm = xuống dưới
+    qr_scale: float = 0.135     # 0.135 ≈ cao 13.5% khung hình
+    qr_dur: float = 5.0         # dùng khi không có video intro
+
+    def qr_file(self) -> Path | None:
+        p = self.qr_path
+        return Path(p) if self.enable_qr and p and Path(p).is_file() else None
     # --- intro / outro (0.5.2): video chèn trước cảnh đầu / sau cảnh cuối ---
     enable_intro: bool = False
     intro_path: Path | None = None
