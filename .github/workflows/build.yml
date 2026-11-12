@@ -109,7 +109,7 @@ jobs:
   # ------------------------------------------------------------------ #
   macos:
     name: macOS — gói .dmg
-    runs-on: macos-14
+    runs-on: macos-15   # macos-14 bị GitHub ngừng từ 2026-11-02
     steps:
       - uses: actions/checkout@v4
 
