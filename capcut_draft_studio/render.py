@@ -28,7 +28,7 @@ from pathlib import Path
 
 from . import animations
 from .media import Cancelled
-from .models import Assets, ScenePlan, Settings, LogFn
+from .models import IMAGE_EXTS, Assets, ScenePlan, Settings, LogFn
 
 # --------------------------------------------------------------------------- #
 # lỗi & tiện ích
@@ -389,6 +389,8 @@ def default_out_path(s: Settings, name: str) -> Path:
 # bộ render
 # --------------------------------------------------------------------------- #
 
+WRAP_NAMES = {"intro": "intro", "outro": "outro", "cid": "nhạc CID"}
+
 PHASE_WEIGHT = {"scenes": 0.55, "audio": 0.10, "concat": 0.15, "final": 0.20}
 
 
@@ -410,6 +412,14 @@ class Renderer:
                                     getattr(self.s, "render_hw", "auto"))
         self.trans = (float(self.s.trans_dur)
                       if self.s.enable_transition and len(job.plan) > 1 else 0.0)
+        # chỉ số các cảnh có quảng cáo chèn ngay sau: cắt thẳng, không xfade
+        try:
+            ad_nums = set(self.s.ad_scenes()) if hasattr(self.s, "ad_scenes") else set()
+        except ValueError:
+            ad_nums = set()
+        self._hard = {i for i, p in enumerate(job.plan) if p.number in ad_nums}
+        #: [(thời điểm trong video chính, file quảng cáo, độ dài)] — điền ở _wrap_parts
+        self._ads: list[tuple[float, Path, float]] = []
         self.work = job.out_path.parent / f".{job.out_path.stem}-tmp"
         self._t0 = 0.0
         self._done_weight = 0.0
@@ -484,8 +494,13 @@ class Renderer:
     # -- bước 1: từng cảnh ------------------------------------------------ #
     def _scene_len(self, i: int, p: ScenePlan) -> float:
         """Độ dài clip trung gian: thêm phần đuôi để chuyển cảnh có chỗ hoà."""
-        extra = self.trans if i < len(self.job.plan) - 1 else 0.0
+        extra = self.trans if self._xfade_after(i) else 0.0
         return p.slot_duration + extra
+
+    def _xfade_after(self, i: int) -> bool:
+        """Cảnh i có hoà (xfade) sang cảnh sau không — cảnh trước quảng cáo thì không."""
+        return (bool(self.trans) and i < len(self.job.plan) - 1
+                and i not in getattr(self, "_hard", ()))
 
     def scene_args(self, i: int, p: ScenePlan, out: Path) -> list[str]:
         length = self._scene_len(i, p)
@@ -500,7 +515,7 @@ class Renderer:
         else:
             args += ["-i", str(p.visual_path)]
             vf.append(video_scene_filter(p.speed, self.fps, self.w, self.h, zoom=self.zoom))
-            if self.trans and i < len(self.job.plan) - 1:
+            if self._xfade_after(i):
                 vf.append(f"tpad=stop_mode=clone:stop_duration={self.trans:.4f}")
         return args + ["-an", "-vf", ",".join(vf), "-t", f"{length:.4f}",
                        "-c:v", self.encoder,
@@ -540,14 +555,27 @@ class Renderer:
         else:
             # xfade tiêu thụ đúng phần đuôi đã thêm ở bước 1 nên tổng thời lượng
             # vẫn bằng tổng slot -> tiếng và hình không bị lệch.
+            # Cảnh ngay trước quảng cáo không có đuôi chờ hoà nên nối bằng concat:
+            # lúc cắt video chính để chèn quảng cáo, hai bên là hình sạch.
+            # concat đổi timebase đầu ra sang 1/1000000 và xfade phía sau từ chối
+            # ("timebase do not match") → khi có điểm cắt thẳng, đưa MỌI cảnh về
+            # cùng timebase AVTB trước. Không có quảng cáo thì chuỗi giữ như cũ.
+            hard = [i for i in getattr(self, "_hard", ()) if i < n - 1]
             links = []
+            src = [f"[{i}:v]" for i in range(n)]
+            if hard:
+                links += [f"[{i}:v]settb=AVTB[n{i}]" for i in range(n)]
+                src = [f"[n{i}]" for i in range(n)]
             offset = 0.0
-            prev = "[0:v]"
+            prev = src[0]
             for i in range(1, n):
                 offset += self.job.plan[i - 1].slot_duration
                 label = "[vout]" if i == n - 1 else f"[x{i}]"
-                links.append(f"{prev}[{i}:v]xfade=transition=fade"
-                             f":duration={self.trans:.4f}:offset={offset:.4f}{label}")
+                if i - 1 in hard:
+                    links.append(f"{prev}{src[i]}concat=n=2:v=1:a=0{label}")
+                else:
+                    links.append(f"{prev}{src[i]}xfade=transition=fade"
+                                 f":duration={self.trans:.4f}:offset={offset:.4f}{label}")
                 prev = label
             chain = ";".join(links)
         return args + ["-filter_complex", chain, "-map", "[vout]",
@@ -773,11 +801,17 @@ class Renderer:
     # -- bước 5: intro / outro ------------------------------------------- #
     def _wrap_parts(self) -> list[tuple[str, Path, float]]:
         """[(nhãn, file, độ dài)] của intro / outro / nhạc CID đang bật."""
-        from .capcut_engine import audio_len, clip_len, pick_cid
+        from .capcut_engine import ad_timemap, audio_len, clip_len, intro_len, pick_cid
         out = []
-        for label, path in (("intro", self.s.intro_file()), ("outro", self.s.outro_file())):
-            if path:
-                out.append((label, path, clip_len(path, label)))
+        intro = self.s.intro_file()
+        if intro:
+            out.append(("intro", intro, intro_len(self.s)))
+        outro = self.s.outro_file()
+        if outro:
+            out.append(("outro", outro, clip_len(outro, "outro")))
+        # quảng cáo: tính trên video chính (chưa có intro) — đúng trục của job.plan
+        tmap, ad, ad_len = ad_timemap(self.s, self.job.plan)
+        self._ads = [(b.at, ad, b.length) for b in tmap.breaks]
         cid = pick_cid(self.s)
         if cid:
             # nhạc CID nằm SAU điểm kết thúc video, như trên timeline CapCut:
@@ -794,13 +828,26 @@ class Renderer:
 
     def wrap_args(self, main: Path, wrap: list[tuple[str, Path, float]],
                   out: Path) -> tuple[list[str], float]:
-        """Ghép intro + video chính + outro (+ đuôi nhạc CID). Mọi đoạn được đưa về
-        cùng khung hình, fps và định dạng tiếng; đoạn không có tiếng được lấp bằng
-        khoảng lặng. Mã QR được phủ lên đoạn intro."""
+        """Ghép intro (video hoặc ảnh) + video chính + outro (+ đuôi nhạc CID).
+        Video chính được cắt tại các điểm quảng cáo (self._ads) và quảng cáo chèn
+        vào giữa. Mọi đoạn được đưa về cùng khung hình, fps và định dạng tiếng;
+        đoạn không có tiếng được lấp bằng khoảng lặng. Mã QR phủ lên đoạn intro."""
         w, h, fps = self.w, self.h, self.fps
         parts: list[tuple[str, Path, float]] = []
         parts += [p for p in wrap if p[0] == "intro"]
-        parts.append(("main", main, self.job.duration))
+        # Video chính bị cắt tại từng điểm quảng cáo: giọng, nhạc nền, phụ đề đã
+        # trộn sẵn trong đó nên cả cụm "tạm dừng" rồi chạy tiếp sau quảng cáo.
+        main_from: dict[int, float] = {}
+        cursor = 0.0
+        for at, ad, ln in sorted(getattr(self, "_ads", ())):
+            if at - cursor > 1e-3:
+                main_from[len(parts)] = cursor
+                parts.append(("main", main, at - cursor))
+            parts.append(("ad", ad, ln))
+            cursor = at
+        if self.job.duration - cursor > 1e-3:
+            main_from[len(parts)] = cursor
+            parts.append(("main", main, self.job.duration - cursor))
         parts += [p for p in wrap if p[0] == "outro"]
         parts += [p for p in wrap if p[0] == "cid"]
         args: list[str] = []
@@ -828,9 +875,21 @@ class Renderer:
                               f"apad=whole_dur={dur:.4f}[a{i}]")
                 joined += f"[v{i}][a{i}]"
                 continue
-            vi = add_input("-i", str(path))
+            is_image = Path(path).suffix.lower() in IMAGE_EXTS
+            if is_image:
+                # ảnh intro: đứng yên đúng `dur` giây (-t bắt buộc, xem bẫy -loop 1)
+                vi = add_input("-loop", "1", "-framerate", str(fps), "-t", f"{dur:.4f}",
+                               "-i", str(path))
+            elif main_from.get(i, 0.0) > 0:
+                # phần video chính sau quảng cáo: tua ở đầu vào (nhanh, vẫn chính xác
+                # từng khung vì có encode lại) thay vì giải mã lại từ đầu file
+                vi = add_input("-ss", f"{main_from[i]:.4f}", "-i", str(path))
+            else:
+                vi = add_input("-i", str(path))
             lab = f"[vb{i}]" if (label == "intro" and qr) else f"[v{i}]"
-            chains.append(f"[{vi}:v]trim=duration={dur:.4f},setpts=PTS-STARTPTS,"
+            trim = f"trim=duration={dur:.4f}"
+            atrim = f"atrim=duration={dur:.4f}"
+            chains.append(f"[{vi}:v]{trim},setpts=PTS-STARTPTS,"
                           f"scale={w}:{h}:force_original_aspect_ratio=decrease,"
                           f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,"
                           f"fps={fps},format=yuv420p{lab}")
@@ -840,13 +899,13 @@ class Renderer:
                 chains.append(f"[{qi}:v]scale={qw}:-2,setsar=1[qr{i}]")
                 chains.append(f"[vb{i}][qr{i}]overlay=x={x}:y={y}:shortest=1,"
                               f"format=yuv420p[v{i}]")
-            if probe_has_audio(self.ffprobe, path):
+            if not is_image and probe_has_audio(self.ffprobe, path):
                 src = f"[{vi}:a]"
             else:
                 ai = add_input("-f", "lavfi", "-t", f"{dur:.4f}", "-i",
                                "anullsrc=r=48000:cl=stereo")
                 src = f"[{ai}:a]"
-            chains.append(f"{src}atrim=duration={dur:.4f},asetpts=PTS-STARTPTS,"
+            chains.append(f"{src}{atrim},asetpts=PTS-STARTPTS,"
                           f"aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,"
                           f"apad=whole_dur={dur:.4f}[a{i}]")
             joined += f"[v{i}][a{i}]"
@@ -868,18 +927,21 @@ class Renderer:
         self.log(f"[RENDER] {job.name}: {self.w}x{self.h} @{self.fps}fps, "
                  f"{len(job.plan)} cảnh, {job.duration / 60:.1f} phút, encoder {self.encoder}")
         try:
+            # đọc intro/outro/quảng cáo TRƯỚC khi render cảnh: file hỏng hay số cảnh
+            # quảng cáo sai thì báo ngay, không phải đợi render xong cả video
+            wrap = self._wrap_parts()
             segs = self._render_scenes()
             video = self._concat(segs)
             tracks = [t for t in (self._build_voice(), self._build_source_audio(),
                                   self._build_bgm(), self._build_sfx()) if t]
             self._finish_phase("audio")
             self.log(f"[RENDER] Đang trộn {len(tracks)} đường tiếng và ghi file cuối…")
-            wrap = self._wrap_parts()
-            if wrap:
+            if wrap or self._ads:
                 main = self.work / "main.mp4"
                 self._ffmpeg(self.final_args(video, tracks, main), job.duration, "final",
                              0.0, 0.75)
-                names = " + ".join(lbl for lbl, _, _ in wrap)
+                names = " + ".join([WRAP_NAMES.get(lbl, lbl) for lbl, _, _ in wrap]
+                                   + (["quảng cáo"] * len(self._ads)))
                 self.log(f"[RENDER] Đang ghép {names} vào video…")
                 args, total = self.wrap_args(main, wrap, job.out_path)
                 self._ffmpeg(args, total, "final", 0.75, 0.25)

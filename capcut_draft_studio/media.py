@@ -229,6 +229,25 @@ def validate(s: Settings, a: Assets, log: LogFn = print, progress=None, cancel=N
         cursor += slot
         if i%20==0: log(f"[VALIDATE] ... {i}/{len(nums)}")
     progress("validate", len(nums), len(nums))
+    # Quảng cáo giữa video: số cảnh phải có thật (thời lượng quảng cáo đọc lúc dựng).
+    if getattr(s,"enable_ad",False):
+        ad=s.ad_file()
+        if not ad:
+            errors.append("Quảng cáo: đã bật nhưng chưa chọn file video quảng cáo hợp lệ")
+        else:
+            try:
+                ad_nums=s.ad_scenes()
+                if not ad_nums:
+                    errors.append("Quảng cáo: chưa nhập số cảnh (ô \"Sau cảnh số\")")
+                bad=[n for n in ad_nums if n not in a.audios]
+                if bad:
+                    errors.append("Quảng cáo: không có cảnh số "+", ".join(map(str,bad))
+                                  +f" (project có cảnh {nums[0]}–{nums[-1]})")
+                elif ad_nums:
+                    log(f"[PLAN] Chèn quảng cáo {ad.name} sau cảnh "
+                        +", ".join(map(str,ad_nums))+" — các cảnh sau lùi lại cả hình lẫn giọng")
+            except ValueError as e:
+                errors.append(f"Quảng cáo: {e}")
     if errors and not collect_errors:
         for e in errors: log("[FAIL] "+e)
         raise BuildError(f"{len(errors)} scene thiếu/lỗi asset")

@@ -121,10 +121,31 @@ class Settings:
     intro_path: Path | None = None
     enable_outro: bool = False
     outro_path: Path | None = None
+    # --- 0.5.9: intro có thể là ẢNH (đứng yên intro_img_dur giây) ---
+    intro_img_dur: float = 5.0
+    # --- 0.5.9: video quảng cáo chèn SAU cảnh số ad_after ("5" hoặc "5, 12") ---
+    enable_ad: bool = False
+    ad_path: Path | None = None
+    ad_after: str = ""
 
     def intro_file(self) -> Path | None:
         p = self.intro_path
         return Path(p) if self.enable_intro and p and Path(p).is_file() else None
+
+    def intro_is_image(self) -> bool:
+        p = self.intro_file()
+        return bool(p and p.suffix.lower() in IMAGE_EXTS)
+
+    def ad_file(self) -> Path | None:
+        p = self.ad_path
+        return Path(p) if self.enable_ad and p and Path(p).is_file() else None
+
+    def ad_scenes(self) -> list[int]:
+        """Các số cảnh mà SAU nó chèn quảng cáo (rỗng nếu tắt / chưa chọn file)."""
+        if not self.ad_file():
+            return []
+        from .inserts import parse_scene_list
+        return parse_scene_list(self.ad_after)
 
     def outro_file(self) -> Path | None:
         p = self.outro_path

@@ -2,7 +2,7 @@ from __future__ import annotations
 import json, math, os, random, shutil, time
 from dataclasses import replace
 from pathlib import Path
-from . import animations
+from . import animations, inserts
 from .models import Settings, Assets, ScenePlan, LogFn
 from .media import BuildError, media_duration_sec, natural_key, _check, _noop_progress
 from .subtitles import build_srt
@@ -110,12 +110,19 @@ def cid_window(total: float, off: float, length: float) -> tuple[float,float]:
     ln=min(length,avail)
     return total-ln, ln
 
-def add_audio(script, track: str, path: Path, start: float, want_len: float, volume: float=1.0, fade_in: float=0, fade_out: float=0):
+def add_audio(script, track: str, path: Path, start: float, want_len: float, volume: float=1.0, fade_in: float=0, fade_out: float=0,
+              src_start: float=0.0):
+    """`src_start` > 0: đọc file từ giây đó (phần sau của bài nhạc bị quảng cáo cắt đôi)."""
     cc=_cc(); dur=audio_len(path)
     try:mat=_audio_material(cc,path)
     except Exception:mat=str(path)
-    seg_len=max(0.02,min(want_len,dur)-1e-6)
-    seg=cc.AudioSegment(mat,cc.trange(_sec(start),_sec(seg_len)),volume=float(volume))
+    src_start=max(0.0,float(src_start))
+    seg_len=max(0.02,min(want_len,dur-src_start)-1e-6)
+    if src_start>0:
+        seg=cc.AudioSegment(mat,cc.trange(_sec(start),_sec(seg_len)),
+                            source_timerange=cc.trange(_sec(src_start),_sec(seg_len)),volume=float(volume))
+    else:
+        seg=cc.AudioSegment(mat,cc.trange(_sec(start),_sec(seg_len)),volume=float(volume))
     if fade_in or fade_out: seg.add_fade(_sec(min(fade_in,seg_len/2)),_sec(min(fade_out,seg_len/2)))
     script.add_segment(seg,track); return seg
 
@@ -177,17 +184,52 @@ def clip_len(path: Path, label: str) -> float:
     if d<=0.05:raise BuildError(f"File {label} quá ngắn hoặc hỏng: {Path(path).name}")
     return d
 
+def intro_len(s: Settings) -> float:
+    """Độ dài phần intro: video → độ dài file; ảnh → s.intro_img_dur giây; tắt → 0."""
+    intro=s.intro_file()
+    if not intro:return 0.0
+    if s.intro_is_image():
+        d=float(getattr(s,"intro_img_dur",5.0) or 0.0)
+        if d<0.1:raise BuildError("Thời lượng ảnh intro phải từ 0.1 giây trở lên.")
+        return d
+    return clip_len(intro,"intro")
+
+def ad_timemap(s: Settings, plan: list[ScenePlan]) -> tuple[inserts.TimeMap, Path|None, float]:
+    """(TimeMap, file quảng cáo, độ dài) — TimeMap rỗng khi không chèn quảng cáo.
+
+    `plan` phải ở cùng trục thời gian với chỗ dùng TimeMap (CapCut: đã cộng intro;
+    render ffmpeg: video chính, chưa có intro)."""
+    ad=s.ad_file()
+    if not ad:return inserts.TimeMap(),None,0.0
+    try:nums=s.ad_scenes()
+    except ValueError as e:raise BuildError(f"Ô \"Sau cảnh số\" của quảng cáo: {e}") from e
+    if not nums:raise BuildError("Đã bật chèn video quảng cáo nhưng chưa nhập số cảnh (ô \"Sau cảnh số\").")
+    length=clip_len(ad,"quảng cáo")
+    try:breaks=inserts.plan_breaks(plan,nums,length)
+    except ValueError as e:raise BuildError(str(e)) from e
+    return inserts.TimeMap(breaks),ad,length
+
 def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_out_dir: Path|None=None,
           progress=None, cancel=None) -> Path:
     progress = progress or _noop_progress
     if not plan:raise BuildError("Plan rỗng")
     # Intro: đẩy toàn bộ timeline lùi lại đúng bằng độ dài intro. Outro: nối sau cảnh cuối.
+    # Intro có thể là ảnh (đứng yên intro_img_dur giây) hoặc video.
     intro,outro=s.intro_file(),s.outro_file()
-    off=clip_len(intro,"intro") if intro else 0.0
+    off=intro_len(s)
     outro_len=clip_len(outro,"outro") if outro else 0.0
     if off>0:
         plan=[replace(p,start=p.start+off) for p in plan]
-        log(f"[BUILD] Intro: {intro.name} ({off:.2f}s) — các cảnh lùi lại {off:.2f}s")
+        kind="ảnh" if s.intro_is_image() else "video"
+        log(f"[BUILD] Intro ({kind}): {intro.name} ({off:.2f}s) — các cảnh lùi lại {off:.2f}s")
+    # Quảng cáo giữa video: `cplan` là trục NỘI DUNG (chưa có quảng cáo), `plan` là
+    # trục TIMELINE. Cảnh sau quảng cáo lùi lại cả hình lẫn giọng nên vẫn khớp nhau.
+    tmap,ad,ad_len=ad_timemap(s,plan)
+    cplan=plan; plan=inserts.shift_plan(cplan,tmap)
+    ad_after={b.after_scene for b in tmap.breaks}
+    for tl,b in tmap.timeline_breaks():
+        log(f"[BUILD] Quảng cáo: {ad.name} ({ad_len:.2f}s) sau cảnh {b.after_scene}, "
+            f"từ {tl:.2f}s — các cảnh sau lùi lại")
     if not s.capcut_drafts.is_dir():raise BuildError(f"Không thấy CapCut drafts folder: {s.capcut_drafts}")
     cc=_cc(); log(f"[BUILD] Tạo draft '{s.draft_name}' ({s.width}x{s.height} @{s.fps}fps)...")
     anim_picker=animations.AnimPicker(s.image_anim); anim_used: dict[str,int]={}
@@ -209,7 +251,31 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
     zoom=max(0.5,min(2.0,float(getattr(s,"visual_zoom",100.0) or 100.0)/100.0))
     zoom_cs=(lambda:cc.ClipSettings(scale_x=zoom,scale_y=zoom)) if abs(zoom-1.0)>1e-6 else (lambda:None)
     if abs(zoom-1.0)>1e-6:log(f"[BUILD] Phóng to hình/video: {zoom*100:.0f}%")
-    total=plan[-1].end; trans=_resolve_transition(cc,s.transition_type)
+    # total = điểm kết thúc phần nội dung trên trục NỘI DUNG; end_all = trên timeline
+    total=cplan[-1].end; end_all=total+tmap.extra; trans=_resolve_transition(cc,s.transition_type)
+
+    def put_overlay(track: str, path: Path, start: float, length: float, cs=None):
+        """Ảnh phủ (claim/logo/QR) đặt theo trục nội dung — bị quảng cáo cắt đôi."""
+        for pc in tmap.split(start,length):
+            script.add_segment(cc.VideoSegment(str(path),cc.trange(_sec(pc.start),_sec(pc.length)),
+                                               clip_settings=cs() if cs else None),track)
+
+    def put_audio(track: str, path: Path, start: float, want: float, volume: float,
+                  fade_in: float=0, fade_out: float=0, env=None):
+        """add_audio theo trục nội dung: bài nhạc chạy ngang quảng cáo được cắt làm hai,
+        phần sau phát tiếp đúng chỗ đã dừng. `env` = [(giây, âm lượng)] keyframe."""
+        want=min(want,audio_len(path)); pieces=tmap.split(start,want); segs=[]
+        for k,pc in enumerate(pieces):
+            seg=add_audio(script,track,path,pc.start,pc.length,volume,
+                          fade_in if k==0 else 0,fade_out if k==len(pieces)-1 else 0,src_start=pc.src)
+            if env:
+                try:
+                    for t,v in inserts.envelope_keyframes(env,pc.src,pc.length):
+                        seg.add_keyframe(int(round(t*1e6)),v)
+                except Exception as e:log(f"[WARN] Không đặt được âm lượng nhạc intro: {e}")
+            segs.append(seg)
+        return segs
+
     if intro:
         script.add_segment(cc.VideoSegment(str(intro),cc.trange("0s",_sec(off))),"main")
     # visuals + voice
@@ -238,14 +304,18 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
             # pycapcut tự tính tốc độ cho đoạn vẫn dài đúng bằng ô cảnh
             sp=float(p.speed) if src_len>=slot*p.speed-1e-4 else None
             seg=cc.VideoSegment(str(p.visual_path),cc.trange(_sec(p.start),_sec(slot)),source_timerange=cc.trange("0s",_sec(src_len)),speed=sp,volume=vvol,**zkw)
-        if s.enable_transition and trans is not None and idx<len(plan)-1:
+        # cảnh ngay trước quảng cáo: cắt thẳng, không hoà vào quảng cáo
+        if s.enable_transition and trans is not None and idx<len(plan)-1 and p.number not in ad_after:
             try:seg.add_transition(trans,duration=cc.tim(_sec(min(s.trans_dur,slot/3))))
             except Exception as e:log(f"[WARN] Transition scene {p.number}: {e}")
         script.add_segment(seg,"main")
         if (idx+1)%50==0:log(f"[BUILD] ... {idx+1}/{len(plan)}")
+    for tl,b in tmap.timeline_breaks():
+        # tiếng gốc của quảng cáo giữ nguyên (âm lượng 1.0)
+        script.add_segment(cc.VideoSegment(str(ad),cc.trange(_sec(tl),_sec(b.length))),"main")
     progress("build", len(plan), len(plan))
     if outro:
-        script.add_segment(cc.VideoSegment(str(outro),cc.trange(_sec(total),_sec(outro_len))),"main")
+        script.add_segment(cc.VideoSegment(str(outro),cc.trange(_sec(end_all),_sec(outro_len))),"main")
         log(f"[BUILD] Outro: {outro.name} ({outro_len:.2f}s)")
     if anim_used:
         detail=", ".join(f"{animations.BY_KEY[k].label if k in animations.BY_KEY else k} {n}"
@@ -254,39 +324,39 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
     # claim overlay
     if a.claim and s.enable_claim:
         script.add_track(cc.TrackType.video,"claim",relative_index=2)
-        dur=min(s.claim_dur,total-off); script.add_segment(cc.VideoSegment(str(a.claim),cc.trange(_sec(off),_sec(dur))),"claim")
-    # logo overlay
+        dur=min(s.claim_dur,total-off); put_overlay("claim",a.claim,off,dur)
+    # logo overlay — không phủ lên quảng cáo
     if a.logo and s.enable_logo:
         script.add_track(cc.TrackType.video,"logo",relative_index=3)
-        cs=cc.ClipSettings(transform_x=s.logo_x,transform_y=s.logo_y,scale_x=s.logo_scale,scale_y=s.logo_scale)
-        script.add_segment(cc.VideoSegment(str(a.logo),cc.trange(_sec(off),_sec(total-off)),clip_settings=cs),"logo")
+        put_overlay("logo",a.logo,off,total-off,
+                    lambda:cc.ClipSettings(transform_x=s.logo_x,transform_y=s.logo_y,scale_x=s.logo_scale,scale_y=s.logo_scale))
         log("[BUILD] Logo watermark OK")
     # Nhạc CID (0.5.8): 1 bài ngẫu nhiên trong folder CID, đặt SAU điểm kết thúc
     # video (sau cảnh cuối và outro), nguyên bài. Nhạc nền trong video giữ nguyên.
-    bgm_total=total
     cid=pick_cid(s)
     if cid:
-        cid_start=total+outro_len; cid_ln=audio_len(cid)
+        cid_start=end_all+outro_len; cid_ln=audio_len(cid)
         script.add_track(cc.TrackType.audio,"cid",relative_index=BGM_LAYER)
         add_audio(script,"cid",cid,cid_start,cid_ln,float(getattr(s,"cid_vol",1.0)))
         log(f"[BUILD] Nhạc CID: {cid.name} ({cid_ln:.1f}s, âm lượng {float(getattr(s,'cid_vol',1.0)):.2f}) "
             f"đặt sau video, từ {cid_start:.1f}s")
-    # Mã QR (0.5.8): góc dưới phải, dài bằng video intro (không có intro → qr_dur giây)
+    # Mã QR (0.5.8): góc dưới phải, dài bằng intro (không có intro → qr_dur giây)
     qr=s.qr_file() if hasattr(s,"qr_file") else None
     if qr:
         qlen=off if off>0 else max(0.5,float(getattr(s,"qr_dur",5.0)))
         script.add_track(cc.TrackType.video,"qr",relative_index=4)
-        qcs=cc.ClipSettings(transform_x=float(s.qr_x),transform_y=float(s.qr_y),
-                            scale_x=float(s.qr_scale),scale_y=float(s.qr_scale))
-        script.add_segment(cc.VideoSegment(str(qr),cc.trange("0s",_sec(qlen)),clip_settings=qcs),"qr")
+        put_overlay("qr",qr,0.0,qlen,
+                    lambda:cc.ClipSettings(transform_x=float(s.qr_x),transform_y=float(s.qr_y),
+                                           scale_x=float(s.qr_scale),scale_y=float(s.qr_scale)))
         log(f"[BUILD] Mã QR: {qr.name} ({qlen:.1f}s)")
-    # BGM: first intro track then round-robin background with crossfades
+    # BGM: first intro track then round-robin background with crossfades.
+    # Tính trên trục NỘI DUNG; put_audio tự cắt quanh quảng cáo.
     if s.enable_bgm and a.bgm_files:
-        total_all,total=total,bgm_total   # trong khối nhạc nền: "total" = điểm dừng nhạc nền
         roles=resolve_music_roles(s,a.bgm_files); intros=[x for x in roles if x[1]]; bgs=[x for x in roles if x[2]]
         log(f"[BUILD] Âm lượng: giọng đọc {float(s.voice_vol):.2f} · nhạc nền {float(s.bgm_body_vol):.2f}"
             + (f" · bài intro {intros[0][0].name} {float(s.bgm_intro_vol_high):.2f}→{float(s.bgm_intro_vol_low):.2f}"
                if intros else ""))
+        if tmap:log("[BUILD] Nhạc nền tạm dừng trong lúc quảng cáo phát rồi chạy tiếp")
         bg_start=off      # nhạc nền bắt đầu cùng cảnh đầu tiên (sau video intro)
         # Mỗi track nhạc ghi nhớ thời điểm đoạn cuối của nó kết thúc. Nhạc intro
         # kéo dài tới bgm_intro_max_dur (59s) trong khi nhạc thân bài vào từ giây
@@ -302,17 +372,15 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
             return name
         if intros:
             f,_,_,mul=intros[0]; dur=min(audio_len(f),s.bgm_intro_max_dur,total-off)
-            seg=add_audio(script,"bgm_a",f,off,dur,s.bgm_intro_vol_high*mul,0,min(1.0,dur/3)); bg_start=off+min(s.bgm_intro_high_dur,dur)
+            bg_start=off+min(s.bgm_intro_high_dur,dur)
             # Bài intro: to (Intro to) trong "Intro giữ to" giây đầu, rồi hạ về
             # "Intro nhỏ" trong 1 giây. Trước 0.5.6 mức nhỏ không được dùng nên
             # bài intro phát to suốt tới 59s, đè cả giọng đọc lẫn nhạc thân bài.
             hi,lo,hold=float(s.bgm_intro_vol_high)*mul,float(s.bgm_intro_vol_low)*mul,float(s.bgm_intro_high_dur)
+            env=[]
             if dur>hold+0.5 and abs(hi-lo)>1e-6:
-                try:
-                    ramp=min(1.0,dur-hold)
-                    seg.add_keyframe(0,hi); seg.add_keyframe(int(hold*1e6),hi)
-                    seg.add_keyframe(int((hold+ramp)*1e6),lo)
-                except Exception as e:log(f"[WARN] Không đặt được âm lượng nhạc intro: {e}")
+                ramp=min(1.0,dur-hold); env=[(0.0,hi),(hold,hi),(hold+ramp,lo)]
+            put_audio("bgm_a",f,off,dur,hi,0,min(1.0,dur/3),env)
             track_end["bgm_a"]=off+dur
         if bgs and bg_start<total:
             cursor=bg_start; guard=0
@@ -321,15 +389,14 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
                 # một mẩu nhạc vụn chỉ sinh ra hàng loạt đoạn 0.1s chồng nhau.
                 if guard>0 and total-cursor<1.0:break
                 f,_,_,mul=bgs[guard%len(bgs)]; fd=audio_len(f); want=min(fd,total-cursor); xf=min(s.crossfade_sec,want/3)
-                track=pick_track(cursor); add_audio(script,track,f,cursor,want,s.bgm_body_vol*mul,xf if cursor>bg_start else 0,xf)
+                track=pick_track(cursor); put_audio(track,f,cursor,want,s.bgm_body_vol*mul,xf if cursor>bg_start else 0,xf)
                 track_end[track]=cursor+want
                 cursor += max(0.05,want-xf); guard+=1
-        total=total_all
     # SFX placed at scene starts, muted library preloaded after timeline
     for i,it in enumerate(placed):
-        t=plan[i%len(plan)].start; d=min(2.0,audio_len(Path(it["path"])),max(0.1,total-t))
-        add_audio(script,"sfx",Path(it["path"]),t,d,1.0)
-    shelf_cursor=total+outro_len+(audio_len(cid) if cid else 0.0)+1.0
+        t=cplan[i%len(cplan)].start; d=min(2.0,audio_len(Path(it["path"])),max(0.1,total-t))
+        put_audio("sfx",Path(it["path"]),t,d,1.0)
+    shelf_cursor=end_all+outro_len+(audio_len(cid) if cid else 0.0)+1.0
     for it in muted:
         try:d=min(2.0,audio_len(Path(it["path"]))); add_audio(script,"sfx_kho",Path(it["path"]),shelf_cursor,d,1.0); shelf_cursor+=d+0.2
         except Exception:pass

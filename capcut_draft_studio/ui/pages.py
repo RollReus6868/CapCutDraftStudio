@@ -14,6 +14,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from .. import animations, gaps, render
+from ..inserts import parse_scene_list
 from ..media import harvest_sfx_from_capcut, list_bgm_files, list_sfx_items
 from ..styles import harvest_sub_styles, list_sub_styles
 from ..subtitles import excel_columns, guess_excel_columns
@@ -343,8 +344,19 @@ def _configure_scene_tags(app):
                     foreground=th.mode_color["ERR"])
 
 
+def _ad_scene_set(app) -> set[int]:
+    """Số cảnh sẽ có quảng cáo chèn phía sau (theo cài đặt đang hiện)."""
+    try:
+        if not app.boolvars["enable_ad"].get():
+            return set()
+        return set(parse_scene_list(app.vars["ad_after"].get()))
+    except Exception:
+        return set()
+
+
 def fill_scene_table(app, plan, errors):
     rows = []
+    ads = _ad_scene_set(app)
     for p in plan:
         rows.append({
             "mode": p.mode,
@@ -357,7 +369,7 @@ def fill_scene_table(app, plan, errors):
                 p.visual_path.name,
                 f"{p.speed:.2f}×" if p.mode in ("SLOW", "SPEEDUP") else "1.00×",
                 _fmt_dur(p.start),
-                _scene_note(p),
+                _scene_note(p) + (" · ▶ chèn quảng cáo sau cảnh này" if p.number in ads else ""),
             ),
         })
     for e in errors:
@@ -826,9 +838,14 @@ def build_advanced(app, page):
         row=1, column=0, sticky="ew", padx=(0, 16), pady=(14, 0))
 
     vid_types = [("Video", "*.mp4 *.mov *.mkv *.avi *.webm *.m4v"), ("Tất cả", "*.*")]
+    intro_types = [("Video hoặc ảnh", "*.mp4 *.mov *.mkv *.avi *.webm *.m4v "
+                                      "*.png *.jpg *.jpeg *.webp *.bmp"),
+                   ("Video", "*.mp4 *.mov *.mkv *.avi *.webm *.m4v"),
+                   ("Ảnh", "*.png *.jpg *.jpeg *.webp *.bmp"), ("Tất cả", "*.*")]
     io = Card(host, th, "Intro & Outro",
-              "Video chèn vào trước cảnh đầu tiên và sau cảnh cuối cùng, giữ nguyên "
-              "tiếng gốc của file. Áp cho cả draft CapCut lẫn file mp4 render ra.",
+              "Chèn vào trước cảnh đầu tiên và sau cảnh cuối cùng, giữ nguyên tiếng gốc "
+              "của file. Intro có thể là video hoặc ảnh (ảnh đứng yên số giây bên dưới). "
+              "Áp cho cả draft CapCut lẫn file mp4 render ra.",
               accent="render", icon="▶")
     io.grid_in(row=2, column=0, sticky="ew", pady=(0, 16))
     io.columnconfigure(0, weight=1)
@@ -840,16 +857,37 @@ def build_advanced(app, page):
         ttk.Checkbutton(cell, text=f"Chèn {label}",
                         variable=app.boolvars[f"enable_{part}"]).grid(
             row=0, column=0, sticky="w", pady=(0, 8))
-        PathPicker(cell, th, f"File video {label}", app.vars[f"{part}_path"], "file",
-                   filetypes=vid_types,
+        PathPicker(cell, th, "File video hoặc ảnh intro" if part == "intro"
+                   else f"File video {label}", app.vars[f"{part}_path"], "file",
+                   filetypes=intro_types if part == "intro" else vid_types,
                    on_change=lambda *_, p=part: app.boolvars[f"enable_{p}"].set(True)).grid(
             row=1, column=0, sticky="ew")
+        if part == "intro":
+            field_row(cell, th, "Giây hiện ảnh intro", app.vars["intro_img_dur"],
+                      hint="Chỉ dùng khi intro là ảnh — mặc định 5").grid(
+                row=2, column=0, sticky="w", pady=(12, 0))
+
+    ad = Card(host, th, "Video quảng cáo giữa video",
+              "Chèn video quảng cáo ngay SAU cảnh bạn chọn. Các cảnh phía sau lùi lại cả "
+              "hình lẫn giọng đọc nên giọng vẫn khớp đúng cảnh; phụ đề lùi theo. Nhạc nền "
+              "và logo tạm dừng trong lúc quảng cáo phát rồi chạy tiếp. Áp cho cả draft "
+              "CapCut lẫn file mp4.", accent="presets", icon="film")
+    ad.grid_in(row=3, column=0, sticky="ew", pady=(0, 16))
+    ad.columnconfigure(0, weight=1)
+    ttk.Checkbutton(ad, text="Chèn video quảng cáo", variable=app.boolvars["enable_ad"]).grid(
+        row=0, column=0, columnspan=2, sticky="w", pady=(0, 8))
+    PathPicker(ad, th, "File video quảng cáo", app.vars["ad_path"], "file",
+               filetypes=vid_types,
+               on_change=lambda *_: app.boolvars["enable_ad"].set(True)).grid(
+        row=1, column=0, sticky="ew", padx=(0, 16))
+    field_row(ad, th, "Sau cảnh số", app.vars["ad_after"], width=16,
+              hint="Vd 5 — nhiều chỗ: 5, 12").grid(row=1, column=1, sticky="nw")
 
     qr = Card(host, th, "Mã QR đầu video",
               "Ảnh mã QR đặt ở góc dưới bên phải, hiện từ đầu video và dài bằng video "
               "intro (không có intro thì dùng số giây bên dưới).", accent="dashboard",
               icon="▣")
-    qr.grid_in(row=3, column=0, sticky="ew", pady=(0, 16))
+    qr.grid_in(row=4, column=0, sticky="ew", pady=(0, 16))
     qr.columnconfigure(0, weight=1)
     ttk.Checkbutton(qr, text="Chèn mã QR", variable=app.boolvars["enable_qr"]).grid(
         row=0, column=0, sticky="w", pady=(0, 8))
@@ -869,7 +907,7 @@ def build_advanced(app, page):
                "Mỗi lần dựng, tool chọn NGẪU NHIÊN 1 bài trong folder này và đặt SAU điểm "
                "kết thúc video (sau cảnh cuối / outro). Nhạc nền trong video giữ nguyên.",
                accent="bgm", icon="♫")
-    cid.grid_in(row=4, column=0, sticky="ew", pady=(0, 16))
+    cid.grid_in(row=5, column=0, sticky="ew", pady=(0, 16))
     cid.columnconfigure(0, weight=1)
     ttk.Checkbutton(cid, text="Chèn nhạc CID", variable=app.boolvars["enable_cid"]).grid(
         row=0, column=0, sticky="w", pady=(0, 8))
@@ -885,7 +923,7 @@ def build_advanced(app, page):
     audio = Card(host, th, "Âm lượng", "Hệ số nhân so với âm lượng gốc của file. "
                  "\"Nhạc nền\" áp cho các bài NỀN; bài được tick Intro dùng \"Intro to\" "
                  "rồi hạ về \"Intro nhỏ\".")
-    audio.grid_in(row=5, column=0, sticky="ew", pady=(0, 16))
+    audio.grid_in(row=6, column=0, sticky="ew", pady=(0, 16))
     _grid_fields(app, audio, th, [
         ("Giọng đọc", "voice_vol", "Mặc định 3.16"),
         ("Nhạc nền (thân bài)", "bgm_body_vol", "Mặc định 0.18"),
@@ -897,7 +935,7 @@ def build_advanced(app, page):
     ])
 
     video = Card(host, th, "Hình ảnh & chuyển cảnh")
-    video.grid_in(row=6, column=0, sticky="ew", pady=(0, 16))
+    video.grid_in(row=7, column=0, sticky="ew", pady=(0, 16))
     _grid_fields(app, video, th, [
         ("Phóng to hình/video (%)", "visual_zoom", "Mặc định 102 — lấp viền đen khi "
                                                    "ảnh/video không đúng khung"),
@@ -907,7 +945,7 @@ def build_advanced(app, page):
     ])
 
     logo = Card(host, th, "Vị trí logo", "Toạ độ theo hệ của CapCut: -1 đến 1.")
-    logo.grid_in(row=7, column=0, sticky="ew", pady=(0, 16))
+    logo.grid_in(row=8, column=0, sticky="ew", pady=(0, 16))
     _grid_fields(app, logo, th, [
         ("Logo X", "logo_x", "Dương = sang phải"),
         ("Logo Y", "logo_y", "Âm = xuống dưới"),
@@ -915,7 +953,7 @@ def build_advanced(app, page):
     ])
 
     note = Card(host, th, "Cập nhật & bảo mật")
-    note.grid_in(row=8, column=0, sticky="ew")
+    note.grid_in(row=9, column=0, sticky="ew")
     note.columnconfigure(0, weight=1)
     ttk.Label(note, text="Tool kiểm tra bản mới trên GitHub Releases. File cài đặt tải về "
                          "chỉ được chạy khi mã SHA-256 khớp đúng bảng băm công bố kèm bản "

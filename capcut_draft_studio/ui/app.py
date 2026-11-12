@@ -14,6 +14,7 @@ from .. import capcut_export, render, updater
 from ..capcut_engine import build
 from ..config import (detect_capcut_drafts, load_channel_settings, load_json,
                       save_channel_settings, save_json)
+from ..inserts import parse_scene_list
 from ..media import BuildError, Cancelled, capcut_running, scan_assets, validate
 from ..models import Settings
 from ..presets import PresetStore, RecentStore
@@ -24,7 +25,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.5.8"
+APP_VERSION = "0.5.9"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -171,6 +172,8 @@ STR_DEFAULTS = {
     "cid_dir": "", "cid_vol": 1.0,
     # --- 0.5.8 ---
     "qr_path": "", "qr_x": 0.84, "qr_y": -0.74, "qr_scale": 0.135, "qr_dur": 5.0,
+    # --- 0.5.9 ---
+    "intro_img_dur": 5.0, "ad_path": "", "ad_after": "",
 }
 
 #: Ô tích ở thẻ "Chức năng" của trang Tổng quan
@@ -192,6 +195,7 @@ OTHER_BOOLS = {
     "enable_outro": False,
     "enable_cid": False,
     "enable_qr": False,
+    "enable_ad": False,
 }
 
 PERSIST_KEYS = list(STR_DEFAULTS.keys())
@@ -660,6 +664,24 @@ class App:
                                  "(Cài đặt → Nâng cao → Intro & Outro).")
             kw[f"enable_{part}"] = on
             kw[f"{part}_path"] = path
+        kw["intro_img_dur"] = max(0.1, self._num(d, "intro_img_dur", float, 5.0))
+
+        # --- video quảng cáo giữa video ---
+        ad_on = bool(d.get("enable_ad", False))
+        ad_path = opt("ad_path")
+        ad_after = str(d.get("ad_after", "") or "").strip()
+        if ad_on:
+            if ad_path is None or not ad_path.is_file():
+                raise BuildError("Đã bật chèn video quảng cáo nhưng chưa chọn file video "
+                                 "hợp lệ (Cài đặt → Nâng cao → Video quảng cáo giữa video).")
+            try:
+                nums = parse_scene_list(ad_after)
+            except ValueError as e:
+                raise BuildError(f"Ô \"Sau cảnh số\" của quảng cáo: {e}") from e
+            if not nums:
+                raise BuildError("Đã bật chèn video quảng cáo nhưng chưa nhập số cảnh "
+                                 "(ô \"Sau cảnh số\", vd 5).")
+        kw.update(enable_ad=ad_on, ad_path=ad_path, ad_after=ad_after)
 
         # --- nhạc CID ---
         cid_on = bool(d.get("enable_cid", False))

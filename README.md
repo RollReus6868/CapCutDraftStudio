@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.5.8
+# CapCut Draft Studio 0.5.9
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,20 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.5.9
+
+- **Intro bằng ảnh.** *Cài đặt → Nâng cao → Intro & Outro*: file intro giờ nhận cả
+  ảnh (png/jpg/webp…), ảnh đứng yên đúng số giây ở ô *Giây hiện ảnh intro*
+  (mặc định 5). Intro video vẫn như cũ. Mã QR (nếu bật) dài bằng phần intro.
+- **Video quảng cáo giữa video.** *Cài đặt → Nâng cao → Video quảng cáo giữa video*:
+  chọn file video và gõ số cảnh ở ô *Sau cảnh số* (vd `5`, nhiều chỗ thì `5, 12`).
+  Quảng cáo chèn ngay sau cảnh đó; các cảnh phía sau lùi lại **cả hình lẫn giọng
+  đọc**, nên giọng vẫn khớp đúng cảnh, phụ đề lùi theo. Nhạc nền và logo tạm dừng
+  trong lúc quảng cáo phát rồi chạy tiếp đúng chỗ; cảnh ngay trước quảng cáo cắt
+  thẳng, không hoà chuyển cảnh. Áp cho cả draft CapCut lẫn file mp4 (cả hai cách
+  render). Số cảnh sai được báo ngay khi bấm **KIỂM TRA**; bảng *Cảnh quay* ghi
+  "▶ chèn quảng cáo sau cảnh này" ở cảnh đã chọn.
 
 ## Mới ở 0.5.8
 
@@ -311,10 +325,13 @@ Windows/macOS **cấm ghi** với tài khoản thường — tool tự chuyển 
 
 ```bash
 pip install -r requirements.txt pytest
-pytest tests -q                 # 86 test, không cần ffmpeg
+pytest tests -q                 # 142 test (vài test tạo video mẫu bằng ffmpeg)
 
 # kiểm tra render thật (cần ffmpeg):
 python tests/manual_render_check.py <thư-mục-project> 0.4
+
+# kiểm tra ảnh intro + quảng cáo giữa video (tự tạo project giả, đo màu/tiếng từng cảnh):
+python tests/manual_insert_check.py
 
 # kiểm tra giao diện dựng được ở cả 2 theme (Linux, cần Xvfb):
 Xvfb :99 -screen 0 1440x920x24 &
