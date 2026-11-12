@@ -25,7 +25,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.5.9"
+APP_VERSION = "0.5.10"
 
 NAV = [
     ("dashboard", "Tổng quan"),

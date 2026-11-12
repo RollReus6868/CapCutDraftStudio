@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.5.9
+# CapCut Draft Studio 0.5.10
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,10 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.5.10
+
+- Bản phát hành chính thức của các tính năng 0.5.9 bên dưới (bản 0.5.9 không build được bộ cài macOS vì GitHub ngừng máy build macOS 14; nay build trên macOS 15).
 
 ## Mới ở 0.5.9
 
