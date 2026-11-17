@@ -227,6 +227,8 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
     tmap,ad,ad_len=ad_timemap(s,plan)
     cplan=plan; plan=inserts.shift_plan(cplan,tmap)
     ad_after={b.after_scene for b in tmap.breaks}
+    # thời điểm đặt quảng cáo trên timeline, theo số cảnh đứng ngay trước nó
+    ad_slot={b.after_scene:(tl,b.length) for tl,b in tmap.timeline_breaks()}
     for tl,b in tmap.timeline_breaks():
         log(f"[BUILD] Quảng cáo: {ad.name} ({ad_len:.2f}s) sau cảnh {b.after_scene}, "
             f"từ {tl:.2f}s — các cảnh sau lùi lại")
@@ -309,10 +311,14 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
             try:seg.add_transition(trans,duration=cc.tim(_sec(min(s.trans_dur,slot/3))))
             except Exception as e:log(f"[WARN] Transition scene {p.number}: {e}")
         script.add_segment(seg,"main")
+        if p.number in ad_slot:
+            # Thêm quảng cáo NGAY SAU cảnh này. Track chính của CapCut là track nam
+            # châm: nó xếp đoạn theo THỨ TỰ TRONG FILE chứ không theo thời điểm
+            # bắt đầu — 0.5.9/0.5.10 thêm quảng cáo sau cảnh cuối nên bị dồn ra cuối.
+            # Tiếng gốc của quảng cáo giữ nguyên (âm lượng 1.0).
+            tl,ln=ad_slot[p.number]
+            script.add_segment(cc.VideoSegment(str(ad),cc.trange(_sec(tl),_sec(ln))),"main")
         if (idx+1)%50==0:log(f"[BUILD] ... {idx+1}/{len(plan)}")
-    for tl,b in tmap.timeline_breaks():
-        # tiếng gốc của quảng cáo giữ nguyên (âm lượng 1.0)
-        script.add_segment(cc.VideoSegment(str(ad),cc.trange(_sec(tl),_sec(b.length))),"main")
     progress("build", len(plan), len(plan))
     if outro:
         script.add_segment(cc.VideoSegment(str(outro),cc.trange(_sec(end_all),_sec(outro_len))),"main")
@@ -408,6 +414,12 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
         if build_srt(s,plan,srt_path,log):
             script.import_srt(str(srt_path),track_name="subtitles",clip_settings=cc.ClipSettings(transform_y=-0.8))
     _check(cancel); progress("save", 0, 1); log("[BUILD] Đang ghi draft xuống đĩa…")
+    # Lưới an toàn: mọi track theo đúng thứ tự thời gian (CapCut đọc track chính
+    # theo thứ tự trong file). Track vốn đã đúng thứ tự thì giữ nguyên (sort ổn định).
+    tracks=getattr(script,"tracks",None)
+    for tr in (tracks.values() if isinstance(tracks,dict) else ()):
+        segs=getattr(tr,"segments",None)
+        if segs:segs.sort(key=lambda g:g.target_timerange.start)
     script.save(); draft_path=s.capcut_drafts/s.draft_name
     progress("save", 1, 1)
     if srt_path:

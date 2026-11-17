@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.5.10
+# CapCut Draft Studio 0.5.11
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,10 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.5.11
+
+- **Sửa lỗi video quảng cáo bị dồn ra cuối video trong CapCut.** Track hình chính của CapCut xếp các đoạn theo thứ tự trong file draft (không theo thời điểm bắt đầu), mà 0.5.9/0.5.10 ghi đoạn quảng cáo sau cảnh cuối cùng. Nay quảng cáo được ghi ngay sau cảnh đã chọn, nên nằm đúng vào khoảng trống trên hàng giọng đọc. File mp4 render bằng ffmpeg không bị lỗi này. Project đã tạo bằng bản cũ cần bấm TẠO PROJECT lại.
 
 ## Mới ở 0.5.10
 

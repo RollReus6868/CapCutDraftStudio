@@ -293,3 +293,33 @@ def test_render_concat_hard_cut_before_ad():
     chain = chain[chain.index("-filter_complex") + 1]
     assert chain == ("[0:v][1:v]xfade=transition=fade:duration=0.5000:offset=2.4000[x1];"
                      "[x1][2:v]xfade=transition=fade:duration=0.5000:offset=4.8000[vout]")
+
+
+def _raw_starts(track):
+    """Thứ tự đoạn ĐÚNG NHƯ TRONG FILE — CapCut dựng track chính theo thứ tự này
+    (track nam châm), không theo target_timerange. Đừng sắp xếp lại ở đây."""
+    return [x["target_timerange"]["start"] / 1e6 for x in track["segments"]]
+
+
+def test_ad_sits_in_list_order_on_main_track(tmp_path, monkeypatch):
+    """0.5.10: quảng cáo được thêm SAU khi thêm hết các cảnh → nằm cuối danh sách
+    track chính → CapCut dồn nó ra cuối video dù target_timerange đúng."""
+    _real_pycapcut(monkeypatch)
+    _project(tmp_path, n=6, sec=2.0)
+    ad = _mp4(tmp_path / "ad.mp4", 2.0)
+    from capcut_draft_studio.capcut_engine import build
+    from capcut_draft_studio.media import scan_assets, validate
+    s = Settings(input_dir=tmp_path, channel_dir=tmp_path / "CH", draft_name="d",
+                 capcut_drafts=tmp_path / "drafts", register_root_meta=False,
+                 enable_claim=False, enable_ad=True, ad_path=ad, ad_after="2, 4")
+    assets = scan_assets(s, lambda m: None)
+    plan = validate(s, assets, lambda m: None)
+    d = json.loads((build(s, assets, plan, lambda m: None) / "draft_content.json")
+                   .read_text(encoding="utf-8"))
+    for t in d["tracks"]:
+        starts = _raw_starts(t)
+        assert starts == sorted(starts), f"track {t['name']} không theo thứ tự thời gian"
+    main = {t["name"]: t for t in d["tracks"]}["main"]
+    mats = {m["id"]: m["path"] for m in d["materials"]["videos"]}
+    names = [Path(mats[x["material_id"]]).stem for x in main["segments"]]
+    assert names == ["1", "2", "ad", "3", "4", "ad", "5", "6"]
