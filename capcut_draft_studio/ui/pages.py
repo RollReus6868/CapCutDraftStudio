@@ -369,7 +369,8 @@ def fill_scene_table(app, plan, errors):
                 p.visual_path.name,
                 f"{p.speed:.2f}×" if p.mode in ("SLOW", "SPEEDUP") else "1.00×",
                 _fmt_dur(p.start),
-                _scene_note(p) + (" · ▶ chèn quảng cáo sau cảnh này" if p.number in ads else ""),
+                _scene_note(p) + (" · ▶ chèn quảng cáo sau cảnh này" if p.number in ads else "")
+                + _overlay_note(plan, p.number),
             ),
         })
     for e in errors:
@@ -390,6 +391,11 @@ def fill_scene_table(app, plan, errors):
         text=(f"Cắt {counts['CUT']}  ·  Chậm {counts['SLOW']}  ·  Nhanh {counts['SPEEDUP']}"
               f"  ·  Ảnh {counts['IMAGE']}  ·  Lỗi {counts['ERR']}  ·  Tổng {_fmt_dur(total)}"),
         style="Err.TLabel" if counts["ERR"] else "SurfaceDim.TLabel")
+
+
+def _overlay_note(plan, number: int) -> str:
+    kinds = (getattr(plan, "overlays", None) or {}).get(number)
+    return f" · ✎ chữ: {', '.join(kinds)}" if kinds else ""
 
 
 def _gap_cell(p) -> str:
@@ -734,7 +740,106 @@ def build_subtitle(app, page):
                 from_=0.0, to=20.0, step=0.5, decimals=1, unit="điểm",
                 hint="Mặc định 5.0 — bóng đổ chéo xuống phải.").grid(
         row=1, column=1, sticky="ew")
+    build_overlay_card(app, host, th, row=3)
     refresh_styles(app)
+
+
+def build_overlay_card(app, host, th, row: int):
+    """Đồ họa chữ (0.6.0): thẻ chương, trích dẫn, câu chốt, dấu mộc, danh sách…"""
+    from .. import overlays as ovl
+    card = Card(host, th, "Đồ họa chữ trên hình",
+                "Tool tự tìm file có chữ 'overlay' (overlay.xlsx / .csv) trong folder VIDEO: "
+                "mỗi dòng một đồ họa — cột scene, type, text, sub, label, until. Loại: "
+                + ", ".join(f"{k} ({v[0]})" for k, v in ovl.KINDS.items())
+                + ". Áp cho cả draft CapCut lẫn file mp4.",
+                accent="settings", icon="✎")
+    card.grid_in(row=row, column=0, sticky="ew", pady=(16, 0))
+    card.columnconfigure(0, weight=1)
+    card.columnconfigure(1, weight=1)
+    top = ttk.Frame(card, style="Surface.TFrame")
+    top.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
+    ttk.Checkbutton(top, text="Bật đồ họa chữ", variable=app.boolvars["enable_overlays"]).pack(
+        side="left", padx=(0, 18))
+    ttk.Checkbutton(top, text="Trích dẫn hiện dần như đánh máy",
+                    variable=app.boolvars["overlay_typewriter"]).pack(side="left")
+    PathPicker(card, th, "File đồ họa chữ (để trống = tự tìm trong folder VIDEO)",
+               app.vars["overlay_file"], "file",
+               filetypes=[("Excel / CSV", "*.xlsx *.xlsm *.csv *.tsv"), ("Tất cả", "*.*")]).grid(
+        row=1, column=0, columnspan=2, sticky="ew", pady=(0, 14))
+    colors = ttk.Frame(card, style="Surface.TFrame")
+    colors.grid(row=2, column=0, columnspan=2, sticky="ew")
+    for i in range(2):
+        colors.columnconfigure(i, weight=1, uniform="ovc")
+    field_row(colors, th, "Màu nhấn (vàng)", app.vars["overlay_accent"],
+              hint="Mã hex, mặc định #C9A45C — đổi theo bảng màu video").grid(
+        row=0, column=0, sticky="new", padx=(0, 16))
+    field_row(colors, th, "Màu dấu mộc", app.vars["overlay_stamp"],
+              hint="Mặc định #B3261E (đỏ)").grid(row=0, column=1, sticky="new")
+    SliderField(card, th, "Độ đậm hộp nền", app.vars["overlay_box_alpha"],
+                from_=0.3, to=1.0, step=0.05, decimals=2, unit="1 = đen đặc",
+                hint="Mặc định 0.80").grid(row=3, column=0, sticky="ew", padx=(0, 16),
+                                         pady=(14, 0))
+    SliderField(card, th, "Cỡ chữ", app.vars["overlay_scale"],
+                from_=0.6, to=1.6, step=0.05, decimals=2, unit="× cỡ chuẩn",
+                hint="Mặc định 1.00").grid(row=3, column=1, sticky="ew", pady=(14, 0))
+    btns = ttk.Frame(card, style="Surface.TFrame")
+    btns.grid(row=4, column=0, columnspan=2, sticky="w", pady=(16, 0))
+    ttk.Button(btns, text="Tạo file mẫu", style="Secondary.TButton",
+               command=lambda: _overlay_template(app)).pack(side="left", padx=(0, 8))
+    ttk.Button(btns, text="Xem thử đồ họa", style="Secondary.TButton",
+               command=lambda: _overlay_preview(app)).pack(side="left")
+
+
+def _overlay_template(app):
+    """Ghi overlay.xlsx mẫu vào folder VIDEO (không ghi đè file đã có)."""
+    from .. import overlays as ovl
+    raw = app.vars["input_dir"].get().strip()
+    if not raw or not Path(raw).is_dir():
+        messagebox.showwarning("Thiếu folder", "Chọn folder VIDEO ở trang Tổng quan trước.")
+        return
+    dest = Path(raw) / "overlay.xlsx"
+    if dest.exists():
+        messagebox.showinfo("Đồ họa chữ", f"Đã có {dest.name} trong folder VIDEO — mở file "
+                                           "đó để sửa.")
+        _open_folder(dest.parent)
+        return
+    try:
+        ovl.write_template(dest)
+    except Exception as e:
+        messagebox.showerror("Đồ họa chữ", f"Không ghi được file mẫu: {e}")
+        return
+    app.log(f"[OK] Đã tạo file mẫu đồ họa chữ: {dest}")
+    _open_folder(dest.parent)
+
+
+def _overlay_preview(app):
+    """Vẽ mọi đồ họa trong file lên ảnh cảnh tương ứng, ghép thành một ảnh xem thử."""
+    from .. import overlays as ovl
+    try:
+        s = app.make_settings()
+    except Exception as e:
+        messagebox.showerror("Thiếu thông tin", str(e))
+        return
+    path = ovl.overlay_file(s)
+    if not path:
+        messagebox.showinfo("Đồ họa chữ", "Chưa có file overlay trong folder VIDEO. Bấm "
+                                           "\"Tạo file mẫu\" để bắt đầu.")
+        return
+    items, errors = ovl.load_overlays(path)
+    if errors:
+        messagebox.showerror("Đồ họa chữ", "\n".join(errors[:12]))
+        return
+    if not items:
+        messagebox.showinfo("Đồ họa chữ", f"{path.name} chưa có dòng nào.")
+        return
+    out = Path(s.input_dir) / "_capcut_draft_studio" / "overlay-preview.jpg"
+    try:
+        ovl.preview_file(items, s, out)
+    except Exception as e:
+        messagebox.showerror("Đồ họa chữ", f"Không vẽ được ảnh xem thử: {e}")
+        return
+    app.log(f"[OK] Ảnh xem thử đồ họa chữ ({min(len(items), 24)} mục): {out}")
+    _open_folder(out)
 
 
 def refresh_styles(app):
@@ -1442,6 +1547,31 @@ nhật ký. Đặt "Nghỉ đủ" về 0.00 là nối liền hết như các b�
 
 Lưu ý: khoảng nghỉ làm mỗi cảnh dài thêm, nên một video vốn vừa khít có
 thể phải làm chậm hơn một chút, hoặc chuyển sang dùng ảnh.
+
+
+ĐỒ HỌA CHỮ TRÊN HÌNH  (Cài đặt → Phụ đề → Đồ họa chữ)
+
+Ảnh/video của cảnh để FULL khung, chữ do tool vẽ đè lên. Đặt một file có
+chữ "overlay" trong tên (overlay.xlsx hoặc Ten-video_overlay.csv) vào
+folder VIDEO, mỗi dòng một đồ họa:
+
+  scene   số cảnh (khớp số file Audio)
+  type    CHAPTER  thẻ mở chương: nguồn nhỏ + câu chủ đề in hoa
+          LOWER    nhãn dưới: label nhỏ + một dòng chữ trong hộp tối
+          NAME     nhãn tên: như LOWER, chữ serif nghiêng (người, nơi, năm)
+          QUOTE    hộp trích dẫn, chữ hiện dần như đánh máy, tham chiếu dưới
+          TITLE    câu chốt in hoa giữa màn hình, nền tối dần
+          STAMP    dấu mộc đỏ nghiêng — dùng rất ít
+          LIST     danh sách 01, 02… cộng dần (các dòng cùng label)
+          STAT     số lớn trong hộp viền vàng, nhãn nhỏ bên dưới
+  text    chữ chính         sub    dòng phụ / tham chiếu / nguồn
+  label   nhãn nhỏ in hoa   until  giữ tới hết cảnh số này
+  start   hiện sau mấy giây (trống = 0.35)   dur   hiện mấy giây
+
+Bấm "Tạo file mẫu" để có sẵn file Excel kèm hướng dẫn, "Xem thử đồ họa"
+để xem mọi đồ họa vẽ trên ảnh cảnh của nó. KIỂM TRA báo luôn dòng sai
+(số cảnh không có, loại không hiểu…). Áp cho cả draft CapCut (các track
+chu_list / chu_main / chu_stamp) lẫn file mp4.
 
 
 RENDER VIDEO  (trang Render video)

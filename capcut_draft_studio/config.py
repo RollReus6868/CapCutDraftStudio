@@ -32,6 +32,9 @@ DEFAULT_CHANNEL_KEYS = {
     "enable_qr", "qr_path", "qr_x", "qr_y", "qr_scale", "qr_dur",
     # --- thêm từ 0.5.9 ---
     "intro_img_dur", "enable_ad", "ad_path", "ad_after",
+    # --- thêm từ 0.6.0 ---
+    "enable_overlays", "overlay_accent", "overlay_stamp", "overlay_box_alpha",
+    "overlay_scale", "overlay_typewriter",
 }
 
 def load_json(path: Path, default):

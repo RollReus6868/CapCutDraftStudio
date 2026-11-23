@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.5.11
+# CapCut Draft Studio 0.6.0
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,26 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.6.0
+
+- **Đồ họa chữ trên hình.** Ảnh cảnh nay để full khung, chữ do tool vẽ đè lên theo
+  một file `overlay.xlsx` (hoặc `.csv`, tên có chữ *overlay*) đặt trong folder VIDEO,
+  mỗi dòng một đồ họa: `scene | type | text | sub | label | until | start | dur`.
+  Tám loại: **CHAPTER** (thẻ mở chương), **LOWER** (nhãn dưới), **NAME** (nhãn tên
+  serif nghiêng), **QUOTE** (hộp trích dẫn, chữ hiện dần như đánh máy, tham chiếu bên
+  dưới), **TITLE** (câu chốt in hoa giữa màn hình), **STAMP** (dấu mộc đỏ),
+  **LIST** (danh sách 01, 02… cộng dần qua nhiều cảnh), **STAT** (ô số liệu). Màu
+  nhấn, màu dấu mộc, độ đậm hộp nền, cỡ chữ chỉnh ở *Cài đặt → Phụ đề → Đồ họa
+  chữ*; có nút **Tạo file mẫu** và **Xem thử đồ họa**. Áp cho cả draft CapCut
+  (track `chu_list`, `chu_main`, `chu_stamp`, có hiện dần / mờ dần) lẫn file mp4.
+  KIỂM TRA báo dòng sai; bảng *Cảnh quay* ghi "✎ chữ: …" ở cảnh có đồ họa. Không
+  có file overlay thì draft và mp4 y hệt bản cũ. Font đi kèm (OFL): EB Garamond,
+  Montserrat, Oswald — có đủ dấu tiếng Việt.
+- **Chạy không cần giao diện.** `python -m capcut_draft_studio.cli check|build|render|
+  overlay-preview|overlay-template --input <folder VIDEO>` (bản cài đặt:
+  `"CapCut Draft Studio.exe" --cli build --input …`, nhật ký ghi vào `cli-last.log`).
+  Dùng đúng cấu hình đang lưu của giao diện, chỉ thay những gì truyền vào.
 
 ## Mới ở 0.5.11
 

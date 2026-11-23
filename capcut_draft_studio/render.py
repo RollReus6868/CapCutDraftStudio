@@ -421,6 +421,8 @@ class Renderer:
         #: [(thời điểm trong video chính, file quảng cáo, độ dài)] — điền ở _wrap_parts
         self._ads: list[tuple[float, Path, float]] = []
         self.work = job.out_path.parent / f".{job.out_path.stem}-tmp"
+        #: đồ họa chữ (0.6.0) — điền ở run() trước khi dựng cảnh
+        self._ovl: list = []
         self._t0 = 0.0
         self._done_weight = 0.0
         self._proc: subprocess.Popen | None = None
@@ -502,6 +504,21 @@ class Renderer:
         return (bool(self.trans) and i < len(self.job.plan) - 1
                 and i not in getattr(self, "_hard", ()))
 
+    def scene_overlays(self, i: int, p: ScenePlan, length: float) -> list[tuple]:
+        """[(png, từ giây, tới giây, fade vào, fade ra)] của đồ họa chữ rơi vào cảnh i,
+        tính theo giờ CỦA CLIP CẢNH (0 = đầu cảnh)."""
+        out = []
+        for pl in self._ovl:
+            a = pl.start - p.start
+            b = pl.end - p.start
+            a2, b2 = max(0.0, a), min(length, b)
+            if b2 - a2 < 0.02 or pl.png is None:
+                continue
+            fi = pl.fade_in if a >= -1e-6 else 0.0
+            fo = pl.fade_out if b <= length + 1e-6 else 0.0
+            out.append((pl.png, a2, b2, min(fi, (b2 - a2) / 2), min(fo, (b2 - a2) / 2)))
+        return out
+
     def scene_args(self, i: int, p: ScenePlan, out: Path) -> list[str]:
         length = self._scene_len(i, p)
         vf: list[str] = []
@@ -517,6 +534,27 @@ class Renderer:
             vf.append(video_scene_filter(p.speed, self.fps, self.w, self.h, zoom=self.zoom))
             if self._xfade_after(i):
                 vf.append(f"tpad=stop_mode=clone:stop_duration={self.trans:.4f}")
+        ovs = self.scene_overlays(i, p, length) if self._ovl else []
+        if ovs:
+            # Mỗi ảnh chữ là MỘT khung (giải mã một lần), tpad nhân ra đủ dài rồi
+            # fade kênh alpha; overlay chỉ bật trong khoảng giờ của nó.
+            chain = [f"[0:v]{','.join(vf)}[b0]"]
+            for j, (png, a, b, fi, fo) in enumerate(ovs, start=1):
+                args += ["-framerate", str(self.fps), "-i", str(png)]
+                f = (f"[{j}:v]format=rgba,scale={self.w}:{self.h},"
+                     f"tpad=stop_mode=clone:stop_duration={length:.4f}")
+                if fi > 0:
+                    f += f",fade=t=in:st={a:.4f}:d={fi:.4f}:alpha=1"
+                if fo > 0:
+                    f += f",fade=t=out:st={b - fo:.4f}:d={fo:.4f}:alpha=1"
+                chain.append(f"{f}[o{j}]")
+                chain.append(f"[b{j - 1}][o{j}]overlay=0:0:eof_action=repeat"
+                             f":enable='between(t,{a:.4f},{b:.4f})'[b{j}]")
+            return args + ["-an", "-filter_complex", ";".join(chain),
+                           "-map", f"[b{len(ovs)}]", "-t", f"{length:.4f}",
+                           "-c:v", self.encoder,
+                           *quality_args(self.encoder, self.s.render_crf, self.s.render_preset),
+                           "-pix_fmt", "yuv420p", str(out)]
         return args + ["-an", "-vf", ",".join(vf), "-t", f"{length:.4f}",
                        "-c:v", self.encoder,
                        *quality_args(self.encoder, self.s.render_crf, self.s.render_preset),
@@ -930,6 +968,10 @@ class Renderer:
             # đọc intro/outro/quảng cáo TRƯỚC khi render cảnh: file hỏng hay số cảnh
             # quảng cáo sai thì báo ngay, không phải đợi render xong cả video
             wrap = self._wrap_parts()
+            # đồ họa chữ: vẽ PNG đúng cỡ khung xuất (không phải cỡ project)
+            from . import overlays
+            self._ovl = overlays.prepare(self.s, job.plan, self.work / "overlays", self.log,
+                                         self._cancel, size=(self.w, self.h))
             segs = self._render_scenes()
             video = self._concat(segs)
             tracks = [t for t in (self._build_voice(), self._build_source_audio(),

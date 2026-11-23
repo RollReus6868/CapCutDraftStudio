@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import queue
+import re
 import sys
 import threading
 import traceback
@@ -25,7 +26,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.5.11"
+APP_VERSION = "0.6.0"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -174,6 +175,9 @@ STR_DEFAULTS = {
     "qr_path": "", "qr_x": 0.84, "qr_y": -0.74, "qr_scale": 0.135, "qr_dur": 5.0,
     # --- 0.5.9 ---
     "intro_img_dur": 5.0, "ad_path": "", "ad_after": "",
+    # --- 0.6.0: đồ họa chữ ---
+    "overlay_file": "", "overlay_accent": "#C9A45C", "overlay_stamp": "#B3261E",
+    "overlay_box_alpha": 0.8, "overlay_scale": 1.0,
 }
 
 #: Ô tích ở thẻ "Chức năng" của trang Tổng quan
@@ -196,9 +200,21 @@ OTHER_BOOLS = {
     "enable_cid": False,
     "enable_qr": False,
     "enable_ad": False,
+    "enable_overlays": True,
+    "overlay_typewriter": True,
 }
 
 PERSIST_KEYS = list(STR_DEFAULTS.keys())
+
+
+def _color(raw, default: str) -> str:
+    """'#c9a45c' / 'C9A45C' → '#C9A45C'; sai định dạng thì báo lỗi dễ hiểu."""
+    v = str(raw or "").strip().lstrip("#")
+    if not v:
+        return default
+    if not re.fullmatch(r"[0-9a-fA-F]{6}", v):
+        raise BuildError(f"Mã màu '{raw}' không hợp lệ — gõ dạng #C9A45C (6 chữ số hex).")
+    return "#" + v.upper()
 
 
 class App:
@@ -704,6 +720,21 @@ class App:
                   qr_y=self._num(d, "qr_y", float, -0.74),
                   qr_scale=max(0.01, self._num(d, "qr_scale", float, 0.135)),
                   qr_dur=max(0.5, self._num(d, "qr_dur", float, 5.0)))
+
+        # --- đồ họa chữ (0.6.0) ---
+        ov_path = opt("overlay_file")
+        if ov_path is not None and not ov_path.is_file():
+            raise BuildError("File đồ họa chữ đã chọn không tồn tại "
+                             "(Cài đặt → Phụ đề → Đồ họa chữ). Xoá ô đó để tool tự tìm "
+                             "file overlay trong folder VIDEO.")
+        kw.update(enable_overlays=bool(d.get("enable_overlays", True)),
+                  overlay_file=ov_path,
+                  overlay_accent=_color(d.get("overlay_accent"), "#C9A45C"),
+                  overlay_stamp=_color(d.get("overlay_stamp"), "#B3261E"),
+                  overlay_box_alpha=min(1.0, max(0.0, self._num(d, "overlay_box_alpha",
+                                                                float, 0.8))),
+                  overlay_scale=min(2.0, max(0.5, self._num(d, "overlay_scale", float, 1.0))),
+                  overlay_typewriter=bool(d.get("overlay_typewriter", True)))
 
         return Settings(ip, ch, name, cap, SFX_LIBRARY, SUB_STYLES,
                         opt("logo_path"), opt("claim_path"), opt("bgm_dir"),

@@ -21,6 +21,8 @@ def _check(cancel) -> None:
 class ScenePlanList(list):
     """list[ScenePlan] có thêm .errors — dùng cho chế độ preview."""
     errors: list[str] = []
+    #: {số cảnh: [loại đồ họa chữ]} — để bảng Cảnh quay ghi chú
+    overlays: dict[int, list[str]] = {}
 
 def scan_numbered(folder: Path, exts: set[str], log: LogFn = print) -> dict[int, Path]:
     out: dict[int, Path] = {}
@@ -248,6 +250,19 @@ def validate(s: Settings, a: Assets, log: LogFn = print, progress=None, cancel=N
                         +", ".join(map(str,ad_nums))+" — các cảnh sau lùi lại cả hình lẫn giọng")
             except ValueError as e:
                 errors.append(f"Quảng cáo: {e}")
+    # Đồ họa chữ (0.6.0): soát file overlay ngay ở KIỂM TRA, khỏi đợi tới lúc dựng
+    overlay_kinds: dict[int,list[str]] = {}
+    if getattr(s,"enable_overlays",True):
+        from . import overlays as ovl
+        of=ovl.overlay_file(s)
+        if of:
+            items,oerr=ovl.load_overlays(of)
+            e2,owarn=ovl.check_items(items,nums)
+            errors += [f"Đồ họa chữ ({of.name}): {e}" for e in oerr+e2]
+            for w in owarn[:20]: log(f"[WARN] Đồ họa chữ: {w}")
+            for it in items: overlay_kinds.setdefault(it.scene,[]).append(it.kind)
+            if items:
+                log(f"[PLAN] Đồ họa chữ: {len(items)} mục từ {of.name} — {ovl.summary(items)}")
     if errors and not collect_errors:
         for e in errors: log("[FAIL] "+e)
         raise BuildError(f"{len(errors)} scene thiếu/lỗi asset")
@@ -260,7 +275,7 @@ def validate(s: Settings, a: Assets, log: LogFn = print, progress=None, cancel=N
     log(f"[PLAN] Tổng thời lượng: {cursor/60:.1f} phút ({cursor:.1f}s)")
     if collect_errors:
         for e in errors: log("[FAIL] "+e)
-        plan = ScenePlanList(plan); plan.errors = errors
+        plan = ScenePlanList(plan); plan.errors = errors; plan.overlays = overlay_kinds
     return plan
 
 def harvest_sfx_from_capcut(sfx_library: Path, capcut_drafts: Path, log: LogFn=print) -> int:

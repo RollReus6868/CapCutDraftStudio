@@ -2,7 +2,7 @@ from __future__ import annotations
 import json, math, os, random, shutil, time
 from dataclasses import replace
 from pathlib import Path
-from . import animations, inserts
+from . import animations, inserts, overlays
 from .models import Settings, Assets, ScenePlan, LogFn
 from .media import BuildError, media_duration_sec, natural_key, _check, _noop_progress
 from .subtitles import build_srt
@@ -132,6 +132,7 @@ def _resolve_transition(cc,name: str):
         try:return cc.TransitionType.叠化
         except Exception:return None
 
+OVERLAY_LAYER=5   # relative_index track chữ đầu tiên (trên claim 2, logo 3, QR 4)
 BGM_LAYER=1   # relative_index của các track nhạc nền (xem chú thích ở build())
 
 def resolve_music_roles(s: Settings, files: list[Path], rng=None):
@@ -355,6 +356,28 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
                     lambda:cc.ClipSettings(transform_x=float(s.qr_x),transform_y=float(s.qr_y),
                                            scale_x=float(s.qr_scale),scale_y=float(s.qr_scale)))
         log(f"[BUILD] Mã QR: {qr.name} ({qlen:.1f}s)")
+    # Đồ họa chữ (0.6.0): ảnh PNG trong suốt trên các track chu_*, lập lịch theo
+    # trục NỘI DUNG (cplan) rồi cắt quanh quảng cáo như mọi lớp phủ khác.
+    ov_dir=Path(srt_out_dir or (s.input_dir/"_capcut_draft_studio"))/"overlays"
+    pls=overlays.prepare(s,cplan,ov_dir,log,cancel)
+    if pls:
+        made: set[str]=set()
+        for pl in pls:
+            name=f"chu_{pl.layer}"+(f"_{pl.track+1}" if pl.track else "")
+            if name not in made:
+                script.add_track(cc.TrackType.video,name,
+                                 relative_index=OVERLAY_LAYER+overlays.LAYERS.index(pl.layer)+3*pl.track)
+                made.add(name)
+            pieces=tmap.split(pl.start,pl.length)
+            for k,pc in enumerate(pieces):
+                seg=cc.VideoSegment(str(pl.png),cc.trange(_sec(pc.start),_sec(pc.length)))
+                try:
+                    if pl.fade_in and k==0:
+                        seg.add_animation(cc.IntroType.渐显,_sec(min(pl.fade_in,pc.length/2)))
+                    if pl.fade_out and k==len(pieces)-1:
+                        seg.add_animation(cc.OutroType.渐隐,_sec(min(pl.fade_out,pc.length/2)))
+                except Exception as e:log(f"[WARN] Hiệu ứng hiện chữ cảnh {pl.scene}: {e}")
+                script.add_segment(seg,name)
     # BGM: first intro track then round-robin background with crossfades.
     # Tính trên trục NỘI DUNG; put_audio tự cắt quanh quảng cáo.
     if s.enable_bgm and a.bgm_files:

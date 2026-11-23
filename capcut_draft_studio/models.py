@@ -128,6 +128,17 @@ class Settings:
     ad_path: Path | None = None
     ad_after: str = ""
 
+    # --- 0.6.0: đồ họa chữ (thẻ chương, trích dẫn, câu chốt, dấu mộc, danh sách…)
+    #: Bật = đọc file overlay*.xlsx/.csv trong folder VIDEO (không có file thì bỏ qua)
+    enable_overlays: bool = True
+    #: Chỉ định file khác thay vì tự tìm trong folder VIDEO
+    overlay_file: Path | None = None
+    overlay_accent: str = "#C9A45C"
+    overlay_stamp: str = "#B3261E"
+    overlay_box_alpha: float = 0.80
+    overlay_scale: float = 1.0
+    overlay_typewriter: bool = True
+
     def intro_file(self) -> Path | None:
         p = self.intro_path
         return Path(p) if self.enable_intro and p and Path(p).is_file() else None

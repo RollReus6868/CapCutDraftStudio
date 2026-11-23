@@ -54,7 +54,52 @@ def _report(exc_text: str) -> None:
         sys.stderr.write(exc_text)
 
 
+def _cli(argv: list[str]) -> int:
+    """`CapCut Draft Studio.exe --cli build --input …` — chạy không giao diện.
+
+    Bản .exe không có cửa sổ console nên mọi dòng in ra được ghi kèm vào
+    cli-last.log (cùng chỗ với crash.log) để xem lại."""
+    import io
+
+    class Tee(io.TextIOBase):
+        def __init__(self, *streams):
+            self.streams = [s for s in streams if s is not None]
+
+        def write(self, text):
+            for st in self.streams:
+                try:
+                    st.write(text)
+                    st.flush()
+                except Exception:  # noqa: BLE001
+                    pass
+            return len(text)
+
+    logf = None
+    for candidate in _crash_log_candidates():
+        try:
+            candidate.parent.mkdir(parents=True, exist_ok=True)
+            logf = (candidate.parent / "cli-last.log").open("w", encoding="utf-8")
+            break
+        except OSError:
+            continue
+    sys.stdout = Tee(sys.__stdout__, logf)
+    sys.stderr = Tee(sys.__stderr__, logf)
+    try:
+        from capcut_draft_studio.cli import main as cli_main
+        return cli_main(argv)
+    except SystemExit as e:
+        return int(e.code or 0) if not isinstance(e.code, str) else (print(e.code) or 2)
+    except Exception:  # noqa: BLE001
+        print(traceback.format_exc())
+        return 1
+    finally:
+        if logf:
+            logf.close()
+
+
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "--cli":
+        return _cli(sys.argv[2:])
     try:
         from capcut_draft_studio.ui.app import main as run
     except Exception:  # noqa: BLE001
