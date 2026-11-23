@@ -138,6 +138,8 @@ class Settings:
     overlay_box_alpha: float = 0.80
     overlay_scale: float = 1.0
     overlay_typewriter: bool = True
+    #: 0.6.2: chữ hiện đúng lúc giọng đọc nói tới (False = luôn hiện ở đầu cảnh)
+    overlay_sync: bool = True
 
     def intro_file(self) -> Path | None:
         p = self.intro_path

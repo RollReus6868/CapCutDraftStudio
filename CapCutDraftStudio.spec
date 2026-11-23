@@ -16,7 +16,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
 APP_NAME = "CapCut Draft Studio"
 BUNDLE_ID = "com.leo.capcutdraftstudio"
-VERSION = "0.6.1"
+VERSION = "0.6.2"
 
 ROOT = Path(SPECPATH)
 IS_MAC = sys.platform == "darwin"
@@ -52,7 +52,7 @@ hiddenimports = [
     "openpyxl", "pymediainfo", "pycapcut",
     "capcut_draft_studio.render", "capcut_draft_studio.updater",
     "capcut_draft_studio.capcut_export",
-    "capcut_draft_studio.cli", "capcut_draft_studio.overlays",
+    "capcut_draft_studio.cli", "capcut_draft_studio.overlays", "capcut_draft_studio.speech",
     "capcut_draft_studio.ui.app", "capcut_draft_studio.ui.pages",
     "capcut_draft_studio.ui.theme", "capcut_draft_studio.ui.widgets",
 ]

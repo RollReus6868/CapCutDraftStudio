@@ -812,13 +812,83 @@ def _steps(n_words: int) -> list[int]:
     return sorted({max(1, round(n_words * (i + 1) / k)) for i in range(k)})
 
 
+def _seq(it: OverlayItem, plan: list[ScenePlan], pos: dict[int, int], words) -> list:
+    """Lời đọc (từ, giây bắt đầu, giây kết thúc — trục nội dung) từ cảnh của mục
+    tới cảnh `until`."""
+    if not words or it.scene not in pos:
+        return []
+    i0 = pos[it.scene]
+    i1 = pos.get(it.until, i0) if it.until else i0
+    seq = []
+    for p in plan[i0:max(i0, i1) + 1]:
+        for w, a, b in words.get(p.number, ()):
+            seq.append((w, p.start + a, p.start + b))
+    return seq
+
+
+def spoken_start(it: OverlayItem, seq: list) -> float | None:
+    """Lúc giọng đọc bắt đầu nói tới chữ của đồ họa (None = không tìm thấy)."""
+    from . import speech
+    if not seq:
+        return None
+    flat = [w for w, _, _ in seq]
+    texts = [it.text]
+    if it.kind in ("CHAPTER", "STAT") and it.sub:
+        texts.append(it.sub)
+    if it.kind in ("LOWER", "NAME") and it.label:
+        texts.append(it.label)
+    for txt in texts:
+        for variant in speech.item_variants(txt):
+            hit = speech.locate(variant, flat)
+            if hit:
+                i, j, _ = hit
+                return seq[max(0, i - j)][1]
+    return None
+
+
+def spoken_tokens(text: str, seq: list) -> list[float] | None:
+    """Lúc đọc tới TỪNG từ (tách theo khoảng trắng, như hộp trích dẫn đếm) của
+    `text`; từ ngoài đoạn khớp được nội suy theo vị trí. None = không khớp."""
+    from . import speech
+    if not seq:
+        return None
+    toks = text.split()
+    first_norm: list[int] = []
+    norm: list[str] = []
+    for t in toks:
+        first_norm.append(len(norm))
+        norm += speech.norm_words(t)
+    hit = speech.locate(norm, [w for w, _, _ in seq])
+    if not hit:
+        return None
+    i, j, _ = hit
+    out, prev = [], -1.0
+    for nq in first_norm:
+        k = max(0, min(len(seq) - 1, i + (nq - j)))
+        t = max(prev, seq[k][1])
+        out.append(t)
+        prev = t
+    return out
+
+
+LEAD = 0.12          # chữ hiện trước tiếng nói một chút cho mắt kịp bắt
+MIN_VISIBLE = 1.2    # khớp giọng làm chữ hiện muộn — vẫn phải đủ lâu để đọc
+
+
 def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
-             log: LogFn = print) -> list[Placement]:
+             log: LogFn = print, words: dict | None = None) -> list[Placement]:
     """Đổi các dòng overlay thành danh sách ảnh + thời gian, theo `plan`
-    (trục nội dung). Mục có cảnh không nằm trong plan bị bỏ qua."""
+    (trục nội dung). Mục có cảnh không nằm trong plan bị bỏ qua.
+
+    `words` = {số cảnh: [(từ, giây bắt đầu, giây kết thúc)]} tính từ đầu file
+    giọng đọc của cảnh (speech.word_times). Có thì chữ hiện đúng lúc giọng đọc
+    nói tới nó, trích dẫn hiện từng chữ theo giọng; không khớp được thì như cũ
+    (đầu cảnh + DELAY)."""
     by_num = {p.number: p for p in plan}
     nums = [p.number for p in plan]
+    pos = {p.number: i for i, p in enumerate(plan)}
     out: list[Placement] = []
+    synced = [0, 0]                       # [khớp được, có lời thoại để khớp]
 
     def window(it: OverlayItem, first_delay: float = DELAY) -> tuple[float, float] | None:
         p = by_num.get(it.scene)
@@ -827,14 +897,25 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
         last = by_num.get(it.until) if it.until else p
         if last is None:
             last = p
-        delay = it.start if it.start is not None else min(first_delay, p.slot_duration * 0.2)
-        t0 = p.start + max(0.0, delay)
         t1 = last.end - TAIL
+        ts = None
+        if it.start is None and words:
+            seq = _seq(it, plan, pos, words)
+            if seq:
+                synced[1] += 1
+                ts = spoken_start(it, seq)
+                if ts is not None:
+                    synced[0] += 1
+        if ts is not None:
+            t0 = max(p.start, ts - LEAD)
+        else:
+            delay = it.start if it.start is not None else min(first_delay, p.slot_duration * 0.2)
+            t0 = p.start + max(0.0, delay)
         if it.dur is not None:
             # có 'until' thì dur chỉ được rút ngắn; không có thì dur quyết định
             t1 = min(t1, t0 + it.dur) if it.until else t0 + it.dur
-        if t1 - t0 < MIN_SHOW:
-            t1 = t0 + MIN_SHOW
+        if t1 - t0 < (MIN_VISIBLE if ts is not None else MIN_SHOW):
+            t1 = t0 + (MIN_VISIBLE if ts is not None else MIN_SHOW)
         return t0, t1
 
     lists: dict[str, list[OverlayItem]] = {}
@@ -854,7 +935,30 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
             continue
         t0, t1 = win
         layer = LAYER_OF.get(it.kind, "main")
-        if it.kind == "QUOTE" and st.typewriter and len(it.text.split()) > 1:
+        tok_times = None
+        if (it.kind == "QUOTE" and st.typewriter and words and it.start is None
+                and len(it.text.split()) > 1):
+            tok_times = spoken_tokens(it.text, _seq(it, plan, pos, words))
+        if tok_times:
+            # trích dẫn đọc tới đâu, chữ hiện tới đó: hộp hiện trước câu trích
+            # QUOTE_BOX_ONLY giây, mỗi bước hiện thêm chữ đúng lúc từ đó được đọc
+            n = len(it.text.split())
+            p = by_num[it.scene]
+            box = max(p.start, min(t0, tok_times[0] - LEAD - QUOTE_BOX_ONLY))
+            t1 = max(t1, tok_times[-1] + MIN_SHOW)
+            marks = [(box, 0)]
+            for wc in _steps(n):
+                marks.append((max(marks[-1][0] + 0.04, tok_times[wc - 1] - LEAD), wc))
+            t1 = max(t1, marks[-1][0] + MIN_SHOW)
+            pieces = []
+            for i, (at, wc) in enumerate(marks):
+                end = marks[i + 1][0] if i + 1 < len(marks) else t1
+                pieces.append((Frame(it, words=None if wc >= n else wc), at, end - at))
+            for i, (fr, s0, ln) in enumerate(pieces):
+                out.append(Placement(fr, s0, max(0.04, ln), layer,
+                                     FADE_IN if i == 0 else 0.0,
+                                     FADE_OUT if i == len(pieces) - 1 else 0.0, it.scene))
+        elif it.kind == "QUOTE" and st.typewriter and len(it.text.split()) > 1:
             n = len(it.text.split())
             total = t1 - t0
             box_only = min(QUOTE_BOX_ONLY, total * 0.15)
@@ -904,6 +1008,10 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
             out.append(Placement(fr, ts, te - ts, "list", FADE_IN if i == 0 else 0.0,
                                  FADE_OUT if i == len(marks) - 1 else 0.0, first.scene))
 
+    if words is not None and synced[1]:
+        log(f"[BUILD] Đồ họa chữ khớp giọng đọc: {synced[0]}/{synced[1]} mục hiện đúng lúc "
+            "giọng nói tới" + ("" if synced[0] == synced[1] else
+                               " — mục còn lại không tìm thấy chữ trong lời thoại, hiện ở đầu cảnh"))
     _assign_tracks(out, log)
     out.sort(key=lambda p: (LAYERS.index(p.layer), p.track, p.start))
     return out
@@ -1008,11 +1116,55 @@ def prepare(s, plan: list[ScenePlan], out_dir: Path, log: LogFn = print,
     if not fonts_ok():
         log("[WARN] Đồ họa chữ: thiếu font trong assets/overlay-fonts → dùng font thay thế")
     st = OverlayStyle.from_settings(s)
-    pls = schedule(items, plan, st, log)
+    words = voice_words(s, plan, items, log) if getattr(s, "overlay_sync", True) else None
+    pls = schedule(items, plan, st, log, words=words)
     w, h = size or (int(s.width), int(s.height))
     n = write_pngs(pls, out_dir, w, h, st, log, cancel)
     log(f"[BUILD] Đồ họa chữ: {len(items)} mục từ {path.name} → {n} ảnh, {len(pls)} đoạn")
     return pls
+
+
+def voice_words(s, plan: list[ScenePlan], items: list[OverlayItem], log: LogFn = print) -> dict:
+    """{số cảnh: thời gian từng từ} cho các cảnh có đồ họa (tới cảnh 'until').
+
+    Lời thoại lấy như phụ đề (manifest / Excel / Texts/) kể cả khi phụ đề tắt;
+    quãng lặng đo bằng ffmpeg nếu có."""
+    from dataclasses import replace
+    from . import speech
+    from .subtitles import load_scene_texts
+    pos = {p.number: i for i, p in enumerate(plan)}
+    need: set[int] = set()
+    for it in items:
+        if it.scene in pos:
+            i1 = pos.get(it.until, pos[it.scene]) if it.until else pos[it.scene]
+            need.update(p.number for p in plan[pos[it.scene]:i1 + 1])
+    if not need:
+        return {}
+    src = s if str(getattr(s, "subtitle_source", "auto")) != "off" else \
+        replace(s, subtitle_source="auto")
+    try:
+        texts = load_scene_texts(src, sorted(need), lambda m: None)
+    except Exception as e:
+        log(f"[WARN] Đồ họa chữ: không đọc được lời thoại để khớp giọng ({e})")
+        return {}
+    if not texts:
+        log("[WARN] Đồ họa chữ: không có lời thoại (Texts/, Excel, manifest) nên chữ hiện ở "
+            "đầu cảnh, không khớp theo giọng đọc")
+        return {}
+    try:
+        from .render import find_tool
+        ffmpeg = find_tool("ffmpeg")
+    except Exception:
+        ffmpeg = None
+    out = {}
+    for p in plan:
+        if p.number in need and p.number in texts:
+            out[p.number] = speech.scene_word_times(texts[p.number], p.audio_path,
+                                                    p.audio_duration, ffmpeg)
+    log("[BUILD] Đồ họa chữ: khớp theo giọng đọc — "
+        + ("đo quãng lặng trong file giọng bằng ffmpeg" if ffmpeg else
+           "không có ffmpeg, ước lượng theo độ dài chữ và dấu câu"))
+    return out
 
 
 def overlay_file(s) -> Path | None:

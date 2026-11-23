@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.6.1
+# CapCut Draft Studio 0.6.2
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,20 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.6.2
+
+- **Đồ họa chữ hiện đúng lúc giọng đọc nói tới.** Trước đây mọi đồ họa hiện 0,35 giây
+  sau khi cảnh bắt đầu, nên nhiều khi chữ lên trước rồi giọng mới đọc tới. Nay tool
+  tìm chữ của đồ họa trong lời thoại của cảnh (Texts/, Excel hoặc manifest, kể cả khi
+  tắt phụ đề), đo các quãng lặng trong file giọng đọc bằng ffmpeg rồi suy ra lúc
+  từng từ được đọc: đồ họa hiện trước tiếng nói khoảng 0,12 giây, hộp trích dẫn hiện
+  từng chữ theo giọng, mục danh sách hiện đúng lúc được nhắc. Số viết bằng chữ số
+  khớp cả cách đọc (1952 ↔ "nineteen fifty-two", ~11 ↔ "eleven"). Đo trên giọng tổng
+  hợp: sai lệch trung bình khoảng 0,1 giây.
+- Chữ không có trong lời thoại thì hiện ở đầu cảnh như cũ; ô `start` trong file
+  overlay vẫn thắng. Muốn quay về kiểu cũ: bỏ tích *Hiện đúng lúc giọng đọc nói tới*
+  (Cài đặt → Phụ đề → Đồ họa chữ). Nhật ký ghi số mục khớp được.
 
 ## Mới ở 0.6.1
 

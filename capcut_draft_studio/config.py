@@ -35,6 +35,8 @@ DEFAULT_CHANNEL_KEYS = {
     # --- thêm từ 0.6.0 ---
     "enable_overlays", "overlay_accent", "overlay_stamp", "overlay_box_alpha",
     "overlay_scale", "overlay_typewriter",
+    # --- thêm từ 0.6.2 ---
+    "overlay_sync",
 }
 
 def load_json(path: Path, default):

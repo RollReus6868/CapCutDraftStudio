@@ -26,7 +26,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.6.1"
+APP_VERSION = "0.6.2"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -202,6 +202,7 @@ OTHER_BOOLS = {
     "enable_ad": False,
     "enable_overlays": True,
     "overlay_typewriter": True,
+    "overlay_sync": True,
 }
 
 PERSIST_KEYS = list(STR_DEFAULTS.keys())
@@ -734,7 +735,8 @@ class App:
                   overlay_box_alpha=min(1.0, max(0.0, self._num(d, "overlay_box_alpha",
                                                                 float, 0.8))),
                   overlay_scale=min(2.0, max(0.5, self._num(d, "overlay_scale", float, 1.0))),
-                  overlay_typewriter=bool(d.get("overlay_typewriter", True)))
+                  overlay_typewriter=bool(d.get("overlay_typewriter", True)),
+                  overlay_sync=bool(d.get("overlay_sync", True)))
 
         return Settings(ip, ch, name, cap, SFX_LIBRARY, SUB_STYLES,
                         opt("logo_path"), opt("claim_path"), opt("bgm_dir"),

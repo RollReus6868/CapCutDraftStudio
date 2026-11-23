@@ -15,11 +15,11 @@ VSVersionInfo(
       StringTable(
         '040904B0',
         [StringStruct('FileDescription', 'CapCut Draft Studio'),
-         StringStruct('FileVersion', '0.6.1.0'),
+         StringStruct('FileVersion', '0.6.2.0'),
          StringStruct('InternalName', 'CapCutDraftStudio'),
          StringStruct('OriginalFilename', 'CapCut Draft Studio.exe'),
          StringStruct('ProductName', 'CapCut Draft Studio'),
-         StringStruct('ProductVersion', '0.6.1.0')])
+         StringStruct('ProductVersion', '0.6.2.0')])
     ]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])
   ]

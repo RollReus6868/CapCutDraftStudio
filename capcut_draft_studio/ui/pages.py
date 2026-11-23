@@ -761,7 +761,9 @@ def build_overlay_card(app, host, th, row: int):
     ttk.Checkbutton(top, text="Bật đồ họa chữ", variable=app.boolvars["enable_overlays"]).pack(
         side="left", padx=(0, 18))
     ttk.Checkbutton(top, text="Trích dẫn hiện dần như đánh máy",
-                    variable=app.boolvars["overlay_typewriter"]).pack(side="left")
+                    variable=app.boolvars["overlay_typewriter"]).pack(side="left", padx=(0, 18))
+    ttk.Checkbutton(top, text="Hiện đúng lúc giọng đọc nói tới",
+                    variable=app.boolvars["overlay_sync"]).pack(side="left")
     PathPicker(card, th, "File đồ họa chữ (để trống = tự tìm trong folder VIDEO)",
                app.vars["overlay_file"], "file",
                filetypes=[("Excel / CSV", "*.xlsx *.xlsm *.csv *.tsv"), ("Tất cả", "*.*")]).grid(
@@ -1566,7 +1568,14 @@ folder VIDEO, mỗi dòng một đồ họa:
           STAT     số lớn trong hộp viền vàng, nhãn nhỏ bên dưới
   text    chữ chính         sub    dòng phụ / tham chiếu / nguồn
   label   nhãn nhỏ in hoa   until  giữ tới hết cảnh số này
-  start   hiện sau mấy giây (trống = 0.35)   dur   hiện mấy giây
+  start   hiện sau mấy giây (trống = khớp giọng đọc)   dur   hiện mấy giây
+
+Mặc định chữ hiện ĐÚNG LÚC giọng đọc nói tới nó: tool tìm chữ của đồ họa
+trong lời thoại của cảnh (Texts/, Excel hoặc manifest), đo các quãng lặng
+trong file giọng đọc rồi suy ra lúc từng từ được đọc; hộp trích dẫn hiện
+từng chữ theo giọng. Chữ không có trong lời thoại thì hiện ở đầu cảnh. Ô
+start (số giây) luôn thắng. Bỏ tích "Hiện đúng lúc giọng đọc nói tới" để
+quay về kiểu cũ (luôn hiện ở đầu cảnh).
 
 Bấm "Tạo file mẫu" để có sẵn file Excel kèm hướng dẫn, "Xem thử đồ họa"
 để xem mọi đồ họa vẽ trên ảnh cảnh của nó. KIỂM TRA báo luôn dòng sai
