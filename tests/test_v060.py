@@ -390,3 +390,29 @@ def test_cli_check_build_preview(tmp_path, monkeypatch, capsys):
     assert "cảnh 9" in capsys.readouterr().out
     assert cli.main(["overlay-template", "--input", str(tmp_path)]) == 0
     assert cli.main(["overlay-template", "--input", str(tmp_path)]) == 1   # không ghi đè
+
+
+# --------------------------------------------------------------------------- #
+# 0.6.0: cỡ phụ đề khi render mp4 (trước đây to gấp ~3,75 lần, nằm giữa khung)
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("h", [720, 1080])
+def test_burned_subtitle_size_and_position(tmp_path, h):
+    ff = _ffmpeg()
+    from capcut_draft_studio import render
+    w = h * 16 // 9
+    srt = tmp_path / "s.srt"
+    srt.write_text("1\n00:00:00,000 --> 00:00:02,000\nHELLO WORLD\n", encoding="utf-8")
+    s = Settings(input_dir=tmp_path, channel_dir=tmp_path, draft_name="x",
+                 capcut_drafts=tmp_path, sub_shadow=False)
+    style = render.subtitle_force_style(s, h)
+    raw = subprocess.run(
+        [ff, "-loglevel", "error", "-f", "lavfi", "-i", f"color=black:s={w}x{h}:d=1",
+         "-vf", f"subtitles=filename='{render.ass_escape(srt)}':force_style='{style}'",
+         "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+        capture_output=True, check=True).stdout
+    rows = [y for y in range(h) if max(raw[y * w:(y + 1) * w]) > 128]
+    assert rows, "không thấy phụ đề"
+    top, bottom = min(rows), max(rows)
+    # một dòng chữ in hoa cao khoảng 3–5% khung, đáy cách mép dưới ~10%
+    assert 0.025 * h < bottom - top < 0.06 * h
+    assert 0.85 * h < bottom < 0.93 * h

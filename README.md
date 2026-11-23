@@ -95,6 +95,10 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
   KIỂM TRA báo dòng sai; bảng *Cảnh quay* ghi "✎ chữ: …" ở cảnh có đồ họa. Không
   có file overlay thì draft và mp4 y hệt bản cũ. Font đi kèm (OFL): EB Garamond,
   Montserrat, Oswald — có đủ dấu tiếng Việt.
+- **Sửa lỗi phụ đề khi render mp4 bằng ffmpeg.** Phụ đề in lên hình từng to gấp
+  khoảng 3,75 lần và bị đẩy lên giữa khung (libass tính cỡ chữ của file .srt theo
+  khung chuẩn 384×288, tool lại ghi số pixel). Nay chữ cao khoảng 4,5% khung, cách
+  đáy 10% như dự định, ở mọi độ phân giải xuất. Draft CapCut không bị ảnh hưởng.
 - **Chạy không cần giao diện.** `python -m capcut_draft_studio.cli check|build|render|
   overlay-preview|overlay-template --input <folder VIDEO>` (bản cài đặt:
   `"CapCut Draft Studio.exe" --cli build --input …`, nhật ký ghi vào `cli-last.log`).

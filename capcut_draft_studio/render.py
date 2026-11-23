@@ -328,11 +328,22 @@ def ass_escape(path: Path) -> str:
     return raw
 
 
+#: Khung chuẩn mà libass gán cho phụ đề .srt (PlayResX×PlayResY = 384×288).
+#: Mọi cỡ chữ / lề trong force_style tính theo khung NÀY rồi mới phóng ra khung
+#: video thật — trước 0.6.0 ghi thẳng số pixel nên chữ to gấp h/288 (≈3,75 lần ở
+#: 1080p) và lề dưới đẩy phụ đề lên giữa khung.
+ASS_PLAY_RES_Y = 288
+
+
 def subtitle_force_style(s: Settings, h: int) -> str:
-    """force_style của libass, mang theo bóng đổ đúng độ mờ người dùng chọn."""
-    margin = max(8, int(round(0.10 * h)))
-    font_size = max(14, int(round(h * 0.045)))
-    items = [f"FontSize={font_size}", "Alignment=2", f"MarginV={margin}",
+    """force_style của libass, mang theo bóng đổ đúng độ mờ người dùng chọn.
+
+    Phụ đề cao ~4,5% khung, cách đáy 10% khung — đổi sang đơn vị của khung
+    chuẩn 288 dòng để kết quả không phụ thuộc độ phân giải xuất."""
+    unit = ASS_PLAY_RES_Y / max(1, int(h))          # đơn vị ASS cho 1 pixel
+    margin = max(1, int(round(max(8, 0.10 * h) * unit)))
+    font_size = round(max(14, h * 0.045) * unit, 2)
+    items = [f"FontSize={font_size:g}", "Alignment=2", f"MarginV={margin}",
              "PrimaryColour=&H00FFFFFF", "Outline=1", "BorderStyle=1"]
     if getattr(s, "sub_shadow", False):
         alpha = max(0.0, min(1.0, float(getattr(s, "sub_shadow_alpha", 0.9))))
