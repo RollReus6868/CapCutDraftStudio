@@ -210,6 +210,60 @@ def ad_timemap(s: Settings, plan: list[ScenePlan]) -> tuple[inserts.TimeMap, Pat
     except ValueError as e:raise BuildError(str(e)) from e
     return inserts.TimeMap(breaks),ad,length
 
+#: Hai đồ họa chữ chồng nhau ít hơn mức này (≈ 1 khung hình 25fps) thì cắt bớt
+#: đầu đoạn sau cho khít, nhiều hơn thì đặt sang track khác.
+OVERLAY_TRIM_US=40_000
+
+def add_overlays(script, cc, pls, tmap, log: LogFn=print) -> int:
+    """Đặt các ảnh đồ họa chữ lên track chu_* — KHÔNG BAO GIỜ ném SegmentOverlap.
+
+    * thời gian tính bằng micro giây nguyên, làm tròn từng đầu mút (overlays.us_span),
+      nên các đoạn nối liền nhau khít tuyệt đối;
+    * tự giữ sổ các khoảng đã đặt trên từng track: đoạn mới chồng lên đoạn cũ
+      ≤ OVERLAY_TRIM_US thì cắt bớt đầu cho khít, chồng nhiều hơn thì chuyển
+      sang track kế tiếp cùng lớp (mở thêm track khi cần) và ghi cảnh báo.
+    Trả về số đoạn đã đặt."""
+    used: dict[str,list[tuple[int,int]]]={}
+    moved: set[int]=set(); n=0
+
+    def free(name,s0,e0):
+        return all(e<=s0 or e0<=st for st,e in used.get(name,()))
+
+    def track_name(layer,idx):
+        name=f"chu_{layer}"+(f"_{idx+1}" if idx else "")
+        if name not in used:
+            script.add_track(cc.TrackType.video,name,
+                             relative_index=OVERLAY_LAYER+overlays.LAYERS.index(layer)+3*idx)
+            used[name]=[]
+        return name
+
+    for pl in pls:
+        pieces=tmap.split(pl.start,pl.length)
+        for k,pc in enumerate(pieces):
+            s0,e0=overlays.us_span(pc.start,pc.length)
+            if e0-s0<1000:continue          # mẩu < 1 ms: bỏ
+            idx=pl.track; name=track_name(pl.layer,idx)
+            # chồng rất ít lên đoạn trước (sai số làm tròn): cắt bớt đầu cho khít
+            for st,e in used[name]:
+                if st<s0<e and e-s0<=OVERLAY_TRIM_US and e<e0-1000:s0=e
+            while not free(name,s0,e0):
+                idx+=1; name=track_name(pl.layer,idx)
+                if pl.scene not in moved:
+                    moved.add(pl.scene)
+                    log(f"[WARN] Đồ họa chữ cảnh {pl.scene} chồng giờ với đồ họa khác "
+                        f"→ đặt sang track {name}")
+            seg=cc.VideoSegment(str(pl.png),cc.trange(s0,e0-s0))
+            ln=(e0-s0)/1e6
+            try:
+                if pl.fade_in and k==0:
+                    seg.add_animation(cc.IntroType.渐显,overlays.us(min(pl.fade_in,ln/2)))
+                if pl.fade_out and k==len(pieces)-1:
+                    seg.add_animation(cc.OutroType.渐隐,overlays.us(min(pl.fade_out,ln/2)))
+            except Exception as e:log(f"[WARN] Hiệu ứng hiện chữ cảnh {pl.scene}: {e}")
+            script.add_segment(seg,name)
+            used[name].append((s0,e0)); n+=1
+    return n
+
 def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_out_dir: Path|None=None,
           progress=None, cancel=None) -> Path:
     progress = progress or _noop_progress
@@ -360,24 +414,7 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
     # trục NỘI DUNG (cplan) rồi cắt quanh quảng cáo như mọi lớp phủ khác.
     ov_dir=Path(srt_out_dir or (s.input_dir/"_capcut_draft_studio"))/"overlays"
     pls=overlays.prepare(s,cplan,ov_dir,log,cancel)
-    if pls:
-        made: set[str]=set()
-        for pl in pls:
-            name=f"chu_{pl.layer}"+(f"_{pl.track+1}" if pl.track else "")
-            if name not in made:
-                script.add_track(cc.TrackType.video,name,
-                                 relative_index=OVERLAY_LAYER+overlays.LAYERS.index(pl.layer)+3*pl.track)
-                made.add(name)
-            pieces=tmap.split(pl.start,pl.length)
-            for k,pc in enumerate(pieces):
-                seg=cc.VideoSegment(str(pl.png),cc.trange(_sec(pc.start),_sec(pc.length)))
-                try:
-                    if pl.fade_in and k==0:
-                        seg.add_animation(cc.IntroType.渐显,_sec(min(pl.fade_in,pc.length/2)))
-                    if pl.fade_out and k==len(pieces)-1:
-                        seg.add_animation(cc.OutroType.渐隐,_sec(min(pl.fade_out,pc.length/2)))
-                except Exception as e:log(f"[WARN] Hiệu ứng hiện chữ cảnh {pl.scene}: {e}")
-                script.add_segment(seg,name)
+    if pls:add_overlays(script,cc,pls,tmap,log)
     # BGM: first intro track then round-robin background with crossfades.
     # Tính trên trục NỘI DUNG; put_audio tự cắt quanh quảng cáo.
     if s.enable_bgm and a.bgm_files:

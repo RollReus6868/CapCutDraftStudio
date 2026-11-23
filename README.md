@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.6.0
+# CapCut Draft Studio 0.6.1
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,17 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.6.1
+
+- **Sửa lỗi TẠO PROJECT dừng với `SegmentOverlap: New segment overlaps with existing
+  segment` khi có file đồ họa chữ.** Các bước hiện chữ của hộp trích dẫn nối liền
+  nhau; tool làm tròn riêng giờ bắt đầu và độ dài sang micro giây nên đôi khi đoạn
+  trước dài lố 1 µs, chồng lên đoạn sau, và pycapcut từ chối. Nay mọi đồ họa tính
+  bằng micro giây nguyên theo từng đầu mút (luôn khít), và khi ghi draft tool tự
+  kiểm từng track: chồng vài mili giây thì cắt cho khít, chồng nhiều hơn (hai đồ họa
+  cùng giờ) thì chuyển sang track `chu_main_2`… và ghi cảnh báo, không bao giờ dừng
+  giữa chừng. File mp4 render bằng ffmpeg không bị lỗi này.
 
 ## Mới ở 0.6.0
 

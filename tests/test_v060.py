@@ -416,3 +416,79 @@ def test_burned_subtitle_size_and_position(tmp_path, h):
     # một dòng chữ in hoa cao khoảng 3–5% khung, đáy cách mép dưới ~10%
     assert 0.025 * h < bottom - top < 0.06 * h
     assert 0.85 * h < bottom < 0.93 * h
+
+
+# --------------------------------------------------------------------------- #
+# 0.6.0 sửa lỗi: SegmentOverlap khi dựng draft (bước đánh máy chồng nhau 1 µs)
+# --------------------------------------------------------------------------- #
+def _random_plan(rng, n=120, off=0.0):
+    out, t = [], off
+    for i in range(1, n + 1):
+        d = round(rng.uniform(2.5, 9.0), 3)
+        g = rng.choice([0.0, 0.2, 0.4, 0.64]) if i < n else 0.0
+        out.append(ScenePlan(i, Path(f"{i}.mp3"), d, "IMAGE", Path("x.png"), start=t, gap=g))
+        t += d + g
+    return out
+
+
+def _random_rows(rng, n):
+    kinds = ["QUOTE", "QUOTE", "QUOTE", "TITLE", "LOWER", "STAMP", "CHAPTER", "NAME", "STAT"]
+    rows = []
+    for sc in rng.sample(range(1, n + 1), min(64, n)):
+        k = rng.choice(kinds)
+        words = rng.randint(2, 50 if k == "QUOTE" else 6)
+        row = [str(sc), k, " ".join(f"w{j}" for j in range(words)), "REF 1:1", "", "", "", ""]
+        if rng.random() < 0.15:
+            row[5] = str(min(n, sc + rng.randint(1, 3)))          # until
+        if rng.random() < 0.1:
+            row[6], row[7] = f"{rng.uniform(0, 2):.3f}", f"{rng.uniform(0.2, 9):.3f}"
+        rows.append(row)
+    for i, sc in enumerate(sorted(rng.sample(range(1, n - 6), 4))):
+        rows.append([str(sc), "LIST", f"item {i}", "", "Marks", str(sc + 6) if i == 0 else "", "", ""])
+    return rows
+
+
+@pytest.mark.parametrize("seed", range(25))
+def test_overlays_never_overlap_in_capcut_tracks(tmp_path, monkeypatch, seed):
+    """Lịch đồ họa ngẫu nhiên (trích dẫn dài, until, start/dur, chồng giờ, quảng
+    cáo) phải dựng được vào track pycapcut thật mà không SegmentOverlap."""
+    _real_pycapcut(monkeypatch)
+    import random
+
+    import pycapcut as cc
+    from capcut_draft_studio import inserts
+    from capcut_draft_studio.capcut_engine import add_overlays
+    rng = random.Random(seed)
+    plan = _random_plan(rng, off=rng.choice([0.0, 5.0, 3.7]))
+    items, err = ov.parse_overlay_rows([["scene", "type", "text", "sub", "label", "until",
+                                         "start", "dur"]] + _random_rows(rng, len(plan)))
+    assert err == []
+    pls = ov.schedule(items, plan, ov.OverlayStyle(), lambda m: None)
+    png = tmp_path / "x.png"
+    pytest.importorskip("PIL.Image").new("RGBA", (8, 8)).save(png)
+    for p in pls:
+        p.png = png
+    breaks = []
+    if seed % 2:
+        nums = sorted(rng.sample([p.number for p in plan[:-1]], 2))
+        breaks = inserts.plan_breaks(plan, nums, 7.5)
+    (tmp_path / "d").mkdir()
+    script = cc.DraftFolder(str(tmp_path / "d")).create_draft("t", 1920, 1080, 60)
+    logs = []
+    n = add_overlays(script, cc, pls, inserts.TimeMap(breaks), logs.append)
+    assert n >= len(pls)
+    for name, tr in script.tracks.items():
+        if not name.startswith("chu_"):
+            continue
+        spans = sorted((x.target_timerange.start, x.target_timerange.end) for x in tr.segments)
+        for (s0, e0), (s1, e1) in zip(spans, spans[1:]):
+            assert e0 <= s1, f"{name}: {s0}-{e0} chồng {s1}-{e1}"
+
+
+def test_typewriter_steps_are_exactly_contiguous():
+    plan = _plan(3, dur=7.123)
+    items, _ = ov.parse_overlay_rows([["2", "QUOTE", " ".join(f"w{i}" for i in range(37)), "R"]])
+    q = ov.schedule(items, plan, ov.OverlayStyle(), lambda m: None)
+    spans = [ov.us_span(p.start, p.length) for p in q]
+    for (_, e0), (s1, _) in zip(spans, spans[1:]):
+        assert e0 == s1

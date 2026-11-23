@@ -909,24 +909,41 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
     return out
 
 
+def us(t: float) -> int:
+    """Giây → micro giây nguyên, đúng cách CapCut lưu thời gian."""
+    return int(round(float(t) * 1_000_000))
+
+
+def us_span(start: float, length: float) -> tuple[int, int]:
+    """(bắt đầu, kết thúc) theo micro giây, làm tròn TỪNG ĐẦU MÚT.
+
+    Không được làm tròn riêng độ dài: round(a) + round(b) có thể lớn hơn
+    round(a + b) 1 µs, và hai đoạn nối liền (các bước đánh máy của trích dẫn)
+    chồng nhau 1 µs → pycapcut báo SegmentOverlap (lỗi 0.6.0 bản đầu)."""
+    return us(start), us(float(start) + float(length))
+
+
 def _assign_tracks(pls: list[Placement], log: LogFn) -> None:
-    """Hai đồ họa cùng lớp chồng giờ nhau → đặt sang track thứ hai (và báo)."""
+    """Hai đồ họa cùng lớp chồng giờ nhau → đặt sang track thứ hai (và báo).
+
+    So sánh trên micro giây nguyên (như CapCut) và chặt: kết thúc ≤ bắt đầu."""
     by_layer: dict[str, list[Placement]] = {}
     for p in pls:
         by_layer.setdefault(p.layer, []).append(p)
     for layer, group in by_layer.items():
-        ends: list[float] = []
+        ends: list[int] = []
         warned: set[int] = set()
         # các bước đánh máy của cùng một câu luôn nối nhau, không chồng
-        for p in sorted(group, key=lambda x: (x.start, x.scene)):
+        for p in sorted(group, key=lambda x: (us(x.start), x.scene)):
+            s0, e0 = us_span(p.start, p.length)
             for i, e in enumerate(ends):
-                if e <= p.start + 1e-6:
+                if e <= s0:
                     p.track = i
-                    ends[i] = p.end
+                    ends[i] = e0
                     break
             else:
                 p.track = len(ends)
-                ends.append(p.end)
+                ends.append(e0)
             if p.track > 0 and p.scene not in warned:
                 warned.add(p.scene)
                 log(f"[WARN] Đồ họa chữ: cảnh {p.scene} có hai đồ họa '{layer}' cùng lúc "
