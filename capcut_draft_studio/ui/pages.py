@@ -1570,12 +1570,16 @@ folder VIDEO, mỗi dòng một đồ họa:
   label   nhãn nhỏ in hoa   until  giữ tới hết cảnh số này
   start   hiện sau mấy giây (trống = khớp giọng đọc)   dur   hiện mấy giây
 
-Mặc định chữ hiện ĐÚNG LÚC giọng đọc nói tới nó: tool tìm chữ của đồ họa
-trong lời thoại của cảnh (Texts/, Excel hoặc manifest), đo các quãng lặng
-trong file giọng đọc rồi suy ra lúc từng từ được đọc; hộp trích dẫn hiện
-từng chữ theo giọng. Chữ không có trong lời thoại thì hiện ở đầu cảnh. Ô
-start (số giây) luôn thắng. Bỏ tích "Hiện đúng lúc giọng đọc nói tới" để
-quay về kiểu cũ (luôn hiện ở đầu cảnh).
+Mặc định chữ hiện ĐÚNG LÚC giọng đọc nói tới nó (đã hiện rõ trước tiếng
+0,1 giây): tool tìm chữ của đồ họa trong lời đọc của cảnh; hộp trích dẫn
+hiện từng chữ theo giọng. Lúc từng từ được đọc lấy từ MỐC THẬT mà TTS
+Clone Studio 3.3+ ghi trong file MP3 (bật "⏱ Ghi mốc thời gian từng từ");
+file giọng không có mốc thì tool ước lượng từ lời thoại (Texts/, Excel,
+manifest) và các quãng lặng — có thể lệch 0,3–1 giây. Chữ không có trong
+lời đọc thì hiện ở đầu cảnh. Ô start (số giây) luôn thắng. Bỏ tích "Hiện
+đúng lúc giọng đọc nói tới" để quay về kiểu cũ (luôn hiện ở đầu cảnh).
+Mỗi lần dựng có báo cáo _capcut_draft_studio/khop-giong-doc.csv (mở bằng
+Excel): từng đồ họa hiện lúc nào, giọng nói tới lúc nào, khớp ra sao.
 
 Bấm "Tạo file mẫu" để có sẵn file Excel kèm hướng dẫn, "Xem thử đồ họa"
 để xem mọi đồ họa vẽ trên ảnh cảnh của nó. KIỂM TRA báo luôn dòng sai

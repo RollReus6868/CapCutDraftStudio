@@ -255,3 +255,215 @@ def scene_word_times(text: str, audio: Path, duration: float, ffmpeg: str | None
         except Exception:
             quiet = None
     return word_times(text, duration, quiet)
+
+
+# --------------------------------------------------------------------------- #
+# mốc thời gian THẬT của từng từ (0.6.3)
+# --------------------------------------------------------------------------- #
+#: tên khung ID3 TXXX mà TTS Clone Studio 3.3+ ghi vào MP3
+TIMING_TAG = "WORD_TIMINGS"
+#: khớp lời thoại với mốc dưới mức này thì dùng thẳng các từ trong mốc
+MIN_COVERAGE = 0.5
+
+
+def _syncsafe(b: bytes) -> int:
+    return (b[0] << 21) | (b[1] << 14) | (b[2] << 7) | b[3]
+
+
+def _id3_txxx(path: Path, name: str) -> str | None:
+    """Giá trị khung ID3v2.3/2.4 TXXX có mô tả `name` (None nếu không có)."""
+    import struct
+    try:
+        with open(path, "rb") as f:
+            head = f.read(10)
+            if len(head) < 10 or head[:3] != b"ID3":
+                return None
+            ver, flags = head[3], head[5]
+            body = f.read(_syncsafe(head[6:10]))
+    except OSError:
+        return None
+    pos = 0
+    if flags & 0x40 and len(body) >= 4:
+        pos = _syncsafe(body[:4]) if ver == 4 else struct.unpack(">I", body[:4])[0] + 4
+    while pos + 10 <= len(body):
+        fid = body[pos:pos + 4]
+        if fid == b"\0\0\0\0":
+            break
+        raw = body[pos + 4:pos + 8]
+        size = _syncsafe(raw) if ver == 4 else struct.unpack(">I", raw)[0]
+        data = body[pos + 10:pos + 10 + size]
+        pos += 10 + size
+        if fid != b"TXXX" or not data:
+            continue
+        enc, rest = data[0], data[1:]
+        if enc in (1, 2):
+            codec, sep = ("utf-16" if enc == 1 else "utf-16-be"), b"\0\0"
+            i = 0
+            while True:
+                i = rest.find(sep, i)
+                if i < 0 or i % 2 == 0:
+                    break
+                i += 1
+        else:
+            codec, sep = ("latin-1" if enc == 0 else "utf-8"), b"\0"
+            i = rest.find(sep)
+        if i < 0 or rest[:i].decode(codec, "replace") != name:
+            continue
+        return rest[i + len(sep):].decode(codec, "replace").rstrip("\0")
+    return None
+
+
+def _parse_timings(raw: str | None):
+    import json
+    if not raw:
+        return None
+    try:
+        obj = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(obj, dict) or not isinstance(obj.get("words"), list):
+        return None
+    out = []
+    for item in obj["words"]:
+        try:
+            w, s, e = str(item[0]), float(item[1]), float(item[2])
+        except (IndexError, TypeError, ValueError):
+            continue
+        if w.strip() and s >= 0:
+            out.append((w, s, max(s, e)))
+    if not out:
+        return None
+    return str(obj.get("engine") or ""), out
+
+
+@lru_cache(maxsize=512)
+def _read_timings(path: str, mtime: float, side_mtime: float = 0.0):
+    p = Path(path)
+    side = p.with_name(p.stem + ".words.json")
+    if side.is_file():
+        try:
+            got = _parse_timings(side.read_text(encoding="utf-8-sig"))
+        except OSError:
+            got = None
+        if got:
+            return got
+    if p.suffix.lower() == ".mp3":
+        return _parse_timings(_id3_txxx(p, TIMING_TAG))
+    return None
+
+
+def read_timings(audio) -> tuple[str, list[tuple[str, float, float]]] | None:
+    """(bộ máy, [(từ, bắt đầu, kết thúc)]) mà TTS Clone Studio ghi vào file giọng
+    (khung ID3 WORD_TIMINGS) hoặc file `<tên>.words.json` cạnh nó. None = không có."""
+    if not audio:
+        return None
+    p = Path(audio)
+    try:
+        mtime = p.stat().st_mtime
+    except OSError:
+        return None
+    side = p.with_name(p.stem + ".words.json")
+    try:
+        side_mtime = side.stat().st_mtime
+    except OSError:
+        side_mtime = 0.0
+    return _read_timings(str(p), mtime, side_mtime)
+
+
+def _split_timed(timed) -> list[tuple[str, float, float]]:
+    """Mốc từng từ → từ đã chuẩn hoá; một mục thành nhiều từ (seventy-two) thì
+    chia đều thời gian của nó."""
+    out = []
+    for w, s, e in timed:
+        parts = norm_words(w)
+        if not parts:
+            continue
+        step = (e - s) / len(parts)
+        for k, part in enumerate(parts):
+            out.append((part, s + k * step, s + (k + 1) * step))
+    return out
+
+
+def align(text: str, timed) -> tuple[list[tuple[str, float, float]], float]:
+    """Gán mốc thật cho từng từ của lời thoại `text`.
+
+    Từ khớp với mốc lấy đúng giờ của mốc; từ không khớp (số viết khác, lời
+    thoại sửa một chút) được chia trong khoảng giữa hai từ khớp hai bên — sai số
+    chỉ còn trong một khe rất ngắn. Trả về (danh sách, tỉ lệ từ khớp)."""
+    from difflib import SequenceMatcher
+    tk = _split_timed(timed)
+    units: list[tuple[str, float]] = []
+    for raw in re.split(r"\s+", str(text or "").strip()):
+        parts = norm_words(raw)
+        wt = _weight(raw) if parts else 0.0
+        for part in parts:
+            units.append((part, wt / len(parts)))
+    if not units or not tk:
+        return [], 0.0
+    a, b = [u[0] for u in units], [t[0] for t in tk]
+    match: dict[int, int] = {}
+    for blk in SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks():
+        for k in range(blk.size):
+            match[blk.a + k] = blk.b + k
+    out: list[tuple[str, float, float] | None] = [None] * len(a)
+    for i, j in match.items():
+        out[i] = (a[i], tk[j][1], tk[j][2])
+    i = 0
+    while i < len(a):
+        if out[i] is not None:
+            i += 1
+            continue
+        k = i
+        while k < len(a) and out[k] is None:
+            k += 1
+        # khe [i, k): giữa từ khớp i-1 và k
+        jl = match.get(i - 1, -1)
+        jr = match.get(k, len(tk))
+        gap = tk[jl + 1:jr]
+        if i == 0 and k < len(a):            # đầu lời: chỉ lấy từng ấy mốc ngay trước từ khớp
+            gap = gap[-(k - i):]
+        elif k == len(a) and i > 0:          # cuối lời: chỉ lấy từng ấy mốc ngay sau từ khớp
+            gap = gap[:k - i]
+        if gap:
+            lo, hi = gap[0][1], gap[-1][2]
+        else:
+            lo = tk[jl][2] if jl >= 0 else (tk[jr][1] if jr < len(tk) else 0.0)
+            hi = tk[jr][1] if jr < len(tk) else lo
+        hi = max(lo, hi)
+        total = sum(units[x][1] for x in range(i, k)) or 1.0
+        acc = 0.0
+        for x in range(i, k):
+            s0 = lo + (hi - lo) * acc / total
+            acc += units[x][1]
+            out[x] = (a[x], s0, lo + (hi - lo) * acc / total)
+        i = k
+    return [o for o in out if o is not None], len(match) / len(a)
+
+
+#: nhãn nguồn mốc thời gian (báo cáo khớp giọng)
+SOURCE_LABELS = {
+    "exact": "Mốc chính xác từ file giọng",
+    "silence": "Ước lượng (khoảng lặng + độ dài chữ)",
+    "plain": "Ước lượng (độ dài chữ + dấu câu)",
+}
+
+
+def scene_timing(text: str, audio, duration: float, ffmpeg: str | None):
+    """(thời gian từng từ, nguồn, bộ máy) cho một cảnh.
+
+    Ưu tiên mốc THẬT trong file giọng (TTS Clone Studio 3.3+); không có thì ước
+    lượng như 0.6.2 (đo quãng lặng bằng ffmpeg, chia theo độ dài chữ)."""
+    got = read_timings(audio)
+    if got:
+        engine, timed = got
+        timed = [(w, min(s, duration), min(e, duration)) for w, s, e in timed] if duration > 0 else timed
+        if text and str(text).strip():
+            words, cov = align(text, timed)
+            if words and cov >= MIN_COVERAGE:
+                return words, "exact", engine
+        return _split_timed(timed), "exact", engine
+    if not text or not str(text).strip():
+        return [], "", ""
+    words = scene_word_times(text, audio, duration, ffmpeg)
+    measured = bool(ffmpeg and audio and Path(audio).is_file())
+    return words, ("silence" if measured else "plain"), ""

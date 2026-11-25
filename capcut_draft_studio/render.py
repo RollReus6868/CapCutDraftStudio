@@ -982,7 +982,8 @@ class Renderer:
             # đồ họa chữ: vẽ PNG đúng cỡ khung xuất (không phải cỡ project)
             from . import overlays
             self._ovl = overlays.prepare(self.s, job.plan, self.work / "overlays", self.log,
-                                         self._cancel, size=(self.w, self.h))
+                                         self._cancel, size=(self.w, self.h),
+                                         report_dir=Path(self.s.input_dir) / "_capcut_draft_studio")
             segs = self._render_scenes()
             video = self._concat(segs)
             tracks = [t for t in (self._build_voice(), self._build_source_audio(),

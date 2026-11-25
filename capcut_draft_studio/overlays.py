@@ -871,24 +871,71 @@ def spoken_tokens(text: str, seq: list) -> list[float] | None:
     return out
 
 
-LEAD = 0.12          # chữ hiện trước tiếng nói một chút cho mắt kịp bắt
+LEAD = 0.12          # (0.6.2) giữ cho mã cũ / test; 0.6.3 dùng SHOW_BEFORE + FADE_IN
+SHOW_BEFORE = 0.10   # 0.6.3: chữ đã HIỆN RÕ (hết mờ dần) trước khi giọng nói tới 0,1 s
+TYPE_LEAD = 0.08     # trích dẫn đánh máy: mỗi chữ hiện trước tiếng của nó 0,08 s
 MIN_VISIBLE = 1.2    # khớp giọng làm chữ hiện muộn — vẫn phải đủ lâu để đọc
+REPORT_NAME = "khop-giong-doc.csv"
+
+
+class WordMap(dict):
+    """{số cảnh: [(từ, bắt đầu, kết thúc)]} + nguồn mốc của từng cảnh
+    (`sources[n] = ("exact"|"silence"|"plain", bộ máy)`)."""
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.sources: dict[int, tuple[str, str]] = {}
+
+
+@dataclass
+class TimingRow:
+    """Một dòng của báo cáo khớp giọng đọc."""
+    scene: int
+    kind: str
+    text: str
+    spoken: float | None      # giây trong cảnh lúc giọng nói tới (None = không thấy)
+    shown: float              # giây trong cảnh lúc chữ bắt đầu hiện
+    how: str                  # nguồn / lý do
+
+    @property
+    def ahead(self) -> float | None:
+        """Chữ đã hiện rõ trước tiếng bao nhiêu giây (âm = hiện rõ sau tiếng)."""
+        if self.spoken is None:
+            return None
+        return round(self.spoken - (self.shown + FADE_IN), 3)
 
 
 def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
-             log: LogFn = print, words: dict | None = None) -> list[Placement]:
+             log: LogFn = print, words: dict | None = None,
+             report: list | None = None) -> list[Placement]:
     """Đổi các dòng overlay thành danh sách ảnh + thời gian, theo `plan`
     (trục nội dung). Mục có cảnh không nằm trong plan bị bỏ qua.
 
     `words` = {số cảnh: [(từ, giây bắt đầu, giây kết thúc)]} tính từ đầu file
     giọng đọc của cảnh (speech.word_times). Có thì chữ hiện đúng lúc giọng đọc
     nói tới nó, trích dẫn hiện từng chữ theo giọng; không khớp được thì như cũ
-    (đầu cảnh + DELAY)."""
+    (đầu cảnh + DELAY). 0.6.3: chữ HIỆN RÕ trước tiếng SHOW_BEFORE giây (bắt
+    đầu mờ dần sớm hơn FADE_IN). `report` (list) nhận một TimingRow mỗi mục."""
     by_num = {p.number: p for p in plan}
     nums = [p.number for p in plan]
     pos = {p.number: i for i, p in enumerate(plan)}
     out: list[Placement] = []
-    synced = [0, 0]                       # [khớp được, có lời thoại để khớp]
+    synced = [0, 0, 0]                    # [khớp được, có lời thoại để khớp, theo mốc chính xác]
+    sources = getattr(words, "sources", {}) if words else {}
+
+    def source_at(t: float) -> tuple[str, str]:
+        for q in plan:
+            if q.start - 1e-6 <= t < q.end + 1e-6:
+                return sources.get(q.number, ("", ""))
+        return ("", "")
+
+    def note(it: OverlayItem, ts: float | None, t0: float, how: str) -> None:
+        if report is None:
+            return
+        p0 = by_num[it.scene]
+        report.append(TimingRow(it.scene, it.kind, it.text or it.sub or it.label,
+                                None if ts is None else round(ts - p0.start, 3),
+                                round(t0 - p0.start, 3), how))
 
     def window(it: OverlayItem, first_delay: float = DELAY) -> tuple[float, float] | None:
         p = by_num.get(it.scene)
@@ -899,6 +946,7 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
             last = p
         t1 = last.end - TAIL
         ts = None
+        how = "Đặt tay (cột start)" if it.start is not None else "Không có lời thoại / mốc → đầu cảnh"
         if it.start is None and words:
             seq = _seq(it, plan, pos, words)
             if seq:
@@ -906,8 +954,15 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
                 ts = spoken_start(it, seq)
                 if ts is not None:
                     synced[0] += 1
+                    src, engine = source_at(ts)
+                    if src == "exact":
+                        synced[2] += 1
+                    from .speech import SOURCE_LABELS
+                    how = SOURCE_LABELS.get(src, "Ước lượng") + (f" ({engine})" if engine else "")
+                else:
+                    how = "Không thấy chữ này trong lời đọc → đầu cảnh"
         if ts is not None:
-            t0 = max(p.start, ts - LEAD)
+            t0 = max(p.start, ts - FADE_IN - SHOW_BEFORE)
         else:
             delay = it.start if it.start is not None else min(first_delay, p.slot_duration * 0.2)
             t0 = p.start + max(0.0, delay)
@@ -916,6 +971,7 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
             t1 = min(t1, t0 + it.dur) if it.until else t0 + it.dur
         if t1 - t0 < (MIN_VISIBLE if ts is not None else MIN_SHOW):
             t1 = t0 + (MIN_VISIBLE if ts is not None else MIN_SHOW)
+        note(it, ts, t0, how)
         return t0, t1
 
     lists: dict[str, list[OverlayItem]] = {}
@@ -944,11 +1000,11 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
             # QUOTE_BOX_ONLY giây, mỗi bước hiện thêm chữ đúng lúc từ đó được đọc
             n = len(it.text.split())
             p = by_num[it.scene]
-            box = max(p.start, min(t0, tok_times[0] - LEAD - QUOTE_BOX_ONLY))
+            box = max(p.start, min(t0, tok_times[0] - TYPE_LEAD - max(QUOTE_BOX_ONLY, FADE_IN)))
             t1 = max(t1, tok_times[-1] + MIN_SHOW)
             marks = [(box, 0)]
             for wc in _steps(n):
-                marks.append((max(marks[-1][0] + 0.04, tok_times[wc - 1] - LEAD), wc))
+                marks.append((max(marks[-1][0] + 0.04, tok_times[wc - 1] - TYPE_LEAD), wc))
             t1 = max(t1, marks[-1][0] + MIN_SHOW)
             pieces = []
             for i, (at, wc) in enumerate(marks):
@@ -986,7 +1042,10 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
         end_it = max(group, key=lambda g: (g.until or g.scene))
         last_scene = end_it.until or end_it.scene
         first = group[0]
+        n_rep = len(report) if report is not None else 0
         t_first, _ = window(first)
+        if report is not None and first.text:
+            del report[n_rep:]            # mục đầu có chữ sẽ được ghi ở vòng dưới
         p_last = by_num.get(last_scene) or by_num[group[-1].scene]
         t_end = p_last.end - TAIL
         if any(g.dur for g in group):
@@ -1012,6 +1071,16 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
         log(f"[BUILD] Đồ họa chữ khớp giọng đọc: {synced[0]}/{synced[1]} mục hiện đúng lúc "
             "giọng nói tới" + ("" if synced[0] == synced[1] else
                                " — mục còn lại không tìm thấy chữ trong lời thoại, hiện ở đầu cảnh"))
+        if synced[0]:
+            if synced[2] == synced[0]:
+                log(f"[BUILD] Đồ họa chữ: cả {synced[0]} mục theo MỐC CHÍNH XÁC của từng từ trong file giọng")
+            elif synced[2]:
+                log(f"[WARN] Đồ họa chữ: {synced[2]} mục theo mốc chính xác, {synced[0] - synced[2]} mục "
+                    "chỉ ƯỚC LƯỢNG (file giọng của các cảnh đó không có mốc từng từ)")
+            else:
+                log("[WARN] Đồ họa chữ: file giọng không có mốc từng từ nên thời điểm chỉ là ƯỚC LƯỢNG "
+                    "(có thể lệch 0,3–1 s). Muốn khớp chính xác: tạo giọng bằng TTS Clone Studio 3.3+ "
+                    "và bật '⏱ Ghi mốc thời gian từng từ vào MP3'")
     _assign_tracks(out, log)
     out.sort(key=lambda p: (LAYERS.index(p.layer), p.track, p.start))
     return out
@@ -1095,9 +1164,13 @@ def write_pngs(pls: list[Placement], out_dir: Path, w: int, h: int, st: OverlayS
 
 
 def prepare(s, plan: list[ScenePlan], out_dir: Path, log: LogFn = print,
-            cancel=None, size: tuple[int, int] | None = None) -> list[Placement]:
+            cancel=None, size: tuple[int, int] | None = None,
+            report_dir: Path | None = None) -> list[Placement]:
     """Đọc file overlay của project, lập lịch theo `plan` và vẽ PNG.
-    Không bật / không có file → []. Lỗi trong file → BuildError."""
+    Không bật / không có file → []. Lỗi trong file → BuildError.
+
+    Khi khớp theo giọng đọc, ghi báo cáo REPORT_NAME vào `report_dir`
+    (mặc định thư mục cha của `out_dir`)."""
     from .media import BuildError
     if not getattr(s, "enable_overlays", True):
         return []
@@ -1117,18 +1190,22 @@ def prepare(s, plan: list[ScenePlan], out_dir: Path, log: LogFn = print,
         log("[WARN] Đồ họa chữ: thiếu font trong assets/overlay-fonts → dùng font thay thế")
     st = OverlayStyle.from_settings(s)
     words = voice_words(s, plan, items, log) if getattr(s, "overlay_sync", True) else None
-    pls = schedule(items, plan, st, log, words=words)
+    rows: list[TimingRow] = []
+    pls = schedule(items, plan, st, log, words=words, report=rows)
+    if words is not None and rows:
+        write_report(rows, Path(report_dir or Path(out_dir).parent) / REPORT_NAME, log)
     w, h = size or (int(s.width), int(s.height))
     n = write_pngs(pls, out_dir, w, h, st, log, cancel)
     log(f"[BUILD] Đồ họa chữ: {len(items)} mục từ {path.name} → {n} ảnh, {len(pls)} đoạn")
     return pls
 
 
-def voice_words(s, plan: list[ScenePlan], items: list[OverlayItem], log: LogFn = print) -> dict:
+def voice_words(s, plan: list[ScenePlan], items: list[OverlayItem], log: LogFn = print) -> WordMap:
     """{số cảnh: thời gian từng từ} cho các cảnh có đồ họa (tới cảnh 'until').
 
-    Lời thoại lấy như phụ đề (manifest / Excel / Texts/) kể cả khi phụ đề tắt;
-    quãng lặng đo bằng ffmpeg nếu có."""
+    0.6.3: mốc THẬT của từng từ đọc trong file giọng (TTS Clone Studio 3.3+ ghi
+    vào MP3) được ưu tiên; cảnh không có mốc thì ước lượng như 0.6.2 từ lời
+    thoại (manifest / Excel / Texts/, kể cả khi phụ đề tắt) + quãng lặng."""
     from dataclasses import replace
     from . import speech
     from .subtitles import load_scene_texts
@@ -1138,33 +1215,69 @@ def voice_words(s, plan: list[ScenePlan], items: list[OverlayItem], log: LogFn =
         if it.scene in pos:
             i1 = pos.get(it.until, pos[it.scene]) if it.until else pos[it.scene]
             need.update(p.number for p in plan[pos[it.scene]:i1 + 1])
+    out = WordMap()
     if not need:
-        return {}
+        return out
     src = s if str(getattr(s, "subtitle_source", "auto")) != "off" else \
         replace(s, subtitle_source="auto")
     try:
         texts = load_scene_texts(src, sorted(need), lambda m: None)
     except Exception as e:
         log(f"[WARN] Đồ họa chữ: không đọc được lời thoại để khớp giọng ({e})")
-        return {}
-    if not texts:
-        log("[WARN] Đồ họa chữ: không có lời thoại (Texts/, Excel, manifest) nên chữ hiện ở "
-            "đầu cảnh, không khớp theo giọng đọc")
-        return {}
+        texts = {}
     try:
         from .render import find_tool
         ffmpeg = find_tool("ffmpeg")
     except Exception:
         ffmpeg = None
-    out = {}
+    counts = {"exact": 0, "silence": 0, "plain": 0}
+    engines: set[str] = set()
     for p in plan:
-        if p.number in need and p.number in texts:
-            out[p.number] = speech.scene_word_times(texts[p.number], p.audio_path,
-                                                    p.audio_duration, ffmpeg)
-    log("[BUILD] Đồ họa chữ: khớp theo giọng đọc — "
-        + ("đo quãng lặng trong file giọng bằng ffmpeg" if ffmpeg else
-           "không có ffmpeg, ước lượng theo độ dài chữ và dấu câu"))
+        if p.number not in need:
+            continue
+        words, how, engine = speech.scene_timing(texts.get(p.number, ""), p.audio_path,
+                                                 p.audio_duration, ffmpeg)
+        if words:
+            out[p.number] = words
+            out.sources[p.number] = (how, engine)
+            counts[how] = counts.get(how, 0) + 1
+            if engine:
+                engines.add(engine)
+    if not out:
+        log("[WARN] Đồ họa chữ: không có lời thoại (Texts/, Excel, manifest) và file giọng không có mốc "
+            "từng từ nên chữ hiện ở đầu cảnh, không khớp theo giọng đọc")
+        return out
+    parts = []
+    if counts["exact"]:
+        parts.append(f"{counts['exact']} cảnh theo mốc chính xác trong file giọng"
+                     + (f" ({', '.join(sorted(engines))})" if engines else ""))
+    if counts["silence"]:
+        parts.append(f"{counts['silence']} cảnh ước lượng (đo quãng lặng bằng ffmpeg)")
+    if counts["plain"]:
+        parts.append(f"{counts['plain']} cảnh ước lượng theo độ dài chữ (không có ffmpeg)")
+    log("[BUILD] Đồ họa chữ: khớp theo giọng đọc — " + "; ".join(parts))
     return out
+
+
+def write_report(rows: list[TimingRow], path: Path, log: LogFn = print) -> Path | None:
+    """Báo cáo khớp giọng (CSV UTF-8 có BOM — mở thẳng bằng Excel)."""
+    import csv
+
+    def sec(v):
+        return "" if v is None else f"{v:.2f}".replace(".", ",")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8-sig", newline="") as f:
+            w = csv.writer(f, delimiter=";")
+            w.writerow(["Cảnh", "Loại", "Chữ trên hình", "Giọng nói tới (giây trong cảnh)",
+                        "Chữ bắt đầu hiện (giây trong cảnh)", "Hiện rõ trước tiếng (giây)", "Cách khớp"])
+            for r in sorted(rows, key=lambda r: (r.scene, r.shown)):
+                w.writerow([r.scene, r.kind, r.text, sec(r.spoken), sec(r.shown), sec(r.ahead), r.how])
+    except OSError as e:
+        log(f"[WARN] Đồ họa chữ: không ghi được báo cáo khớp giọng ({e})")
+        return None
+    log(f"[BUILD] Đồ họa chữ: báo cáo khớp giọng từng mục → {path}")
+    return path
 
 
 def overlay_file(s) -> Path | None:

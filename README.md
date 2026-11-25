@@ -80,6 +80,23 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
 
 ---
 
+## Mới ở 0.6.3
+
+- **Đồ họa chữ khớp giọng theo MỐC THẬT của từng từ.** 0.6.2 chỉ ước lượng lúc từng
+  từ được đọc (theo quãng lặng và độ dài chữ) nên câu dài có thể lệch 0,5–1 giây. Nay
+  TTS Clone Studio 3.3+ ghi mốc thời gian của từng từ ngay trong file MP3 (Inworld trả
+  sẵn; OmniVoice dùng Whisper nghe lại) và tool đọc mốc đó: đồ họa hiện đúng tới từng
+  phần trăm giây. Chỉ cần chép MP3 vào `Audio/` như mọi khi — không có file phụ nào.
+  Cũng nhận file `<số>.words.json` cạnh file giọng. Lời thoại hơi khác giọng đọc (số
+  viết khác cách đọc…) vẫn khớp: từ lệch được đặt giữa hai từ khớp hai bên.
+- **Chữ đã hiện RÕ trước khi giọng nói tới** (0,1 giây): đồ họa bắt đầu mờ dần sớm
+  hơn 0,45 giây thay vì 0,12 giây như 0.6.2, nên không còn cảnh chữ hiện "muộn". Hộp
+  trích dẫn: mỗi chữ hiện trước tiếng của nó 0,08 giây.
+- **Báo cáo khớp giọng** `_capcut_draft_studio/khop-giong-doc.csv` (mở bằng Excel):
+  mỗi đồ họa một dòng — giây giọng nói tới, giây chữ hiện, chữ hiện rõ trước tiếng
+  bao lâu, khớp bằng mốc chính xác hay ước lượng. Nhật ký cũng báo bao nhiêu mục theo
+  mốc chính xác; file giọng cũ (không có mốc) vẫn chạy kiểu ước lượng như 0.6.2.
+
 ## Mới ở 0.6.2
 
 - **Đồ họa chữ hiện đúng lúc giọng đọc nói tới.** Trước đây mọi đồ họa hiện 0,35 giây

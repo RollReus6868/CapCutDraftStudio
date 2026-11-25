@@ -78,6 +78,10 @@ def _plan(n=3, dur=6.0, gap=0.4):
     return out
 
 
+# 0.6.3: chữ bắt đầu mờ dần FADE_IN + SHOW_BEFORE giây trước tiếng → đã rõ trước tiếng
+EARLY = ov.FADE_IN + ov.SHOW_BEFORE
+
+
 def _words(text, start=0.0, step=0.5):
     return [(w, start + k * step, start + (k + 1) * step)
             for k, w in enumerate(speech.norm_words(text))]
@@ -93,7 +97,7 @@ def test_schedule_follows_voice_and_falls_back():
     pls = ov.schedule(items, plan, ov.OverlayStyle(), logs.append, words=words)
     by = {p.frame.item.kind: p for p in pls}
     # "the" là từ thứ 5 (chỉ số 4) → 2.0 s sau đầu cảnh
-    assert by["TITLE"].start == pytest.approx(plan[1].start + 2.0 - ov.LEAD)
+    assert by["TITLE"].start == pytest.approx(plan[1].start + 2.0 - EARLY)
     assert by["LOWER"].start == pytest.approx(plan[1].start + ov.DELAY)   # không khớp
     assert by["STAMP"].start == pytest.approx(plan[1].start + 0.5)       # 'start' thắng
     assert any("khớp giọng đọc: 1/2" in m for m in logs)
@@ -107,11 +111,11 @@ def test_quote_reveals_word_by_word_with_voice():
     pls = ov.schedule(items, plan, ov.OverlayStyle(), lambda m: None, words=words)
     first_word = plan[0].start + 3 * 0.4          # "they" là từ thứ 4
     assert pls[0].frame.words == 0                 # hộp rỗng hiện trước
-    assert pls[0].start <= first_word - ov.LEAD
+    assert pls[0].start <= first_word - ov.TYPE_LEAD - ov.FADE_IN
     for p in pls[1:]:
         wc = p.frame.words or len(quote.split())
         spoken = plan[0].start + (3 + wc - 1) * 0.4
-        assert p.start == pytest.approx(max(spoken - ov.LEAD, p.start), abs=0.05)
+        assert p.start == pytest.approx(max(spoken - ov.TYPE_LEAD, p.start), abs=0.05)
         assert p.start <= spoken
     for a, b in zip(pls, pls[1:]):
         assert ov.us_span(a.start, a.length)[1] == ov.us_span(b.start, b.length)[0]
@@ -125,8 +129,8 @@ def test_list_items_follow_voice_across_scenes():
                                       ["1", "LIST", "One on the face", "", "Marks", "3"],
                                       ["2", "LIST", "One on the forehead", "", "Marks", ""]])
     li = ov.schedule(items, plan, ov.OverlayStyle(), lambda m: None, words=words)
-    assert li[0].start == pytest.approx(plan[0].start + 4 * 0.5 - ov.LEAD)
-    assert li[1].start == pytest.approx(plan[1].start + 3 * 0.5 - ov.LEAD)
+    assert li[0].start == pytest.approx(plan[0].start + 4 * 0.5 - EARLY)
+    assert li[1].start == pytest.approx(plan[1].start + 3 * 0.5 - EARLY)
     assert li[-1].end == pytest.approx(plan[2].end - ov.TAIL)
 
 
@@ -181,8 +185,8 @@ def test_draft_overlay_starts_when_sentence_is_spoken(tmp_path, monkeypatch):
     d = json.loads((build(s, assets, plan, logs.append) / "draft_content.json")
                    .read_text(encoding="utf-8"))
     st = _segs({t["name"]: t for t in d["tracks"]}["chu_main"])[0][0]
-    # "Then" bắt đầu câu 2 ở 2.9 s; chữ hiện trước tiếng một chút (LEAD)
-    assert 2.9 - ov.LEAD - 0.2 <= st <= 2.9, st
+    # "Then" bắt đầu câu 2 ở 2.9 s; chữ bắt đầu hiện sớm hơn EARLY (ước lượng: ±0,15 s)
+    assert 2.9 - EARLY - 0.2 <= st <= 2.9 - ov.FADE_IN + 0.15, st
     assert any("khớp giọng đọc: 1/1" in m for m in logs)
     # tắt khớp giọng → về kiểu cũ (đầu cảnh + DELAY)
     s.overlay_sync = False
