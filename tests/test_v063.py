@@ -14,7 +14,7 @@ from capcut_draft_studio import overlays as ov, speech
 from capcut_draft_studio.models import Settings
 
 from test_v059 import _project, _real_pycapcut, _segs  # noqa: F401
-from test_v062 import EARLY, _plan, _speechlike, _words
+from test_v062 import _plan, _speechlike, _words, early
 
 FF = shutil.which("ffmpeg")
 need_ff = pytest.mark.skipif(not FF, reason="cần ffmpeg")
@@ -212,7 +212,7 @@ def test_draft_uses_exact_timings_from_mp3(tmp_path, monkeypatch):
     logs = []
     d = json.loads((build(s, assets, plan, logs.append) / "draft_content.json").read_text(encoding="utf-8"))
     st = _segs({t["name"]: t for t in d["tracks"]}["chu_main"])[0][0]
-    assert st == pytest.approx(3.37 - EARLY, abs=0.002), st
+    assert st == pytest.approx(3.37 - early("TITLE"), abs=0.002), st
     assert any("1 cảnh theo mốc chính xác" in m for m in logs)
     rep = tmp_path / "_capcut_draft_studio" / ov.REPORT_NAME
     assert rep.is_file()

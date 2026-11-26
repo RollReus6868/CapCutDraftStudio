@@ -405,6 +405,14 @@ WRAP_NAMES = {"intro": "intro", "outro": "outro", "cid": "nhạc CID"}
 PHASE_WEIGHT = {"scenes": 0.55, "audio": 0.10, "concat": 0.15, "final": 0.20}
 
 
+def _fade(kind: str, st: float, d: float) -> str:
+    """Bộ lọc mờ dần kênh alpha; ffmpeg không nhận giờ bắt đầu âm (đồ họa bắt đầu tắt
+    từ cảnh trước) → cắt phần đã qua."""
+    if st < 0:
+        d, st = max(0.001, d + st), 0.0
+    return f",fade=t={kind}:st={st:.4f}:d={max(0.001, d):.4f}:alpha=1"
+
+
 class Renderer:
     """Chạy ffmpeg theo từng bước, báo % và thời gian còn lại."""
 
@@ -515,20 +523,109 @@ class Renderer:
         return (bool(self.trans) and i < len(self.job.plan) - 1
                 and i not in getattr(self, "_hard", ()))
 
-    def scene_overlays(self, i: int, p: ScenePlan, length: float) -> list[tuple]:
-        """[(png, từ giây, tới giây, fade vào, fade ra)] của đồ họa chữ rơi vào cảnh i,
-        tính theo giờ CỦA CLIP CẢNH (0 = đầu cảnh)."""
-        out = []
+    def scene_overlays(self, i: int, p: ScenePlan, length: float) -> list[dict]:
+        """Đồ họa chữ rơi vào cảnh i, giờ tính theo CLIP CẢNH (0 = đầu cảnh).
+
+        Mỗi mục: {"pl": Placement, "a"/"b": giờ thật của đồ họa (a có thể âm nếu
+        bắt đầu ở cảnh trước), "a2"/"b2": phần nằm trong clip}; chuỗi ảnh nối nhau
+        (đánh máy, vạch chạy) gộp thành {"chain": [(png, a2, b2)], ...}."""
+        out: list[dict] = []
+        chains: dict[str, dict] = {}
         for pl in self._ovl:
             a = pl.start - p.start
             b = pl.end - p.start
             a2, b2 = max(0.0, a), min(length, b)
-            if b2 - a2 < 0.02 or pl.png is None:
+            if b2 - a2 < 0.004 or pl.png is None:
                 continue
-            fi = pl.fade_in if a >= -1e-6 else 0.0
-            fo = pl.fade_out if b <= length + 1e-6 else 0.0
-            out.append((pl.png, a2, b2, min(fi, (b2 - a2) / 2), min(fo, (b2 - a2) / 2)))
+            ent = {"pl": pl, "a": a, "b": b, "a2": a2, "b2": b2}
+            if pl.group:
+                c = chains.get(pl.group)
+                if c is None:
+                    c = chains[pl.group] = {"chain": [], "pls": [], "a2": a2, "b2": b2}
+                    out.append(c)
+                c["chain"].append((pl.png, a2, b2))
+                c["pls"].append(ent)
+                c["a2"], c["b2"] = min(c["a2"], a2), max(c["b2"], b2)
+            else:
+                out.append(ent)
+        for c in chains.values():
+            c["chain"].sort(key=lambda x: x[1])
+            last = max(c["pls"], key=lambda e: e["b"])
+            c["fo"] = last["pl"].fade_out if last["b"] <= length + 1e-6 else 0.0
+            c["fo_at"] = last["b"]
+            boxes = [e["pl"].bbox for e in c["pls"] if e["pl"].bbox]
+            c["bbox"] = (min(x[0] for x in boxes), min(x[1] for x in boxes),
+                         max(x[2] for x in boxes), max(x[3] for x in boxes)) if boxes else None
         return out
+
+    def _crop(self, bbox) -> tuple[int, int, int, int]:
+        """(x, y, rộng, cao) vùng cần phủ — chừa 2 px, không vượt khung."""
+        if not bbox:
+            return 0, 0, self.w, self.h
+        x0, y0, x1, y1 = bbox
+        x0, y0 = max(0, x0 - 2), max(0, y0 - 2)
+        x1, y1 = min(self.w, x1 + 2), min(self.h, y1 + 2)
+        return x0, y0, max(2, x1 - x0), max(2, y1 - y0)
+
+    def _overlay_filters(self, ovs: list[dict], length: float, first_input: int,
+                         seg_dir: Path) -> tuple[list[str], list[str]]:
+        """(đối số input, filter) phủ đồ họa lên [b0] → [bN]."""
+        from . import motion as mo
+        from . import overlays
+        args: list[str] = []
+        chain: list[str] = []
+        fps = self.fps
+        for j, ent in enumerate(ovs, start=1):
+            n = first_input + j - 1
+            if "chain" in ent:
+                lst = seg_dir / f"chain_{id(ent):x}_{j}.ffconcat"
+                def q(png):
+                    return "file '" + Path(png).resolve().as_posix().replace("'", "'\\''") + "'"
+                lines = ["ffconcat version 1.0"]
+                for png, a2, b2 in ent["chain"]:
+                    lines += [q(png), f"duration {max(0.001, b2 - a2):.4f}"]
+                lines.append(q(ent["chain"][-1][0]))
+                lst.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                args += ["-f", "concat", "-safe", "0", "-i", str(lst)]
+                x, y, cw, ch = self._crop(ent["bbox"])
+                a2 = ent["chain"][0][1]
+                f = (f"[{n}:v]format=rgba,crop={cw}:{ch}:{x}:{y},setpts=PTS+{a2:.4f}/TB,"
+                     f"fps={fps},tpad=stop_mode=clone:stop_duration={length:.4f}")
+                if ent["fo"] > 0:
+                    f += _fade("out", ent["fo_at"] - ent["fo"], ent["fo"])
+                chain.append(f"{f}[o{j}]")
+                chain.append(f"[b{j - 1}][o{j}]overlay={x}:{y}:eof_action=pass"
+                             f":enable='between(t,{ent['a2']:.4f},{ent['b2']:.4f})'[b{j}]")
+                continue
+            pl, a, b = ent["pl"], ent["a"], ent["b"]
+            args += ["-framerate", str(fps), "-i", str(pl.png)]
+            m, fi, fo = overlays.placement_motion(pl, self.w, self.h)
+            fi = fi and a >= -1e-6
+            fo = fo and b <= length + 1e-6
+            x, y, cw, ch = self._crop(pl.bbox)
+            ex = mo.ffmpeg_exprs(m, a, pl.length, fade_in=fi, fade_out=fo)
+            S = ex["s"]
+            f = (f"[{n}:v]format=rgba,crop={cw}:{ch}:{x}:{y},"
+                 f"tpad=stop_mode=clone:stop_duration={length:.4f}")
+            if S != "1":
+                f += (f",scale=w='max(2,trunc({cw}*{S}/2)*2)':h='max(2,trunc({ch}*{S}/2)*2)'"
+                      f":eval=frame")
+            din, ain, dout = mo.durations(m, pl.length)
+            if fi and ain > 0:
+                f += _fade("in", a, ain)
+            if fo and dout > 0 and m.fade_out:
+                f += _fade("out", b - dout, dout)
+            chain.append(f"{f}[o{j}]")
+            ax, ay = pl.anchor or (self.w / 2, self.h / 2)
+            if S == "1":
+                X = f"{x}+({ex['dx']})*{self.w}" if ex["dx"] != "0" else f"{x}"
+                Y = f"{y}+({ex['dy']})*{self.h}" if ex["dy"] != "0" else f"{y}"
+            else:
+                X = f"{ax:.2f}+{S}*({x}-{ax:.2f})+({ex['dx']})*{self.w}"
+                Y = f"{ay:.2f}+{S}*({y}-{ay:.2f})+({ex['dy']})*{self.h}"
+            chain.append(f"[b{j - 1}][o{j}]overlay=x='{X}':y='{Y}':eval=frame:eof_action=repeat"
+                         f":enable='between(t,{ent['a2']:.4f},{ent['b2']:.4f})'[b{j}]")
+        return args, chain
 
     def scene_args(self, i: int, p: ScenePlan, out: Path) -> list[str]:
         length = self._scene_len(i, p)
@@ -547,20 +644,13 @@ class Renderer:
                 vf.append(f"tpad=stop_mode=clone:stop_duration={self.trans:.4f}")
         ovs = self.scene_overlays(i, p, length) if self._ovl else []
         if ovs:
-            # Mỗi ảnh chữ là MỘT khung (giải mã một lần), tpad nhân ra đủ dài rồi
-            # fade kênh alpha; overlay chỉ bật trong khoảng giờ của nó.
+            # Mỗi ảnh chữ là MỘT khung (giải mã một lần) cắt đúng vùng có hình, tpad
+            # nhân ra đủ dài, rồi chuyển động (motion.py: tỉ lệ + vị trí theo t, mờ
+            # dần alpha); chuỗi đánh máy là một luồng ảnh nối nhau (concat).
             chain = [f"[0:v]{','.join(vf)}[b0]"]
-            for j, (png, a, b, fi, fo) in enumerate(ovs, start=1):
-                args += ["-framerate", str(self.fps), "-i", str(png)]
-                f = (f"[{j}:v]format=rgba,scale={self.w}:{self.h},"
-                     f"tpad=stop_mode=clone:stop_duration={length:.4f}")
-                if fi > 0:
-                    f += f",fade=t=in:st={a:.4f}:d={fi:.4f}:alpha=1"
-                if fo > 0:
-                    f += f",fade=t=out:st={b - fo:.4f}:d={fo:.4f}:alpha=1"
-                chain.append(f"{f}[o{j}]")
-                chain.append(f"[b{j - 1}][o{j}]overlay=0:0:eof_action=repeat"
-                             f":enable='between(t,{a:.4f},{b:.4f})'[b{j}]")
+            oargs, ochain = self._overlay_filters(ovs, length, 1, out.parent)
+            args += oargs
+            chain += ochain
             return args + ["-an", "-filter_complex", ";".join(chain),
                            "-map", f"[b{len(ovs)}]", "-t", f"{length:.4f}",
                            "-c:v", self.encoder,

@@ -749,9 +749,10 @@ def build_overlay_card(app, host, th, row: int):
     from .. import overlays as ovl
     card = Card(host, th, "Đồ họa chữ trên hình",
                 "Tool tự tìm file có chữ 'overlay' (overlay.xlsx / .csv) trong folder VIDEO: "
-                "mỗi dòng một đồ họa — cột scene, type, text, sub, label, until. Loại: "
-                + ", ".join(f"{k} ({v[0]})" for k, v in ovl.KINDS.items())
-                + ". Áp cho cả draft CapCut lẫn file mp4.",
+                "mỗi dòng một đồ họa — cột scene, type, text, sub, label, until. "
+                f"{len(ovl.KINDS)} kiểu (trích dẫn, mốc nơi chốn, so sánh, dòng thời gian, "
+                "giấy cổ… — xem trang Hướng dẫn). Hiện/tắt bằng keyframe mượt; áp cho cả "
+                "draft CapCut lẫn file mp4.",
                 accent="settings", icon="✎")
     card.grid_in(row=row, column=0, sticky="ew", pady=(16, 0))
     card.columnconfigure(0, weight=1)
@@ -760,7 +761,7 @@ def build_overlay_card(app, host, th, row: int):
     top.grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 10))
     ttk.Checkbutton(top, text="Bật đồ họa chữ", variable=app.boolvars["enable_overlays"]).pack(
         side="left", padx=(0, 18))
-    ttk.Checkbutton(top, text="Trích dẫn hiện dần như đánh máy",
+    ttk.Checkbutton(top, text="Trích dẫn đánh máy từng ký tự",
                     variable=app.boolvars["overlay_typewriter"]).pack(side="left", padx=(0, 18))
     ttk.Checkbutton(top, text="Hiện đúng lúc giọng đọc nói tới",
                     variable=app.boolvars["overlay_sync"]).pack(side="left")
@@ -1560,12 +1561,23 @@ folder VIDEO, mỗi dòng một đồ họa:
   scene   số cảnh (khớp số file Audio)
   type    CHAPTER  thẻ mở chương: nguồn nhỏ + câu chủ đề in hoa
           LOWER    nhãn dưới: label nhỏ + một dòng chữ trong hộp tối
-          NAME     nhãn tên: như LOWER, chữ serif nghiêng (người, nơi, năm)
-          QUOTE    hộp trích dẫn, chữ hiện dần như đánh máy, tham chiếu dưới
+          NAME     nhãn tên: như LOWER, chữ serif nghiêng (người, năm)
+          QUOTE    hộp trích dẫn, chữ ĐÁNH MÁY TỪNG KÝ TỰ theo giọng đọc
           TITLE    câu chốt in hoa giữa màn hình, nền tối dần
-          STAMP    dấu mộc đỏ nghiêng — dùng rất ít
-          LIST     danh sách 01, 02… cộng dần (các dòng cùng label)
+          STAMP    dấu mộc đỏ đóng xuống — dùng rất ít
+          LIST     danh sách 01, 02… từng dòng trượt vào (cùng label)
           STAT     số lớn trong hộp viền vàng, nhãn nhỏ bên dưới
+          PLACE    mốc nơi chốn + năm, chữ máy đánh góc trên trái
+          TERM     thẻ từ gốc: Nephilim | נְפִילִים, nghĩa (sub),
+                   ngôn ngữ (label) — bên phải
+          VS       so sánh hai cột: text đối sub, label = tiêu đề
+          TIMELINE dòng thời gian: 1446 BC | *586 BC* | 70 AD
+          KEYWORD  một từ rất lớn giữa khung, gạch chân chạy ra
+          SOURCE   chú thích nguồn nhỏ góc dưới phải
+          NOTE     tờ giấy cổ, chữ mực hiện như đang viết
+          CINEMA   khung điện ảnh: hai thanh đen trượt vào trên dưới
+          SUBSCRIBE nút đăng ký đỏ + chuông góc dưới phải
+          *chữ giữa hai dấu sao* được tô màu nhấn.
   text    chữ chính         sub    dòng phụ / tham chiếu / nguồn
   label   nhãn nhỏ in hoa   until  giữ tới hết cảnh số này
   start   hiện sau mấy giây (trống = khớp giọng đọc)   dur   hiện mấy giây
@@ -1584,7 +1596,9 @@ Excel): từng đồ họa hiện lúc nào, giọng nói tới lúc nào, khớ
 Bấm "Tạo file mẫu" để có sẵn file Excel kèm hướng dẫn, "Xem thử đồ họa"
 để xem mọi đồ họa vẽ trên ảnh cảnh của nó. KIỂM TRA báo luôn dòng sai
 (số cảnh không có, loại không hiểu…). Áp cho cả draft CapCut (các track
-chu_list / chu_main / chu_stamp) lẫn file mp4.
+chu_frame / chu_list / chu_main / chu_text / chu_stamp) lẫn file mp4.
+Mỗi đồ họa hiện/tắt bằng keyframe có gia tốc (trượt, phóng nhẹ, nảy…) —
+mở draft trong CapCut là thấy các điểm keyframe, chỉnh tay được.
 
 
 RENDER VIDEO  (trang Render video)

@@ -91,34 +91,39 @@ def test_schedule_windows_typewriter_and_list():
     ch = by("CHAPTER")[0]
     assert ch.start == pytest.approx(plan[0].start + ov.DELAY)
     assert ch.end == pytest.approx(plan[0].end - ov.TAIL)
-    assert ch.fade_in == ov.FADE_IN and ch.fade_out == ov.FADE_OUT
-    # trích dẫn: hộp rỗng → các bước tăng dần → bước cuối đủ câu, nối liền không hở
+    assert ch.motion == "rise" and ch.fade_in > 0 and ch.fade_out > 0
+    # trích dẫn (0.6.4): hộp riêng + chuỗi chữ đánh máy TỪNG KÝ TỰ nối liền + tham chiếu
     q = by("QUOTE")
-    assert q[0].frame.words == 0 and q[-1].frame.words is None
-    words = [p.frame.words for p in q[1:-1]]
-    assert words == sorted(words) and len(q) <= ov.MAX_STEPS + 1
-    for a, b in zip(q, q[1:]):
-        assert a.end == pytest.approx(b.start, abs=1e-6)
-    assert q[0].start == pytest.approx(plan[1].start + ov.DELAY)
-    assert q[-1].end == pytest.approx(plan[1].end - ov.TAIL)
-    assert q[0].fade_in and not q[1].fade_in and q[-1].fade_out and not q[0].fade_out
-    # danh sách: 1 mục từ cảnh 3, 2 mục từ cảnh 4, giữ tới hết cảnh 5 (until)
+    box = [p for p in q if p.frame.part == "box"]
+    text = sorted([p for p in q if p.frame.part == "text"], key=lambda p: p.start)
+    assert len(box) == 1 and box[0].start == pytest.approx(plan[1].start + ov.DELAY)
+    assert box[0].end == pytest.approx(plan[1].end - ov.TAIL) and box[0].motion == "pop"
+    chars = [p.frame.chars for p in text if p.frame.chars is not None]
+    assert chars == sorted(chars) and len(chars) > 10            # nhiều bước, không phải theo từ
+    assert text[-1].frame.chars is None and not text[-1].frame.caret
+    assert all(p.frame.caret for p in text[:-1])
+    for x, y in zip(text, text[1:]):
+        assert x.end == pytest.approx(y.start, abs=1e-6)
+    assert text[-1].end == pytest.approx(box[0].end) and text[-1].fade_out and not text[0].fade_in
+    assert {p.layer for p in text} == {"text"} and len({p.group for p in text}) == 1
+    # danh sách: nhãn + từng dòng riêng, dòng trượt vào lúc được nhắc và ở tới hết cảnh 5
     li = by("LIST")
-    assert [p.frame.list_items for p in li] == [("One on the face",),
-                                                ("One on the face", "One on the forehead")]
-    assert li[0].start == pytest.approx(plan[2].start + ov.DELAY)
-    assert li[1].start == pytest.approx(plan[3].start + ov.DELAY)
-    assert li[0].end == pytest.approx(li[1].start)
-    assert li[1].end == pytest.approx(plan[4].end - ov.TAIL)
+    rows = sorted([p for p in li if p.frame.part == "row"], key=lambda p: p.frame.index)
+    assert [(p.frame.index, p.frame.item.text) for p in rows] == [(1, "One on the face"),
+                                                                 (2, "One on the forehead")]
+    assert rows[0].start == pytest.approx(plan[2].start + ov.DELAY + 0.15)
+    assert rows[1].start == pytest.approx(plan[3].start + ov.DELAY)
+    assert all(p.end == pytest.approx(plan[4].end - ov.TAIL) for p in li)
     assert {p.layer for p in li} == {"list"} and by("STAMP")[0].layer == "stamp"
+    assert by("STAMP")[0].motion == "slam"
     # không chữ nào cùng lớp + cùng track chồng giờ nhau
     groups = {}
     for p in pls:
         groups.setdefault((p.layer, p.track), []).append(p)
     for g in groups.values():
         g.sort(key=lambda p: p.start)
-        for a, b in zip(g, g[1:]):
-            assert a.end <= b.start + 1e-6
+        for x, y in zip(g, g[1:]):
+            assert x.end <= y.start + 1e-6
 
 
 def test_schedule_overlap_goes_to_second_track_and_warns():
@@ -151,7 +156,7 @@ def test_every_kind_renders_inside_frame(kind):
     assert box is not None, "không vẽ gì"
     x0, y0, x1, y1 = box
     assert x0 >= 0 and y0 >= 0 and x1 <= 1920 and y1 <= 1080
-    if kind not in ("TITLE", "CHAPTER"):        # hai loại này phủ tối cả/ nửa khung
+    if kind not in ("TITLE", "CHAPTER", "CINEMA", "TIMELINE"):   # phủ tối cả / nửa khung
         assert (x1 - x0) * (y1 - y0) < 1920 * 1080 * 0.5
 
 
@@ -224,13 +229,17 @@ def test_draft_has_overlay_tracks_in_time_order(tmp_path, monkeypatch):
     pngs = {mats[x["material_id"]]["path"] for n in ("chu_main",) for x in tracks[n]["segments"]}
     for p in pngs:
         assert Path(p).is_file() and Image.open(p).size == (1920, 1080)
-    # có hiệu ứng hiện dần / mờ dần
+    # 0.6.4: hiện/tắt bằng keyframe (alpha + vị trí/tỉ lệ), không còn hiệu ứng 渐显/渐隐
     anims = json.dumps(d["materials"].get("material_animations", []), ensure_ascii=False)
-    assert "渐显" in anims and "渐隐" in anims
-    # trích dẫn bắt đầu đúng lúc cảnh 2 + DELAY, kết thúc trước cảnh 3
+    assert "渐显" not in anims
+    kf = {k["property_type"] for x in tracks["chu_main"]["segments"] for k in x.get("common_keyframes", [])}
+    assert {"KFTypeAlpha", "KFTypePositionY"} <= kf
+    # trích dẫn: hộp bắt đầu đúng lúc cảnh 2 + DELAY, chữ đánh máy trên track chu_text
     q = [x for x in _segs(tracks["chu_main"]) if plan[1].start <= x[0] < plan[2].start]
     assert q[0][0] == pytest.approx(plan[1].start + ov.DELAY, abs=1e-3)
     assert q[-1][0] + q[-1][1] == pytest.approx(plan[1].end - ov.TAIL, abs=2e-3)
+    t = _segs(tracks["chu_text"])
+    assert len(t) > 10 and t[-1][0] + t[-1][1] == pytest.approx(plan[1].end - ov.TAIL, abs=2e-3)
 
 
 def test_draft_overlay_split_around_ad(tmp_path, monkeypatch):
@@ -294,6 +303,8 @@ def test_scene_args_overlay_chain_and_plain_path_unchanged(tmp_path):
     class R:
         scene_args = render.Renderer.scene_args
         scene_overlays = render.Renderer.scene_overlays
+        _overlay_filters = render.Renderer._overlay_filters
+        _crop = render.Renderer._crop
         _scene_len = render.Renderer._scene_len
         _xfade_after = render.Renderer._xfade_after
 
@@ -309,18 +320,54 @@ def test_scene_args_overlay_chain_and_plain_path_unchanged(tmp_path):
     plain = R(plan, []).scene_args(1, plan[1], Path("o.mp4"))
     assert "-vf" in plain and "-filter_complex" not in plain
     pl = ov.Placement(ov.Frame(ov.OverlayItem(2, "STAMP", "x")), plan[1].start + 0.5, 1.0,
-                      "stamp", 0.3, 0.3, 2, png=tmp_path / "a.png")
+                      "stamp", 0.3, 0.3, 2, png=tmp_path / "a.png", motion="none", bbox=(100, 50, 200, 90))
     span = ov.Placement(ov.Frame(ov.OverlayItem(1, "LIST", "x")), plan[0].start + 1.0,
-                        plan[2].start - plan[0].start, "list", 0.3, 0.3, 1, png=tmp_path / "b.png")
+                        plan[2].start - plan[0].start, "list", 0.3, 0.3, 1, png=tmp_path / "b.png",
+                        motion="slide_left", bbox=(10, 10, 120, 40))
     args = R(plan, [pl, span]).scene_args(1, plan[1], Path("o.mp4"))
     chain = args[args.index("-filter_complex") + 1]
-    # STAMP: nằm trọn trong cảnh → có fade vào và ra
+    # STAMP (chỉ mờ dần): nằm trọn trong cảnh → có fade vào và ra, chỉ phủ vùng có hình
     assert "fade=t=in:st=0.5000:d=0.3000:alpha=1" in chain
     assert "fade=t=out:st=1.2000:d=0.3000:alpha=1" in chain
-    # LIST: bắt đầu ở cảnh trước, kết thúc cuối cảnh này → không fade vào, phủ từ 0
+    assert "crop=104:44:98:48" in chain
+    # LIST: bắt đầu ở cảnh trước → không fade vào, không trượt lại, phủ từ 0
     assert "enable='between(t,0.0000," in chain
     assert chain.count("fade=t=in") == 1
     assert args[args.index("-map") + 1] == "[b2]"
+    # trượt vào: vị trí x theo t; phóng: scale theo t quanh tâm đồ họa
+    pop = ov.Placement(ov.Frame(ov.OverlayItem(2, "QUOTE", "x")), plan[1].start + 0.2, 2.0, "main",
+                       0.4, 0.35, 2, png=tmp_path / "c.png", motion="pop", bbox=(100, 40, 220, 140))
+    slide = ov.Placement(ov.Frame(ov.OverlayItem(2, "LOWER", "x")), plan[1].start + 0.2, 2.0, "main",
+                         0.4, 0.35, 2, png=tmp_path / "d.png", motion="slide_left", bbox=(10, 120, 120, 160))
+    chain = R(plan, [pop, slide]).scene_args(1, plan[1], Path("o.mp4"))
+    chain = chain[chain.index("-filter_complex") + 1]
+    assert ":eval=frame" in chain and "scale=w=" in chain and "pow(" in chain
+
+
+def test_typed_chain_renders_as_one_stream(tmp_path):
+    from capcut_draft_studio import render
+    plan = _plan(3, dur=4.0)
+    items, _ = ov.parse_overlay_rows([["2", "QUOTE", "One two three four five six", "R"]])
+    pls = ov.schedule(items, plan, ov.OverlayStyle(), lambda m: None)
+    ov.write_pngs(pls, tmp_path / "png", 320, 180, ov.OverlayStyle())
+
+    class R:
+        scene_overlays = render.Renderer.scene_overlays
+        _overlay_filters = render.Renderer._overlay_filters
+        _crop = render.Renderer._crop
+
+        def __init__(self):
+            self._ovl, self.fps, self.w, self.h = pls, 30, 320, 180
+
+    r = R()
+    ents = r.scene_overlays(1, plan[1], plan[1].slot_duration)
+    chains = [e for e in ents if "chain" in e]
+    assert len(chains) == 1 and len(chains[0]["chain"]) > 5
+    args, filt = r._overlay_filters(ents, plan[1].slot_duration, 1, tmp_path)
+    assert args.count("concat") == 1 and len(args) < 20       # một input cho cả chuỗi đánh máy
+    lst = Path(args[args.index("concat") + 4])
+    body = lst.read_text(encoding="utf-8")
+    assert body.startswith("ffconcat version 1.0") and body.count("duration") == len(chains[0]["chain"])
 
 
 def _ffmpeg():
@@ -488,7 +535,8 @@ def test_overlays_never_overlap_in_capcut_tracks(tmp_path, monkeypatch, seed):
 def test_typewriter_steps_are_exactly_contiguous():
     plan = _plan(3, dur=7.123)
     items, _ = ov.parse_overlay_rows([["2", "QUOTE", " ".join(f"w{i}" for i in range(37)), "R"]])
-    q = ov.schedule(items, plan, ov.OverlayStyle(), lambda m: None)
+    q = sorted([p for p in ov.schedule(items, plan, ov.OverlayStyle(), lambda m: None)
+                if p.frame.part == "text"], key=lambda p: p.start)
     spans = [ov.us_span(p.start, p.length) for p in q]
     for (_, e0), (s1, _) in zip(spans, spans[1:]):
         assert e0 == s1

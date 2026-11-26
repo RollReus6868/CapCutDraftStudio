@@ -82,6 +82,11 @@ def _plan(n=3, dur=6.0, gap=0.4):
 EARLY = ov.FADE_IN + ov.SHOW_BEFORE
 
 
+def early(kind: str) -> float:
+    """0.6.4: bắt đầu hiện sớm hơn tiếng = thời gian hiện rõ của kiểu chuyển động + SHOW_BEFORE."""
+    return ov._vis(kind) + ov.SHOW_BEFORE
+
+
 def _words(text, start=0.0, step=0.5):
     return [(w, start + k * step, start + (k + 1) * step)
             for k, w in enumerate(speech.norm_words(text))]
@@ -97,7 +102,7 @@ def test_schedule_follows_voice_and_falls_back():
     pls = ov.schedule(items, plan, ov.OverlayStyle(), logs.append, words=words)
     by = {p.frame.item.kind: p for p in pls}
     # "the" là từ thứ 5 (chỉ số 4) → 2.0 s sau đầu cảnh
-    assert by["TITLE"].start == pytest.approx(plan[1].start + 2.0 - EARLY)
+    assert by["TITLE"].start == pytest.approx(plan[1].start + 2.0 - early("TITLE"))
     assert by["LOWER"].start == pytest.approx(plan[1].start + ov.DELAY)   # không khớp
     assert by["STAMP"].start == pytest.approx(plan[1].start + 0.5)       # 'start' thắng
     assert any("khớp giọng đọc: 1/2" in m for m in logs)
@@ -110,14 +115,20 @@ def test_quote_reveals_word_by_word_with_voice():
     items, _ = ov.parse_overlay_rows([["1", "QUOTE", quote, "1 Enoch 38:4"]])
     pls = ov.schedule(items, plan, ov.OverlayStyle(), lambda m: None, words=words)
     first_word = plan[0].start + 3 * 0.4          # "they" là từ thứ 4
-    assert pls[0].frame.words == 0                 # hộp rỗng hiện trước
-    assert pls[0].start <= first_word - ov.TYPE_LEAD - ov.FADE_IN
-    for p in pls[1:]:
-        wc = p.frame.words or len(quote.split())
-        spoken = plan[0].start + (3 + wc - 1) * 0.4
-        assert p.start == pytest.approx(max(spoken - ov.TYPE_LEAD, p.start), abs=0.05)
-        assert p.start <= spoken
-    for a, b in zip(pls, pls[1:]):
+    box = next(p for p in pls if p.frame.part == "box")
+    text = sorted([p for p in pls if p.frame.part == "text"], key=lambda p: p.start)
+    assert box.start <= first_word - ov.TYPE_LEAD - ov.FADE_IN   # hộp rỗng hiện trước
+    toks = quote.split()
+    offs = [len(" ".join(toks[:i])) + (1 if i else 0) for i in range(len(toks))]
+    for p in text:
+        c = p.frame.chars if p.frame.chars is not None else len(quote)
+        if c == 0:
+            continue
+        wi = max(i for i, o in enumerate(offs) if o < c)        # từ chứa ký tự cuối đã hiện
+        spoken = plan[0].start + (3 + wi) * 0.4
+        assert p.start <= spoken + 0.4 + 1e-6                  # gõ trong lúc từ đó được đọc
+        assert p.start >= spoken - ov.TYPE_LEAD - 1e-6
+    for a, b in zip(text, text[1:]):
         assert ov.us_span(a.start, a.length)[1] == ov.us_span(b.start, b.length)[0]
 
 
@@ -129,9 +140,10 @@ def test_list_items_follow_voice_across_scenes():
                                       ["1", "LIST", "One on the face", "", "Marks", "3"],
                                       ["2", "LIST", "One on the forehead", "", "Marks", ""]])
     li = ov.schedule(items, plan, ov.OverlayStyle(), lambda m: None, words=words)
-    assert li[0].start == pytest.approx(plan[0].start + 4 * 0.5 - EARLY)
-    assert li[1].start == pytest.approx(plan[1].start + 3 * 0.5 - EARLY)
-    assert li[-1].end == pytest.approx(plan[2].end - ov.TAIL)
+    rows = sorted([p for p in li if p.frame.part == "row"], key=lambda p: p.frame.index)
+    assert rows[0].start == pytest.approx(plan[0].start + 4 * 0.5 - early("LIST") + 0.15)
+    assert rows[1].start == pytest.approx(plan[1].start + 3 * 0.5 - early("LIST"))
+    assert all(p.end == pytest.approx(plan[2].end - ov.TAIL) for p in li)
 
 
 def test_settings_key():
@@ -186,7 +198,7 @@ def test_draft_overlay_starts_when_sentence_is_spoken(tmp_path, monkeypatch):
                    .read_text(encoding="utf-8"))
     st = _segs({t["name"]: t for t in d["tracks"]}["chu_main"])[0][0]
     # "Then" bắt đầu câu 2 ở 2.9 s; chữ bắt đầu hiện sớm hơn EARLY (ước lượng: ±0,15 s)
-    assert 2.9 - EARLY - 0.2 <= st <= 2.9 - ov.FADE_IN + 0.15, st
+    assert 2.9 - early("TITLE") - 0.2 <= st <= 2.9 - ov._vis("TITLE") + 0.15, st
     assert any("khớp giọng đọc: 1/1" in m for m in logs)
     # tắt khớp giọng → về kiểu cũ (đầu cảnh + DELAY)
     s.overlay_sync = False

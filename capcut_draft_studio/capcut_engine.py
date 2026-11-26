@@ -2,7 +2,7 @@ from __future__ import annotations
 import json, math, os, random, shutil, time
 from dataclasses import replace
 from pathlib import Path
-from . import animations, inserts, overlays
+from . import animations, inserts, motion, overlays
 from .models import Settings, Assets, ScenePlan, LogFn
 from .media import BuildError, media_duration_sec, natural_key, _check, _noop_progress
 from .subtitles import build_srt
@@ -214,7 +214,24 @@ def ad_timemap(s: Settings, plan: list[ScenePlan]) -> tuple[inserts.TimeMap, Pat
 #: đầu đoạn sau cho khít, nhiều hơn thì đặt sang track khác.
 OVERLAY_TRIM_US=40_000
 
-def add_overlays(script, cc, pls, tmap, log: LogFn=print) -> int:
+#: thuộc tính keyframe của motion.keyframes → pycapcut
+_KF_PROPS={"alpha":"alpha","x":"position_x","y":"position_y","scale":"uniform_scale"}
+
+def add_motion_keyframes(seg, cc, pl, piece, size, first: bool, last: bool) -> int:
+    """Keyframe hiện/tắt mượt (motion.py) cho một mẩu ảnh đồ họa. Trả về số keyframe."""
+    w,h=size
+    m,fi,fo=overlays.placement_motion(pl,w,h)
+    anchor=pl.anchor or (w/2.0,h/2.0)
+    kfs=motion.keyframes(m,pl.length,(w,h),anchor,piece=piece,fade_in=fi and first,
+                         fade_out=fo and last)
+    n=0
+    for key,pts in kfs.items():
+        prop=getattr(cc.KeyframeProperty,_KF_PROPS[key])
+        for t,v in pts:
+            seg.add_keyframe(prop,overlays.us(t),v); n+=1
+    return n
+
+def add_overlays(script, cc, pls, tmap, log: LogFn=print, size: tuple[int,int]=(1920,1080)) -> int:
     """Đặt các ảnh đồ họa chữ lên track chu_* — KHÔNG BAO GIỜ ném SegmentOverlap.
 
     * thời gian tính bằng micro giây nguyên, làm tròn từng đầu mút (overlays.us_span),
@@ -233,7 +250,8 @@ def add_overlays(script, cc, pls, tmap, log: LogFn=print) -> int:
         name=f"chu_{layer}"+(f"_{idx+1}" if idx else "")
         if name not in used:
             script.add_track(cc.TrackType.video,name,
-                             relative_index=OVERLAY_LAYER+overlays.LAYERS.index(layer)+3*idx)
+                             relative_index=OVERLAY_LAYER+overlays.LAYERS.index(layer)
+                             +len(overlays.LAYERS)*idx)
             used[name]=[]
         return name
 
@@ -254,12 +272,8 @@ def add_overlays(script, cc, pls, tmap, log: LogFn=print) -> int:
                         f"→ đặt sang track {name}")
             seg=cc.VideoSegment(str(pl.png),cc.trange(s0,e0-s0))
             ln=(e0-s0)/1e6
-            try:
-                if pl.fade_in and k==0:
-                    seg.add_animation(cc.IntroType.渐显,overlays.us(min(pl.fade_in,ln/2)))
-                if pl.fade_out and k==len(pieces)-1:
-                    seg.add_animation(cc.OutroType.渐隐,overlays.us(min(pl.fade_out,ln/2)))
-            except Exception as e:log(f"[WARN] Hiệu ứng hiện chữ cảnh {pl.scene}: {e}")
+            try:add_motion_keyframes(seg,cc,pl,(pc.src,ln),size,k==0,k==len(pieces)-1)
+            except Exception as e:log(f"[WARN] Chuyển động đồ họa chữ cảnh {pl.scene}: {e}")
             script.add_segment(seg,name)
             used[name].append((s0,e0)); n+=1
     return n
@@ -414,7 +428,7 @@ def build(s: Settings, a: Assets, plan: list[ScenePlan], log: LogFn=print, srt_o
     # trục NỘI DUNG (cplan) rồi cắt quanh quảng cáo như mọi lớp phủ khác.
     ov_dir=Path(srt_out_dir or (s.input_dir/"_capcut_draft_studio"))/"overlays"
     pls=overlays.prepare(s,cplan,ov_dir,log,cancel)
-    if pls:add_overlays(script,cc,pls,tmap,log)
+    if pls:add_overlays(script,cc,pls,tmap,log,size=(int(s.width),int(s.height)))
     # BGM: first intro track then round-robin background with crossfades.
     # Tính trên trục NỘI DUNG; put_audio tự cắt quanh quảng cáo.
     if s.enable_bgm and a.bgm_files:

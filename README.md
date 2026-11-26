@@ -80,6 +80,25 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
 
 ---
 
+## Mới ở 0.6.4
+
+- **Chữ đồ họa to hơn 30 %** ở mọi kiểu (ô "Cỡ chữ" trong Cài đặt vẫn nhân thêm như cũ).
+- **Chuyển động mượt bằng keyframe**: mỗi đồ họa hiện/tắt theo đường cong chậm dần —
+  nhãn trượt vào từ cạnh, thẻ chương nhô lên, hộp trích dẫn và giấy cổ phóng nhẹ, câu
+  chốt lắng xuống rồi phóng rất chậm, dấu mộc đóng xuống có nảy. Draft CapCut dùng
+  keyframe thật (độ mờ, vị trí, tỉ lệ — mở ra chỉnh tay được), mp4 dùng đúng công thức đó.
+- **Trích dẫn đánh máy từng ký tự** (không còn hiện từng cụm), có con trỏ nhấp sau chữ
+  vừa gõ; khớp giọng đọc thì mỗi từ được gõ đúng lúc giọng nói tới nó. Hộp hiện trước,
+  chữ gõ sau, tham chiếu hiện lên khi gõ xong.
+- **9 kiểu đồ họa mới**: `PLACE` (mốc nơi chốn + năm, chữ máy đánh), `TERM` (thẻ từ gốc
+  Hebrew/Hy Lạp — `Nephilim | נְפִילִים`), `VS` (so sánh hai cột), `TIMELINE` (dòng thời
+  gian, vạch chạy), `KEYWORD` (từ khóa rất lớn, gạch chân chạy ra), `SOURCE` (chú thích
+  nguồn), `NOTE` (tờ giấy cổ, chữ mực hiện dần), `CINEMA` (khung điện ảnh 2,39:1) và
+  `SUBSCRIBE` (nút đăng ký). `*Chữ giữa hai dấu sao*` được tô màu nhấn.
+- Danh sách `LIST`: mỗi mục là một dòng riêng trượt vào đúng lúc được nhắc.
+- Lưu ý: `PLACE`/`DATE` trước đây là tên khác của `NAME`, `TERM` là tên khác của `LOWER`;
+  nay chúng là kiểu riêng.
+
 ## Mới ở 0.6.3
 
 - **Đồ họa chữ khớp giọng theo MỐC THẬT của từng từ.** 0.6.2 chỉ ước lượng lúc từng
