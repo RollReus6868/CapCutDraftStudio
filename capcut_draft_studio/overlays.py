@@ -352,6 +352,7 @@ class Placement:
     group: str = ""                 # chuỗi ảnh nối nhau (đánh máy, vạch chạy) — render gộp làm một
     stacked: bool = False           # cố ý chồng giờ với phần khác của cùng đồ họa
     bbox: tuple[int, int, int, int] | None = None   # vùng có hình (sau khi vẽ PNG)
+    clip: Path | None = None        # 0.7.0: clip Remotion (ProRes 4444 có alpha) thay cho PNG
 
     @property
     def end(self) -> float:
@@ -822,6 +823,8 @@ def write_pngs(pls: list[Placement], out_dir: Path, w: int, h: int, st: OverlayS
             pass
     cache: dict[str, tuple[Path, tuple[int, int, int, int] | None]] = {}
     for p in pls:
+        if p.clip is not None:          # đồ họa Remotion: đã có clip, không vẽ PNG
+            continue
         if cancel and cancel():
             from .media import Cancelled
             raise Cancelled()
@@ -837,9 +840,72 @@ def write_pngs(pls: list[Placement], out_dir: Path, w: int, h: int, st: OverlayS
     return len(cache)
 
 
+def remotion_kinds(s) -> tuple[str, ...]:
+    """Loại đồ họa vẽ bằng Remotion (0.7.0) — rỗng khi tắt."""
+    if not getattr(s, "enable_remotion", False):
+        return ()
+    from .remotion import KINDS
+    return KINDS
+
+
+def use_remotion(s, pls: list[Placement], st: OverlayStyle, size: tuple[int, int], fps: int,
+                 log: LogFn = print, cancel=None, base: Path | None = None) -> list[Placement]:
+    """0.7.0: mỗi đồ họa loại Remotion (mọi phần + chuỗi ảnh của nó) gộp thành MỘT
+    clip chuyển động cùng giờ bắt đầu / kết thúc. Clip nào không vẽ được thì giữ
+    nguyên các ảnh Pillow của mục đó — không bao giờ làm hỏng việc dựng."""
+    kinds = remotion_kinds(s)
+    if not kinds:
+        return pls
+    from . import remotion as rm
+    groups: dict[int, list[Placement]] = {}
+    for p in pls:
+        if p.frame.item.kind in kinds:
+            groups.setdefault(id(p.frame.item), []).append(p)
+    if not groups:
+        return pls
+    cache = Path(s.input_dir) / "_capcut_draft_studio" / rm.CACHE_DIR
+    src_hash = rm.source_hash()
+    jobs: dict[int, rm.Job] = {}
+    spans: dict[int, tuple[float, float]] = {}
+    for key, parts in groups.items():
+        it = parts[0].frame.item
+        t0 = min(p.start for p in parts)
+        t1 = max(p.end for p in parts)
+        props = rm.make_props(it, st, size, fps, t1 - t0)
+        jobs[key] = rm.Job(it.kind, it.scene, props, cache / rm.clip_name(it.kind, props, src_hash))
+        spans[key] = (t0, t1)
+    ok = rm.render_jobs(list(jobs.values()), base, log, cancel)
+    out: list[Placement] = []
+    swapped: set[int] = set()
+    for p in pls:
+        key = id(p.frame.item)
+        if key not in jobs:
+            out.append(p)
+            continue
+        if not ok.get(jobs[key].out):
+            out.append(p)               # quay về bản Pillow
+            continue
+        if key in swapped:
+            continue
+        swapped.add(key)
+        t0, t1 = spans[key]
+        it = p.frame.item
+        out.append(Placement(Frame(it), t0, t1 - t0, LAYER_OF.get(it.kind, "main"), 0.0, 0.0,
+                             it.scene, motion="none", clip=jobs[key].out))
+    if swapped:
+        log(f"[BUILD] Đồ họa chữ: {len(swapped)} mục ({', '.join(kinds)}) dùng clip Remotion")
+        try:
+            rm.prune_cache(cache, {j.out.resolve() for j in jobs.values()})
+        except OSError:
+            pass
+    _assign_tracks(out, lambda m: None)     # chồng giờ đã được báo lúc lập lịch
+    out.sort(key=lambda p: (LAYERS.index(p.layer), p.track, p.start))
+    return out
+
+
 def prepare(s, plan: list[ScenePlan], out_dir: Path, log: LogFn = print,
             cancel=None, size: tuple[int, int] | None = None,
-            report_dir: Path | None = None) -> list[Placement]:
+            report_dir: Path | None = None, fps: int | None = None) -> list[Placement]:
     """Đọc file overlay của project, lập lịch theo `plan` và vẽ PNG.
     Không bật / không có file → []. Lỗi trong file → BuildError.
 
@@ -869,6 +935,11 @@ def prepare(s, plan: list[ScenePlan], out_dir: Path, log: LogFn = print,
     if words is not None and rows:
         write_report(rows, Path(report_dir or Path(out_dir).parent) / REPORT_NAME, log)
     w, h = size or (int(s.width), int(s.height))
+    if remotion_kinds(s):
+        if fps is None:
+            from .render import target_fps
+            fps = target_fps(s)
+        pls = use_remotion(s, pls, st, (w, h), int(fps), log, cancel)
     n = write_pngs(pls, out_dir, w, h, st, log, cancel)
     log(f"[BUILD] Đồ họa chữ: {len(items)} mục từ {path.name} → {n} ảnh, {len(pls)} đoạn")
     return pls

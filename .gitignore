@@ -59,3 +59,6 @@ Claude outputs/
 # Hệ điều hành
 .DS_Store
 Thumbs.db
+
+# Remotion: gói npm cài vào thư mục dữ liệu của tool, không commit
+assets/remotion-engine/node_modules/

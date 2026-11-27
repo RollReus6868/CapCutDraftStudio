@@ -535,7 +535,7 @@ class Renderer:
             a = pl.start - p.start
             b = pl.end - p.start
             a2, b2 = max(0.0, a), min(length, b)
-            if b2 - a2 < 0.004 or pl.png is None:
+            if b2 - a2 < 0.004 or (pl.png is None and pl.clip is None):
                 continue
             ent = {"pl": pl, "a": a, "b": b, "a2": a2, "b2": b2}
             if pl.group:
@@ -598,6 +598,17 @@ class Renderer:
                              f":enable='between(t,{ent['a2']:.4f},{ent['b2']:.4f})'[b{j}]")
                 continue
             pl, a, b = ent["pl"], ent["a"], ent["b"]
+            if pl.clip is not None:
+                # 0.7.0: clip Remotion (ProRes 4444 có alpha, chuyển động có sẵn). Bắt đầu ở
+                # cảnh trước (a < 0) thì nhảy vào giữa clip; đặt mốc 0 của clip tại a2.
+                skip = max(0.0, -a)
+                args += (["-ss", f"{skip:.4f}"] if skip > 0 else []) + ["-i", str(pl.clip)]
+                f = (f"[{n}:v]format=rgba,setpts=PTS-STARTPTS+{ent['a2']:.4f}/TB,fps={fps},"
+                     f"scale={self.w}:{self.h}")
+                chain.append(f"{f}[o{j}]")
+                chain.append(f"[b{j - 1}][o{j}]overlay=0:0:eof_action=pass"
+                             f":enable='between(t,{ent['a2']:.4f},{ent['b2']:.4f})'[b{j}]")
+                continue
             args += ["-framerate", str(fps), "-i", str(pl.png)]
             m, fi, fo = overlays.placement_motion(pl, self.w, self.h)
             fi = fi and a >= -1e-6
@@ -1073,7 +1084,8 @@ class Renderer:
             from . import overlays
             self._ovl = overlays.prepare(self.s, job.plan, self.work / "overlays", self.log,
                                          self._cancel, size=(self.w, self.h),
-                                         report_dir=Path(self.s.input_dir) / "_capcut_draft_studio")
+                                         report_dir=Path(self.s.input_dir) / "_capcut_draft_studio",
+                                         fps=self.fps)
             segs = self._render_scenes()
             video = self._concat(segs)
             tracks = [t for t in (self._build_voice(), self._build_source_audio(),

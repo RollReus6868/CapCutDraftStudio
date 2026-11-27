@@ -808,6 +808,7 @@ class LogView(ttk.Frame):
         "BUILD": "info", "SCAN": "info", "VALIDATE": "info",
         "SUB": "info", "PLAN": "info", "HARVEST": "info",
         "RENDER": "info", "EXPORT": "info", "UPDATE": "info", "QUEUE": "info",
+        "REMOTION": "info",
     }
 
     def __init__(self, parent, theme: Theme, height: int = 14, title: str = "Nhật ký", **kw):

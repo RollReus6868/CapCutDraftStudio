@@ -270,10 +270,17 @@ def add_overlays(script, cc, pls, tmap, log: LogFn=print, size: tuple[int,int]=(
                     moved.add(pl.scene)
                     log(f"[WARN] Đồ họa chữ cảnh {pl.scene} chồng giờ với đồ họa khác "
                         f"→ đặt sang track {name}")
-            seg=cc.VideoSegment(str(pl.png),cc.trange(s0,e0-s0))
-            ln=(e0-s0)/1e6
-            try:add_motion_keyframes(seg,cc,pl,(pc.src,ln),size,k==0,k==len(pieces)-1)
-            except Exception as e:log(f"[WARN] Chuyển động đồ họa chữ cảnh {pl.scene}: {e}")
+            if pl.clip is not None:
+                # 0.7.0: clip Remotion — chuyển động nằm sẵn trong clip; mẩu sau quảng cáo
+                # đọc clip từ chỗ mẩu trước dừng (pc.src). Clip không có tiếng.
+                src_us=overlays.us(max(0.0,pc.src))
+                seg=cc.VideoSegment(str(pl.clip),cc.trange(s0,e0-s0),
+                                    source_timerange=cc.trange(src_us,e0-s0),volume=0.0)
+            else:
+                seg=cc.VideoSegment(str(pl.png),cc.trange(s0,e0-s0))
+                ln=(e0-s0)/1e6
+                try:add_motion_keyframes(seg,cc,pl,(pc.src,ln),size,k==0,k==len(pieces)-1)
+                except Exception as e:log(f"[WARN] Chuyển động đồ họa chữ cảnh {pl.scene}: {e}")
             script.add_segment(seg,name)
             used[name].append((s0,e0)); n+=1
     return n

@@ -140,6 +140,8 @@ class Settings:
     overlay_typewriter: bool = True
     #: 0.6.2: chữ hiện đúng lúc giọng đọc nói tới (False = luôn hiện ở đầu cảnh)
     overlay_sync: bool = True
+    #: 0.7.0: vẽ TERM, TIMELINE bằng Remotion (clip chuyển động); cần cài Node.js + Remotion
+    enable_remotion: bool = False
 
     def intro_file(self) -> Path | None:
         p = self.intro_path

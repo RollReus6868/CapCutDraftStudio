@@ -791,6 +791,83 @@ def build_overlay_card(app, host, th, row: int):
                command=lambda: _overlay_template(app)).pack(side="left", padx=(0, 8))
     ttk.Button(btns, text="Xem thử đồ họa", style="Secondary.TButton",
                command=lambda: _overlay_preview(app)).pack(side="left")
+    build_remotion_block(app, card, row=5)
+
+
+def build_remotion_block(app, card, row: int):
+    """0.7.0: TERM, TIMELINE vẽ bằng Remotion — clip chuyển động có nền trong suốt."""
+    box = ttk.Frame(card, style="Surface.TFrame")
+    box.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(18, 0))
+    box.columnconfigure(0, weight=1)
+    ttk.Checkbutton(box, text="Vẽ thẻ từ gốc (TERM) và dòng thời gian (TIMELINE) bằng Remotion",
+                    variable=app.boolvars["enable_remotion"]).grid(row=0, column=0, sticky="w")
+    ttk.Label(box, style="Hint.TLabel", wraplength=900, justify="left",
+              text="Chuyển động mượt hơn, chữ Hebrew / Hy Lạp chuẩn. Mỗi đồ họa vẽ thành một clip "
+                   "nền trong suốt (khoảng 25 giây / đồ họa, lần sau dùng lại nếu không đổi). Cần "
+                   "Node.js 18+ và bấm 'Cài Remotion' một lần. Chưa cài hoặc vẽ hỏng thì tool tự "
+                   "dùng bản vẽ thường. Remotion miễn phí cho cá nhân và nhóm tới 3 người."
+              ).grid(row=1, column=0, sticky="w", pady=(4, 8))
+    app.remotion_status = tk.StringVar(value="Đang kiểm tra Remotion…")
+    line = ttk.Frame(box, style="Surface.TFrame")
+    line.grid(row=2, column=0, sticky="w")
+    app.remotion_install_btn = ttk.Button(line, text="Cài Remotion", style="Secondary.TButton",
+                                          command=lambda: _remotion_install(app))
+    app.remotion_install_btn.pack(side="left", padx=(0, 8))
+    ttk.Button(line, text="Kiểm tra", style="Ghost.TButton",
+               command=lambda: _remotion_check(app)).pack(side="left", padx=(0, 14))
+    ttk.Label(line, textvariable=app.remotion_status, style="Surface.TLabel").pack(side="left")
+    _remotion_check(app, quiet=True)
+
+
+def _remotion_check(app, quiet: bool = False):
+    """Kiểm tra trong luồng phụ (chạy node --version) rồi báo về giao diện."""
+    import threading
+    from .. import remotion
+
+    def work():
+        try:
+            st = remotion.status()
+            text = st.text()
+        except Exception as e:          # không để lỗi kiểm tra làm hỏng giao diện
+            text = f"Không kiểm tra được: {e}"
+            st = None
+        app.q.put(("remotion", text))
+        if not quiet:
+            app.q.put(("log", (f"[OK] Remotion: {text}" if st and st.ready
+                               else f"[WARN] Remotion: {text}")))
+    threading.Thread(target=work, daemon=True).start()
+
+
+def _remotion_install(app):
+    import threading
+    from .. import remotion
+    if getattr(app, "_remotion_busy", False):
+        return
+    if not remotion.find_node():
+        if messagebox.askyesno(
+                "Cần Node.js",
+                "Remotion chạy bằng Node.js nhưng máy chưa có (hoặc bản cũ hơn 18).\n\n"
+                "Mở trang nodejs.org để tải bản LTS? Cài xong hãy mở lại tool rồi bấm "
+                "'Cài Remotion' lần nữa."):
+            import webbrowser
+            webbrowser.open("https://nodejs.org/en/download")
+        app.remotion_status.set("Chưa có Node.js 18+")
+        return
+    app._remotion_busy = True
+    app.remotion_install_btn.state(["disabled"])
+    app.remotion_status.set("Đang cài… (xem nhật ký)")
+    put = app.q.put
+
+    def work():
+        try:
+            st = remotion.install(log=lambda m: put(("log", m)))
+            put(("remotion", st.text()))
+        except Exception as e:
+            put(("log", f"[FAIL] Cài Remotion: {e}"))
+            put(("remotion", "Cài chưa xong — xem nhật ký"))
+        finally:
+            put(("remotion_done", None))
+    threading.Thread(target=work, daemon=True).start()
 
 
 def _overlay_template(app):
@@ -1599,6 +1676,17 @@ Bấm "Tạo file mẫu" để có sẵn file Excel kèm hướng dẫn, "Xem th
 chu_frame / chu_list / chu_main / chu_text / chu_stamp) lẫn file mp4.
 Mỗi đồ họa hiện/tắt bằng keyframe có gia tốc (trượt, phóng nhẹ, nảy…) —
 mở draft trong CapCut là thấy các điểm keyframe, chỉnh tay được.
+
+Remotion (0.7.0, tuỳ chọn): tích "Vẽ thẻ từ gốc (TERM) và dòng thời gian
+(TIMELINE) bằng Remotion" thì hai loại này thành clip chuyển động nền
+trong suốt (.mov ProRes 4444) — chuyển động mượt hơn, chữ Hebrew / Hy Lạp
+chuẩn. Lần đầu: cài Node.js bản LTS (nodejs.org), mở lại tool, bấm "Cài
+Remotion" (tải khoảng 300 MB, vài phút). Mỗi đồ họa mất khoảng 25 giây
+để vẽ; clip được giữ trong _capcut_draft_studio/remotion/ nên dựng lại
+không phải vẽ lại cái không đổi. Chưa cài, hoặc clip nào vẽ hỏng, thì tool
+tự dùng bản vẽ thường — nhật ký ghi [WARN]. Trong CapCut clip nằm trên
+track chu_main như các đồ họa khác. Remotion miễn phí cho cá nhân và
+nhóm tới 3 người (kể cả kiếm tiền); 4 người trở lên cần mua giấy phép.
 
 
 RENDER VIDEO  (trang Render video)

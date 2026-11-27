@@ -1,3 +1,3 @@
 """CapCut Draft Studio — tạo draft CapCut tự động từ thư mục asset đánh số."""
 
-__version__ = "0.6.4"
+__version__ = "0.7.0"

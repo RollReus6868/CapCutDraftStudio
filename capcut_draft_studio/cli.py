@@ -6,6 +6,9 @@ hoặc dựng hàng loạt bằng script.
     python -m capcut_draft_studio.cli render --input D:/Video/Tap12 --name Tap12
     python -m capcut_draft_studio.cli overlay-template --input D:/Video/Tap12
     python -m capcut_draft_studio.cli overlay-preview  --input D:/Video/Tap12
+    python -m capcut_draft_studio.cli remotion-status
+    python -m capcut_draft_studio.cli remotion-install
+    python -m capcut_draft_studio.cli build --input D:/Video/Tap12 --remotion
 
 Mặc định lấy ĐÚNG cấu hình đang lưu của giao diện (tool-config.json trong thư
 mục dữ liệu của app: folder KÊNH, folder CapCut Drafts, âm lượng, phụ đề, đồ họa
@@ -60,6 +63,10 @@ def load_values(args) -> dict:
                   "name": "draft_name"}[key]] = str(val)
     if getattr(args, "overlay", None):
         data["overlay_file"] = str(args.overlay)
+    if getattr(args, "remotion", False):
+        data["enable_remotion"] = True
+    if getattr(args, "no_remotion", False):
+        data["enable_remotion"] = False
     for flag in ("no_overlays", "no_subtitles"):
         if getattr(args, flag, False):
             data["enable_overlays" if flag == "no_overlays" else "enable_subtitles"] = False
@@ -162,6 +169,24 @@ def cmd_overlay_preview(args) -> int:
     return 0
 
 
+def cmd_remotion_status(args) -> int:
+    from . import remotion
+    st = remotion.status()
+    _log(f"[OK] Remotion: {st.text()}" if st.ready else f"[WARN] Remotion: {st.text()}")
+    _log(f"[OK] Thư mục cài: {st.home}")
+    return 0 if st.ready else 1
+
+
+def cmd_remotion_install(args) -> int:
+    from . import remotion
+    try:
+        st = remotion.install(log=_log)
+    except RuntimeError as e:
+        _log(f"[FAIL] {e}")
+        return 1
+    return 0 if st.ready else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="capcut_draft_studio.cli",
                                  description="CapCut Draft Studio — chạy không cần giao diện")
@@ -177,15 +202,22 @@ def main(argv=None) -> int:
         p.add_argument("--no-overlays", action="store_true", help="Tắt đồ họa chữ")
         p.add_argument("--no-subtitles", action="store_true", help="Tắt phụ đề")
         p.add_argument("--out", help="File/ảnh đầu ra (render, overlay-preview)")
+        p.add_argument("--remotion", action="store_true",
+                       help="Vẽ TERM, TIMELINE bằng Remotion (cần cài trước)")
+        p.add_argument("--no-remotion", action="store_true", help="Không dùng Remotion")
 
     for name in ("check", "build", "render", "overlay-preview"):
         common(sub.add_parser(name))
     t = sub.add_parser("overlay-template")
     t.add_argument("--input", required=True)
+    sub.add_parser("remotion-status", help="Remotion đã sẵn sàng chưa")
+    sub.add_parser("remotion-install", help="Cài Remotion (cần Node.js 18+)")
     args = ap.parse_args(argv)
     fn = {"check": cmd_check, "build": cmd_build, "render": cmd_render,
           "overlay-template": cmd_overlay_template,
-          "overlay-preview": cmd_overlay_preview}[args.cmd]
+          "overlay-preview": cmd_overlay_preview,
+          "remotion-status": cmd_remotion_status,
+          "remotion-install": cmd_remotion_install}[args.cmd]
     from .media import BuildError
     try:
         return fn(args)

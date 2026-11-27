@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.6.2
+# CapCut Draft Studio 0.7.0
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,29 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.7.0
+
+- **Đồ họa chuyển động bằng Remotion** (tuỳ chọn, Cài đặt → Phụ đề → Đồ họa chữ): thẻ từ
+  gốc `TERM` và dòng thời gian `TIMELINE` được vẽ thành clip chuyển động nền trong suốt
+  (`.mov` ProRes 4444 — CapCut nhận nền trong suốt của định dạng này). Thẻ trượt vào, chữ
+  gốc quét hiện (Hebrew quét từ phải sang), ánh sáng chạy qua chữ, gạch nhấn chạy ra; dòng
+  thời gian có vạch chạy, mốc bật ra khi vạch tới, mốc đang nói sáng nhịp. Chữ Hebrew có
+  dấu và chữ Hy Lạp vẽ bằng trình duyệt nên đúng chuẩn (bản vẽ thường chưa có chữ Hy Lạp).
+- Áp cho cả draft CapCut (clip nằm trên track `chu_main`, bị quảng cáo cắt đôi thì đọc tiếp
+  đúng chỗ) lẫn file mp4. Giờ hiện / tắt giữ nguyên như bản vẽ thường (khớp giọng đọc).
+- **Cài một lần**: cài Node.js bản LTS (nodejs.org), mở lại tool, bấm **Cài Remotion**
+  (tải khoảng 300 MB vào thư mục dữ liệu của tool). Tool tự tải Chrome Headless Shell cho
+  Remotion; không tải được thì dùng Chrome hoặc Edge có sẵn trên máy.
+- **Chậm hơn bản vẽ thường**: khoảng 25 giây cho mỗi đồ họa trên máy 2 nhân. Clip được giữ
+  trong `_capcut_draft_studio/remotion/` của folder VIDEO, dựng lại hoặc render lại không
+  phải vẽ lại clip không đổi (clip 21 ngày không dùng thì tự dọn).
+- **Không bao giờ làm hỏng việc dựng**: chưa cài, thiếu Node, hay một clip vẽ hỏng thì mục
+  đó tự dùng bản vẽ thường, nhật ký ghi `[WARN]`. Tắt ô Remotion thì draft và mp4 y hệt 0.6.4.
+- Dòng lệnh: `remotion-status`, `remotion-install`, và `--remotion` / `--no-remotion` cho
+  `build`, `render`.
+- Giấy phép Remotion: miễn phí cho cá nhân và nhóm tới 3 người (kể cả kiếm tiền); từ 4 người
+  trở lên cần mua Company License (remotion.dev/license).
 
 ## Mới ở 0.6.4
 

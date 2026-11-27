@@ -26,7 +26,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.6.4"
+APP_VERSION = "0.7.0"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -203,6 +203,7 @@ OTHER_BOOLS = {
     "enable_overlays": True,
     "overlay_typewriter": True,
     "overlay_sync": True,
+    "enable_remotion": False,
 }
 
 PERSIST_KEYS = list(STR_DEFAULTS.keys())
@@ -736,7 +737,8 @@ class App:
                                                                 float, 0.8))),
                   overlay_scale=min(2.0, max(0.5, self._num(d, "overlay_scale", float, 1.0))),
                   overlay_typewriter=bool(d.get("overlay_typewriter", True)),
-                  overlay_sync=bool(d.get("overlay_sync", True)))
+                  overlay_sync=bool(d.get("overlay_sync", True)),
+                  enable_remotion=bool(d.get("enable_remotion", False)))
 
         return Settings(ip, ch, name, cap, SFX_LIBRARY, SUB_STYLES,
                         opt("logo_path"), opt("claim_path"), opt("bgm_dir"),
@@ -1085,6 +1087,14 @@ class App:
                 elif kind == "done":
                     ok = item[2] if len(item) > 2 else True
                     self.finish(payload, ok)
+                elif kind == "remotion":
+                    if hasattr(self, "remotion_status"):
+                        self.remotion_status.set(payload)
+                elif kind == "remotion_done":
+                    self._remotion_busy = False
+                    btn = getattr(self, "remotion_install_btn", None)
+                    if btn is not None:
+                        btn.state(["!disabled"])
                 elif kind == "update":
                     self._on_update(*payload)
                 elif kind == "dlprog":
