@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.7.2
+# CapCut Draft Studio 0.7.3
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -79,6 +79,23 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
    video** để lấy luôn file mp4.
 
 ---
+
+## Mới ở 0.7.3
+
+- **Đồ họa chữ không còn che nhau** (ô "Không để đồ họa che nhau", mặc định bật). Nguyên
+  nhân cũ: mỗi đồ họa ở lại tới hết cảnh, trong khi nhiều kiểu có chỗ cố định trùng nhau
+  (TERM bên phải đè hộp giữa của QUOTE / TITLE / NOTE / VS; dải CHAPTER, TIMELINE đè nhãn
+  dưới…). Nay đồ họa trước tắt mờ khi đồ họa sau hiện (đã hiện đủ lâu để đọc); quá sát nhau
+  thì chia đôi thời gian của cảnh và nén nhịp đánh máy cho câu trích dẫn vẫn gõ xong.
+- **Danh sách (LIST) trùng tên được tách riêng.** Trước đây hai danh sách cùng nhãn ở hai
+  chỗ (vd. "Tres lugares del texto" ở cảnh 14 và 377) bị gộp làm một và hiện liền gần 40
+  phút, đè lên trích dẫn, mốc nơi chốn.
+- **Danh sách tự ẩn khi lời đọc chuyển ý**: hiện khoảng 10 giây quanh mỗi lần một dòng được
+  nhắc, nhắc dòng sau thì hiện lại đủ các dòng. Đo trên một video 42 phút thật: số chỗ đồ
+  họa che nhau từ 63 về 0.
+- **Clip Remotion nhẹ hơn nhiều**: tự cắt bỏ phần trong suốt quanh đồ họa (clip TERM còn
+  khoảng 1/6 khung, giải mã nhẹ hơn khoảng 4 lần); nền tối của dòng thời gian là ảnh tĩnh
+  thay vì nằm trong clip (clip TIMELINE từ ~250 Mbps xuống ~26 Mbps). CapCut phát mượt hơn.
 
 ## Mới ở 0.7.2
 

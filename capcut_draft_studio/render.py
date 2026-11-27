@@ -603,10 +603,17 @@ class Renderer:
                 # cảnh trước (a < 0) thì nhảy vào giữa clip; đặt mốc 0 của clip tại a2.
                 skip = max(0.0, -a)
                 args += (["-ss", f"{skip:.4f}"] if skip > 0 else []) + ["-i", str(pl.clip)]
+                box = pl.clip_box
+                if box:                     # 0.7.3: clip đã cắt gọn — phủ đúng chỗ của nó
+                    k = self.w / float(box["W"])
+                    cw, ch = max(2, round(box["w"] * k)), max(2, round(box["h"] * k))
+                    ox, oy = round(box["x"] * k), round(box["y"] * k)
+                else:
+                    cw, ch, ox, oy = self.w, self.h, 0, 0
                 f = (f"[{n}:v]format=rgba,setpts=PTS-STARTPTS+{ent['a2']:.4f}/TB,fps={fps},"
-                     f"scale={self.w}:{self.h}")
+                     f"scale={cw}:{ch}")
                 chain.append(f"{f}[o{j}]")
-                chain.append(f"[b{j - 1}][o{j}]overlay=0:0:eof_action=pass"
+                chain.append(f"[b{j - 1}][o{j}]overlay={ox}:{oy}:eof_action=pass"
                              f":enable='between(t,{ent['a2']:.4f},{ent['b2']:.4f})'[b{j}]")
                 continue
             args += ["-framerate", str(fps), "-i", str(pl.png)]

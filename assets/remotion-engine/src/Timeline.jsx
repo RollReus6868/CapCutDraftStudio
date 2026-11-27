@@ -9,7 +9,7 @@ const out = Easing.out(Easing.cubic);
  * Dòng thời gian (TIMELINE) — cùng chỗ với bản Pillow (0,80 chiều cao, 0,70 khi có phụ đề):
  * nền tối mờ dần, vạch nhấn chạy từ trái, mỗi mốc bật ra khi vạch tới, mốc đang nói sáng nhịp.
  */
-export const Timeline = ({points = [], label = '', subsOn = false, lengthSec = 0, style = {}}) => {
+export const Timeline = ({points = [], label = '', subsOn = false, background = true, lengthSec = 0, style = {}}) => {
   useFonts();
   const frame = useCurrentFrame();
   const {fps, width: w, height: h, durationInFrames} = useVideoConfig();
@@ -39,18 +39,23 @@ export const Timeline = ({points = [], label = '', subsOn = false, lengthSec = 0
 
   return (
     <AbsoluteFill style={{opacity: fadeOut}}>
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top,
-          height: bottom - top,
-          opacity: bg,
-          background: `linear-gradient(to bottom, ${PANEL(0)}, ${PANEL(0.75)})`,
-        }}
-      />
-      {label ? (
+      {/* Nền tối mờ dần: CapCut Draft Studio tắt nó (background=false) và đặt bằng ảnh tĩnh —
+          một dải alpha chuyển dần trong ProRes nặng tới ~250 Mbps, làm CapCut phát giật. */}
+      {background ? (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top,
+            height: bottom - top,
+            opacity: bg,
+            background: `linear-gradient(to bottom, ${PANEL(0)}, ${PANEL(0.75)})`,
+          }}
+        />
+      ) : null}
+      {/* nhãn: khi nền là ảnh tĩnh thì ảnh đó đã có nhãn — không vẽ lần hai */}
+      {label && background ? (
         <div
           style={{
             position: 'absolute',

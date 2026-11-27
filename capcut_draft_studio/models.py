@@ -142,6 +142,8 @@ class Settings:
     overlay_sync: bool = True
     #: 0.7.0: vẽ TERM, TIMELINE bằng Remotion (clip chuyển động); cần cài Node.js + Remotion
     enable_remotion: bool = False
+    #: 0.7.3: hai đồ họa chồng vùng hình + thời gian → đồ họa trước tắt khi đồ họa sau hiện
+    overlay_avoid_overlap: bool = True
 
     def intro_file(self) -> Path | None:
         p = self.intro_path

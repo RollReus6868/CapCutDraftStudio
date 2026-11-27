@@ -231,6 +231,21 @@ def add_motion_keyframes(seg, cc, pl, piece, size, first: bool, last: bool) -> i
             seg.add_keyframe(prop,overlays.us(t),v); n+=1
     return n
 
+def clip_placement(cc, box, size):
+    """0.7.3: clip Remotion đã cắt gọn → đặt đúng chỗ, đúng cỡ điểm ảnh trên khung.
+
+    CapCut co giãn tư liệu cho VỪA khung (giữ tỉ lệ), nên cỡ thật = 1 / hệ số vừa khung;
+    vị trí tính theo nửa khung (như keyframe đồ họa chữ), y dương là lên."""
+    if not box:
+        return None
+    W,H=size
+    k=W/float(box["W"])                     # clip vẽ ở cỡ khác khung project (hiếm)
+    x,y,w,h=box["x"]*k,box["y"]*k,box["w"]*k,box["h"]*k
+    fit=min(W/w,H/h)
+    cx,cy=x+w/2.0,y+h/2.0
+    return cc.ClipSettings(transform_x=(cx-W/2.0)/(W/2.0),transform_y=(H/2.0-cy)/(H/2.0),
+                           scale_x=1.0/fit,scale_y=1.0/fit)
+
 def add_overlays(script, cc, pls, tmap, log: LogFn=print, size: tuple[int,int]=(1920,1080)) -> int:
     """Đặt các ảnh đồ họa chữ lên track chu_* — KHÔNG BAO GIỜ ném SegmentOverlap.
 
@@ -275,7 +290,8 @@ def add_overlays(script, cc, pls, tmap, log: LogFn=print, size: tuple[int,int]=(
                 # đọc clip từ chỗ mẩu trước dừng (pc.src). Clip không có tiếng.
                 src_us=overlays.us(max(0.0,pc.src))
                 seg=cc.VideoSegment(str(pl.clip),cc.trange(s0,e0-s0),
-                                    source_timerange=cc.trange(src_us,e0-s0),volume=0.0)
+                                    source_timerange=cc.trange(src_us,e0-s0),volume=0.0,
+                                    clip_settings=clip_placement(cc,pl.clip_box,size))
             else:
                 seg=cc.VideoSegment(str(pl.png),cc.trange(s0,e0-s0))
                 ln=(e0-s0)/1e6

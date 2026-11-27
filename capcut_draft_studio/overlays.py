@@ -353,6 +353,7 @@ class Placement:
     stacked: bool = False           # cố ý chồng giờ với phần khác của cùng đồ họa
     bbox: tuple[int, int, int, int] | None = None   # vùng có hình (sau khi vẽ PNG)
     clip: Path | None = None        # 0.7.0: clip Remotion (ProRes 4444 có alpha) thay cho PNG
+    clip_box: dict | None = None    # 0.7.3: clip đã cắt gọn — {x, y, w, h, W, H}; None = trọn khung
 
     @property
     def end(self) -> float:
@@ -542,9 +543,55 @@ def type_marks(times: list[float]) -> list[tuple[float, int]]:
     return marks_
 
 
+#: 0.7.3: danh sách hiện quanh lúc từng dòng được nhắc rồi tự ẩn (thay vì ở lại tới cảnh `until`)
+LIST_HOLD = 10.0     # giây hiện sau mỗi lần một dòng được nhắc
+LIST_JOIN = 4.0      # hai lần nhắc cách nhau ít hơn chừng này (sau khi ẩn) thì hiện liền
+
+
+def list_groups(lists: dict[str, list[OverlayItem]], order: list[str], nums: list[int]
+                ) -> list[list[OverlayItem]]:
+    """Tách các danh sách TRÙNG TÊN: một dòng nằm sau cảnh cuối của danh sách trước
+    (cảnh `until` hoặc dòng cuối) là danh sách mới. Trước 0.7.3 hai danh sách cùng nhãn
+    (vd. 'Tres lugares del texto' ở cảnh 14 và 377) bị gộp làm một và hiện liền 39 phút."""
+    pos = {n: i for i, n in enumerate(nums)}
+    out: list[list[OverlayItem]] = []
+    for key in order:
+        cur: list[OverlayItem] = []
+        end = -1
+        for it in sorted(lists[key], key=lambda x: (pos.get(x.scene, 0), x.row)):
+            p = pos.get(it.scene, 0)
+            if cur and p > end:
+                out.append(cur)
+                cur, end = [], -1
+            cur.append(it)
+            end = max(end, pos.get(it.until, p) if it.until else p)
+        if cur:
+            out.append(cur)
+    return out
+
+
+def list_windows(events: list[float], t_end: float, hold: float | None) -> list[tuple[float, float]]:
+    """Khoảng hiện của một danh sách: mỗi lần nhắc hiện `hold` giây, các lần gần nhau nối
+    liền. `hold` None = như trước 0.7.3 (hiện liền từ lần nhắc đầu tới cảnh `until`)."""
+    events = sorted(events)
+    if hold is None or not events:
+        return [(events[0], t_end)] if events else []
+    wins: list[list[float]] = []
+    for e in events:
+        end = min(t_end, max(e + hold, e + MIN_SHOW))
+        if wins and e <= wins[-1][1] + LIST_JOIN:
+            wins[-1][1] = max(wins[-1][1], end)
+        else:
+            wins.append([e, end])
+    if t_end - wins[-1][1] < LIST_JOIN:
+        wins[-1][1] = t_end
+    return [(a, b) for a, b in wins if b - a >= MIN_SHOW]
+
+
 def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
              log: LogFn = print, words: dict | None = None,
-             report: list | None = None) -> list[Placement]:
+             report: list | None = None, warn_overlap: bool = True,
+             list_hold: float | None = None) -> list[Placement]:
     """Đổi các dòng overlay thành danh sách ảnh + thời gian, theo `plan`
     (trục nội dung). Mục có cảnh không nằm trong plan bị bỏ qua.
 
@@ -708,9 +755,9 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
             fr = Frame(it, part="" if it.kind != "QUOTE" else "")
             out.append(_new(fr, t0, t1, layer, mname, it.scene))
 
-    # danh sách: nhãn hiện trước, mỗi mục trượt vào đúng lúc được nhắc và ở lại tới hết
-    for key in order:
-        group = sorted(lists[key], key=lambda x: (nums.index(x.scene), x.row))
+    # danh sách: nhãn hiện trước, mỗi mục trượt vào đúng lúc được nhắc; 0.7.3: danh sách trùng
+    # tên được tách riêng, và (list_hold) tự ẩn khi lời đọc chuyển ý, hiện lại khi nhắc dòng sau
+    for group in list_groups(lists, order, nums):
         label = next((g.label for g in group if g.label), "")
         entries = [g for g in group if g.text]
         end_it = max(group, key=lambda g: (g.until or g.scene))
@@ -725,14 +772,23 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
         if any(g.dur for g in group):
             t_end = min(t_end, max(t_first + g.dur for g in group if g.dur))
         t_end = max(t_end, t_first + MIN_SHOW)
-        if label:
-            out.append(_new(Frame(first, part="label", list_label=label), t_first, t_end, "list",
-                            "slide_left", first.scene))
-        for i, g in enumerate(entries, start=1):
+        row_t = []
+        for g in entries:
             ts, _, _ = window(g)
-            ts = min(max(ts, t_first + (0.15 if label else 0.0)), t_end - MIN_SHOW)
-            out.append(_new(Frame(g, part="row", index=i, list_label=label), ts, t_end, "list",
-                            "slide_left", g.scene, stacked=True))
+            row_t.append(min(max(ts, t_first + (0.15 if label else 0.0)), t_end - MIN_SHOW))
+        for ws, we in list_windows([t_first] + row_t, t_end, list_hold):
+            if label:
+                out.append(_new(Frame(first, part="label", list_label=label), ws, we, "list",
+                                "slide_left", first.scene))
+            k = 0
+            for i, (g, ts) in enumerate(zip(entries, row_t), start=1):
+                if ts >= we - 0.04:
+                    continue
+                if ts < ws:                       # dòng đã nhắc trước: hiện lại cùng danh sách
+                    k += 1
+                    ts = min(ws + (0.15 if label else 0.0) + 0.08 * (k - 1), we - MIN_SHOW)
+                out.append(_new(Frame(g, part="row", index=i, list_label=label), ts, we, "list",
+                                "slide_left", g.scene, stacked=True))
 
     if words is not None and synced[1]:
         log(f"[BUILD] Đồ họa chữ khớp giọng đọc: {synced[0]}/{synced[1]} mục hiện đúng lúc "
@@ -748,7 +804,8 @@ def schedule(items: list[OverlayItem], plan: list[ScenePlan], st: OverlayStyle,
                 log("[WARN] Đồ họa chữ: file giọng không có mốc từng từ nên thời điểm chỉ là ƯỚC LƯỢNG "
                     "(có thể lệch 0,3–1 s). Muốn khớp chính xác: tạo giọng bằng TTS Clone Studio 3.3+ "
                     "và bật '⏱ Ghi mốc thời gian từng từ vào MP3'")
-    _assign_tracks(out, log)
+    # 0.7.3: khi bật tránh che nhau, avoid_overlap() xử lý và báo — không cảnh báo hai lần
+    _assign_tracks(out, log if warn_overlap else (lambda m: None))
     out.sort(key=lambda p: (LAYERS.index(p.layer), p.track, p.start))
     return out
 
@@ -840,6 +897,152 @@ def write_pngs(pls: list[Placement], out_dir: Path, w: int, h: int, st: OverlayS
     return len(cache)
 
 
+# --------------------------------------------------------------------------- #
+# 0.7.3: tránh hai đồ họa che nhau
+# --------------------------------------------------------------------------- #
+#: mức alpha coi là "phần đặc" (chữ, hộp) — bỏ qua nền tối mờ dần (≤ 0,75 = 191)
+SOLID_ALPHA = 200
+#: hai đồ họa chỉ tính là che nhau khi chồng giờ hơn chừng này
+OVERLAP_MIN = 0.12
+#: đồ họa trước tắt mờ dần trong lúc đồ họa sau hiện lên
+HANDOFF = 0.15
+READ_MIN, READ_MAX, READ_PER_WORD = 1.5, 3.5, 0.35
+
+
+def _solid_box(fr: Frame, st: OverlayStyle) -> tuple[int, int, int, int] | None:
+    """Vùng có chữ / hộp (đã bỏ nền mờ) của cả đồ họa, trên khung 1920×1080."""
+    a = render_frame(fr, 1920, 1080, st).getchannel("A")
+    return a.point(lambda v: 255 if v > SOLID_ALPHA else 0).getbbox()
+
+
+def _read_time(it: OverlayItem) -> float:
+    n = len(plain(" ".join(x for x in (it.text, it.sub, it.label) if x)).split())
+    return max(READ_MIN, min(READ_MAX, READ_PER_WORD * n))
+
+
+def _cut(parts: list[Placement], at: float) -> list[Placement]:
+    """Đồ họa tắt (mờ dần) ở `at`: bỏ phần bắt đầu sau đó, rút ngắn phần đang hiện."""
+    keep = []
+    for p in parts:
+        if p.start >= at - 0.04:
+            continue
+        if p.end > at:
+            p.length = at - p.start
+            m = mo.get(p.motion)
+            p.fade_out = (m.dout if p.motion != "none" and m.dout else
+                          min(FADE_OUT, max(0.04, p.length * 0.6)))
+        keep.append(p)
+    return keep
+
+
+def _delay(parts: list[Placement], to: float) -> list[Placement]:
+    """Đồ họa hiện muộn lại cho tới `to`, vẫn tắt đúng giờ cũ: mọi mốc bên trong (chữ đánh
+    máy, vạch chạy, nhãn phụ) được nén lại cho vừa — câu trích dẫn vẫn gõ xong trọn."""
+    t0 = min(p.start for p in parts)
+    end = max(p.end for p in parts)
+    if to <= t0 or end - to < 0.08:
+        return parts if to <= t0 else []
+    k = (end - to) / (end - t0)
+    for p in parts:
+        a, b = p.start, p.end
+        p.start = to + (a - t0) * k
+        p.length = max(0.004, (b - a) * k)
+    return parts
+
+
+def avoid_overlap(pls: list[Placement], st: OverlayStyle, log: LogFn = print) -> list[Placement]:
+    """Hai đồ họa chồng cả vùng hình lẫn thời gian → đồ họa đến trước nhường chỗ.
+
+    Nguyên nhân che nhau: mỗi đồ họa ở lại tới hết cảnh (hoặc tới cảnh `until`), và
+    nhiều loại có chỗ cố định trùng nhau (TERM bên phải đè hộp giữa của QUOTE /
+    TITLE / NOTE / VS; dải CHAPTER, TIMELINE đè nhãn dưới LOWER / NAME / SOURCE…).
+    Cách nhường: đồ họa trước đã hiện đủ lâu để đọc (`_read_time`) thì tắt khi đồ
+    họa sau hiện; chưa đủ thì đồ họa sau đợi tới lúc đó (vẫn tắt đúng giờ của nó);
+    đợi không nổi thì đồ họa sau thắng và ghi cảnh báo. Không có chồng → không đổi gì."""
+    groups: dict[object, list[Placement]] = {}
+    # danh sách: mỗi khoảng hiện liền của một nhãn là một đồ họa (nhãn + các dòng)
+    clusters: dict[str, list[list]] = {}
+    for p in sorted((q for q in pls if q.frame.item.kind == "LIST"), key=lambda q: q.start):
+        lab = (p.frame.list_label or p.frame.item.label).strip().upper() or "_"
+        cl = clusters.setdefault(lab, [])
+        if cl and p.start < cl[-1][0] + 0.05:
+            cl[-1][0] = max(cl[-1][0], p.end)
+        else:
+            cl.append([p.end])
+        groups.setdefault(("LIST", lab, len(cl)), []).append(p)
+    for p in pls:
+        if p.frame.item.kind != "LIST":
+            groups.setdefault(id(p.frame.item), []).append(p)
+    region: dict[object, tuple | None] = {}
+    first: dict[object, OverlayItem] = {}
+    for key, parts in groups.items():
+        it = min(parts, key=lambda q: q.start).frame.item
+        first[key] = it
+        if it.kind == "CINEMA":
+            region[key] = None
+        elif it.kind == "LIST":
+            texts = tuple(dict.fromkeys(q.frame.item.text for q in parts if q.frame.item.text))
+            region[key] = _solid_box(Frame(it, list_items=texts, list_label=it.label), st)
+        else:
+            region[key] = _solid_box(Frame(it), st)
+
+    def span(k):
+        g = groups[k]
+        return min(q.start for q in g), max(q.end for q in g)
+
+    def hit(a, b):
+        ra, rb = region[a], region[b]
+        return bool(ra and rb and ra[0] < rb[2] and rb[0] < ra[2] and ra[1] < rb[3] and rb[1] < ra[3])
+
+    fixed: list[str] = []
+    stuck: list[str] = []
+    for _ in range(4):                    # vài vòng: một lần nhường có thể đẩy sang chỗ khác
+        changed = False
+        keys = sorted((k for k in groups if groups[k]), key=lambda k: span(k)[0])
+        for j, b in enumerate(keys):
+            for a in keys[:j]:
+                if not groups[a] or not groups[b]:
+                    continue
+                a0, a1 = span(a)
+                b0, b1 = span(b)
+                # đã nhường (chỉ còn đoạn mờ dần lúc giao nhau) hoặc không chung vùng → bỏ qua
+                if a1 - b0 <= max(OVERLAP_MIN, HANDOFF) + 0.01 or not hit(a, b):
+                    continue
+                A, B = first[a], first[b]
+                need = a0 + _read_time(A)
+                label = f"cảnh {B.scene}: {A.kind} nhường {B.kind}"
+                if b0 >= need - 1e-6:
+                    groups[a] = _cut(groups[a], b0 + HANDOFF)
+                elif need + MIN_VISIBLE <= b1:
+                    groups[b] = _delay(groups[b], need)
+                    groups[a] = _cut(groups[a], need + HANDOFF)
+                    label += f" (hiện muộn {need - b0:.1f} s)"
+                elif b1 - a0 >= 2 * MIN_SHOW + HANDOFF:
+                    mid = a0 + (b1 - a0) / 2          # không đủ chỗ cho cả hai: chia đôi thời gian
+                    if mid > b0:
+                        groups[b] = _delay(groups[b], mid)
+                    groups[a] = _cut(groups[a], max(mid, b0) + HANDOFF)
+                    label += " (chia đôi thời gian)"
+                else:
+                    groups[a] = []                     # quá ngắn để hiện cả hai: bỏ đồ họa trước
+                    stuck.append(f"cảnh {A.scene}: bỏ {A.kind} vì {B.kind} cùng chỗ, cảnh quá ngắn")
+                    label = ""
+                if label:
+                    fixed.append(label)
+                changed = True
+        if not changed:
+            break
+    out = [p for g in groups.values() for p in g]
+    if fixed:
+        log(f"[BUILD] Đồ họa chữ: {len(fixed)} chỗ hai đồ họa che nhau → đồ họa trước tắt khi đồ họa "
+            "sau hiện (" + "; ".join(fixed[:6]) + (" …" if len(fixed) > 6 else "") + ")")
+    for x in stuck[:8]:
+        log(f"[WARN] Đồ họa chữ: {x} — nên dời một đồ họa sang cảnh khác trong file overlay")
+    _assign_tracks(out, lambda m: None)
+    out.sort(key=lambda p: (LAYERS.index(p.layer), p.track, p.start))
+    return out
+
+
 def remotion_kinds(s) -> tuple[str, ...]:
     """Loại đồ họa vẽ bằng Remotion (0.7.0) — rỗng khi tắt."""
     if not getattr(s, "enable_remotion", False):
@@ -885,13 +1088,20 @@ def use_remotion(s, pls: list[Placement], st: OverlayStyle, size: tuple[int, int
         if not ok.get(jobs[key].out):
             out.append(p)               # quay về bản Pillow
             continue
+        if p.frame.part in rm.STATIC_PARTS.get(p.frame.item.kind, ()):
+            out.append(p)               # nền tĩnh: vẫn là ảnh PNG, nằm dưới clip
+            continue
         if key in swapped:
             continue
         swapped.add(key)
         t0, t1 = spans[key]
         it = p.frame.item
+        clip = jobs[key].out
         out.append(Placement(Frame(it), t0, t1 - t0, LAYER_OF.get(it.kind, "main"), 0.0, 0.0,
-                             it.scene, motion="none", clip=jobs[key].out))
+                             it.scene, motion="none", clip=clip,
+                             clip_box=rm.crop_clip(clip, size[0], size[1], log),
+                             # có nền tĩnh cùng giờ → clip xếp SAU nó (nằm trên)
+                             stacked=bool(rm.STATIC_PARTS.get(it.kind))))
     if swapped:
         log(f"[BUILD] Đồ họa chữ: {len(swapped)} mục ({', '.join(kinds)}) dùng clip Remotion")
         try:
@@ -931,7 +1141,11 @@ def prepare(s, plan: list[ScenePlan], out_dir: Path, log: LogFn = print,
     st = OverlayStyle.from_settings(s)
     words = voice_words(s, plan, items, log) if getattr(s, "overlay_sync", True) else None
     rows: list[TimingRow] = []
-    pls = schedule(items, plan, st, log, words=words, report=rows)
+    avoid = bool(getattr(s, "overlay_avoid_overlap", True))
+    pls = schedule(items, plan, st, log, words=words, report=rows, warn_overlap=not avoid,
+                   list_hold=LIST_HOLD if avoid else None)
+    if avoid:
+        pls = avoid_overlap(pls, st, log)
     if words is not None and rows:
         write_report(rows, Path(report_dir or Path(out_dir).parent) / REPORT_NAME, log)
     w, h = size or (int(s.width), int(s.height))

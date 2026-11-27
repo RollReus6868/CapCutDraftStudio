@@ -764,7 +764,9 @@ def build_overlay_card(app, host, th, row: int):
     ttk.Checkbutton(top, text="Trích dẫn đánh máy từng ký tự",
                     variable=app.boolvars["overlay_typewriter"]).pack(side="left", padx=(0, 18))
     ttk.Checkbutton(top, text="Hiện đúng lúc giọng đọc nói tới",
-                    variable=app.boolvars["overlay_sync"]).pack(side="left")
+                    variable=app.boolvars["overlay_sync"]).pack(side="left", padx=(0, 18))
+    ttk.Checkbutton(top, text="Không để đồ họa che nhau",
+                    variable=app.boolvars["overlay_avoid_overlap"]).pack(side="left")
     PathPicker(card, th, "File đồ họa chữ (để trống = tự tìm trong folder VIDEO)",
                app.vars["overlay_file"], "file",
                filetypes=[("Excel / CSV", "*.xlsx *.xlsm *.csv *.tsv"), ("Tất cả", "*.*")]).grid(
@@ -1676,6 +1678,14 @@ Bấm "Tạo file mẫu" để có sẵn file Excel kèm hướng dẫn, "Xem th
 chu_frame / chu_list / chu_main / chu_text / chu_stamp) lẫn file mp4.
 Mỗi đồ họa hiện/tắt bằng keyframe có gia tốc (trượt, phóng nhẹ, nảy…) —
 mở draft trong CapCut là thấy các điểm keyframe, chỉnh tay được.
+
+Không để đồ họa che nhau (0.7.3, mặc định bật): hai đồ họa chung chỗ trên
+hình (vd. thẻ từ gốc bên phải và hộp trích dẫn giữa khung) thì đồ họa trước
+tắt mờ khi đồ họa sau hiện; hiện quá sát nhau thì chia đôi thời gian của
+cảnh. Danh sách (LIST) hiện khoảng 10 giây quanh mỗi lần một dòng được nhắc,
+ẩn đi khi lời đọc chuyển ý, nhắc dòng sau thì hiện lại đủ các dòng. Hai danh
+sách trùng tên ở hai chỗ khác nhau trong video là hai danh sách riêng. Bỏ
+tích để quay về kiểu cũ (đồ họa ở lại tới hết cảnh / tới cảnh until).
 
 Remotion (0.7.0, tuỳ chọn): tích "Vẽ thẻ từ gốc (TERM) và dòng thời gian
 (TIMELINE) bằng Remotion" thì hai loại này thành clip chuyển động nền

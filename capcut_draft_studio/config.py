@@ -39,6 +39,8 @@ DEFAULT_CHANNEL_KEYS = {
     "overlay_sync",
     # --- thêm từ 0.7.0 ---
     "enable_remotion",
+    # --- thêm từ 0.7.3 ---
+    "overlay_avoid_overlap",
 }
 
 def load_json(path: Path, default):

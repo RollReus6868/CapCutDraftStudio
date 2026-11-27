@@ -26,7 +26,7 @@ from .widgets import (GradientButton, GradientDivider, IconTile, LogView, NavIte
                       gradient_text)
 
 APP_NAME = "CapCut Draft Studio"
-APP_VERSION = "0.7.2"
+APP_VERSION = "0.7.3"
 
 NAV = [
     ("dashboard", "Tổng quan"),
@@ -204,6 +204,7 @@ OTHER_BOOLS = {
     "overlay_typewriter": True,
     "overlay_sync": True,
     "enable_remotion": False,
+    "overlay_avoid_overlap": True,
 }
 
 PERSIST_KEYS = list(STR_DEFAULTS.keys())
@@ -738,7 +739,8 @@ class App:
                   overlay_scale=min(2.0, max(0.5, self._num(d, "overlay_scale", float, 1.0))),
                   overlay_typewriter=bool(d.get("overlay_typewriter", True)),
                   overlay_sync=bool(d.get("overlay_sync", True)),
-                  enable_remotion=bool(d.get("enable_remotion", False)))
+                  enable_remotion=bool(d.get("enable_remotion", False)),
+                  overlay_avoid_overlap=bool(d.get("overlay_avoid_overlap", True)))
 
         return Settings(ip, ch, name, cap, SFX_LIBRARY, SUB_STYLES,
                         opt("logo_path"), opt("claim_path"), opt("bgm_dir"),

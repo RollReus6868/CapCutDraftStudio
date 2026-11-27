@@ -36,6 +36,8 @@ LogFn = Callable[[str], None]
 
 #: loại đồ họa vẽ bằng Remotion khi bật
 KINDS = ("TERM", "TIMELINE")
+#: phần đồ họa giữ là ảnh tĩnh PNG bên dưới clip (nền lớn, không chuyển động: rẻ khi phát)
+STATIC_PARTS = {"TIMELINE": ("bg",)}
 COMPOSITION = {"TERM": "Term", "TIMELINE": "Timeline"}
 ENGINE_NAME = "remotion-engine"
 STATE_FILE = "cds-state.json"
@@ -484,7 +486,9 @@ def make_props(item, st, size: tuple[int, int], fps: int, length: float) -> dict
                 "label": item.label or "", "sub": item.sub or ""}
     if item.kind == "TIMELINE":
         pts = [{"label": lab, "cur": bool(cur)} for lab, cur in timeline_points(item.text)]
-        return {**base, "points": pts, "label": item.label or "", "subsOn": bool(st.subs_on)}
+        # nền tối mờ dần để ảnh tĩnh (Pillow) lo — xem STATIC_PARTS
+        return {**base, "points": pts, "label": item.label or "", "subsOn": bool(st.subs_on),
+                "background": False}
     raise ValueError(item.kind)
 
 
@@ -493,13 +497,89 @@ def clip_name(kind: str, props: dict, src_hash: str) -> str:
     return f"rm_{kind.lower()}_{hashlib.sha1(raw.encode('utf-8')).hexdigest()[:14]}.mov"
 
 
+#: phần trong suốt quanh đồ họa được cắt bỏ (0.7.3): clip TERM còn khoảng 1/6 khung, giải mã
+#: nhẹ hơn khoảng 4 lần — CapCut và ffmpeg phát mượt hơn
+CROP_PAD = 4
+CROP_MIN_GAIN = 0.85     # vùng có hình chiếm hơn 85 % khung thì giữ nguyên
+
+
+def box_file(clip: Path) -> Path:
+    return clip.with_name(clip.name + ".box.json")
+
+
+def clip_box(clip: Path) -> dict | None:
+    """{x, y, w, h, W, H}: clip đã cắt, nằm ở (x, y) trên khung W×H. None = clip trọn khung."""
+    try:
+        b = json.loads(box_file(clip).read_text(encoding="utf-8"))
+        return {k: int(b[k]) for k in ("x", "y", "w", "h", "W", "H")}
+    except Exception:
+        return None
+
+
+def _alpha_bbox(ffmpeg: str, clip: Path) -> tuple[int, int, int, int] | None:
+    """Vùng có hình (alpha > 0) gộp qua mọi khung của clip."""
+    cp = subprocess.run([ffmpeg, "-hide_banner", "-nostats", "-i", str(clip), "-vf",
+                         "alphaextract,bbox=min_val=4", "-f", "null", "-"],
+                        capture_output=True, text=True, errors="replace", timeout=600, **_no_window())
+    import re
+    x0 = y0 = 10 ** 9
+    x1 = y1 = -1
+    for m in re.finditer(r"x1:(\d+) x2:(\d+) y1:(\d+) y2:(\d+)", cp.stderr or ""):
+        a, b, c, d = map(int, m.groups())
+        x0, x1, y0, y1 = min(x0, a), max(x1, b), min(y0, c), max(y1, d)
+    return None if x1 < 0 else (x0, y0, x1, y1)
+
+
+def crop_clip(clip: Path, width: int, height: int, log: LogFn = print) -> dict | None:
+    """Cắt clip về vùng có hình, ghi vị trí vào <clip>.box.json. Lỗi → giữ clip trọn khung."""
+    got = clip_box(clip)
+    if got:
+        return got
+    try:
+        from .render import find_tool
+        ff = find_tool("ffmpeg")
+    except Exception:
+        ff = None
+    if not ff:
+        return None
+    try:
+        bb = _alpha_bbox(ff, clip)
+        if not bb:
+            return None
+        x0, y0, x1, y1 = bb
+        x0, y0 = max(0, x0 - CROP_PAD), max(0, y0 - CROP_PAD)
+        x1, y1 = min(width - 1, x1 + CROP_PAD), min(height - 1, y1 + CROP_PAD)
+        w, h = x1 - x0 + 1, y1 - y0 + 1
+        w, h = w + (w % 2), h + (h % 2)          # cỡ chẵn cho bộ mã hoá
+        x0, y0 = min(x0, width - w), min(y0, height - h)
+        if w * h > CROP_MIN_GAIN * width * height:
+            return None
+        tmp = clip.with_name(clip.name + ".crop.mov")
+        cp = subprocess.run([ff, "-v", "error", "-y", "-i", str(clip), "-vf", f"crop={w}:{h}:{x0}:{y0}",
+                             "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le",
+                             "-an", str(tmp)], capture_output=True, text=True, errors="replace",
+                            timeout=900, **_no_window())
+        if cp.returncode != 0 or not tmp.is_file():
+            tmp.unlink(missing_ok=True)
+            log(f"[WARN] Remotion: không cắt gọn được {clip.name} — giữ clip trọn khung")
+            return None
+        os.replace(tmp, clip)
+        box = {"x": x0, "y": y0, "w": w, "h": h, "W": width, "H": height}
+        box_file(clip).write_text(json.dumps(box), encoding="utf-8")
+        return box
+    except Exception as e:                      # cắt gọn chỉ để nhẹ hơn — hỏng thì bỏ qua
+        log(f"[WARN] Remotion: không cắt gọn được {clip.name} ({e})")
+        return None
+
+
 def prune_cache(cache: Path, keep: set[Path], days: int = CACHE_KEEP_DAYS) -> int:
     """Xoá clip lâu không dùng (clip vừa dùng được 'chạm' mtime nên không bị xoá)."""
     n = 0
     limit = time.time() - days * 86400
     for f in cache.glob("rm_*.mov*"):
         try:
-            if f.resolve() in keep:
+            base = f.with_name(f.name.split(".mov")[0] + ".mov")
+            if f.resolve() in keep or base.resolve() in keep:
                 continue
             if f.name.endswith(".part.mov") or f.stat().st_mtime < limit:
                 f.unlink()

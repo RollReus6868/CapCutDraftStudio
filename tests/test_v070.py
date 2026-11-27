@@ -135,7 +135,8 @@ def test_each_item_becomes_one_clip_with_same_span(tmp_path, monkeypatch):
         assert p.clip.parent == tmp_path / "_capcut_draft_studio" / "remotion"
         assert p.clip.is_file()
     assert sum(1 for p in out if p.frame.item.kind == "QUOTE") == n_quote
-    assert not [p for p in out if p.frame.item.kind in ("TERM", "TIMELINE") and p.clip is None]
+    # 0.7.3: nền tối của dòng thời gian giữ là ảnh tĩnh (nhẹ khi phát), mọi phần khác vào clip
+    assert [p.frame.part for p in out if p.frame.item.kind in ("TERM", "TIMELINE") and p.clip is None] == ["bg"]
     assert any("2 mục (TERM, TIMELINE) dùng clip Remotion" in m for m in logs)
     # PNG chỉ vẽ cho phần còn lại
     n = ov.write_pngs(out, tmp_path / "ov", 320, 180, st, lambda m: None)
@@ -260,8 +261,9 @@ def test_draft_places_clip_on_chu_main_and_splits_around_ad(tmp_path, monkeypatc
                    .read_text(encoding="utf-8"))
     mats = {m["id"]: m for m in d["materials"]["videos"]}
     tracks = {t["name"]: t for t in d["tracks"]}
-    movs = [(st, ln, x) for st, ln, x in _segs(tracks["chu_main"])
-            if mats[x["material_id"]]["path"].endswith(".mov")]
+    movs = sorted(((st, ln, x) for name, t in tracks.items() if name.startswith("chu_main")
+                   for st, ln, x in _segs(t) if mats[x["material_id"]]["path"].endswith(".mov")),
+                  key=lambda m: m[0])
     assert len(movs) == 3                                  # TERM + TIMELINE cắt đôi quanh quảng cáo
     for _, _, x in movs:
         assert x["volume"] == 0.0 and not x.get("common_keyframes")
@@ -277,7 +279,9 @@ def test_draft_places_clip_on_chu_main_and_splits_around_ad(tmp_path, monkeypatc
     pngs = [mats[x["material_id"]]["path"] for t in tracks.values() if t["name"].startswith("chu_")
             for x in t["segments"] if mats.get(x["material_id"])]
     pngs = [p for p in pngs if p.endswith(".png")]
-    assert not [p for p in pngs if "_term_" in p or "_timeline_" in p]
+    assert not [p for p in pngs if "_term_" in p]
+    # 0.7.3: TIMELINE chỉ còn MỘT ảnh — nền tĩnh dưới clip (cắt đôi quanh quảng cáo = 2 đoạn, 1 file)
+    assert len({p for p in pngs if "_timeline_" in p}) == 1
 
 
 def test_render_composites_clip_into_mp4(tmp_path, monkeypatch):
