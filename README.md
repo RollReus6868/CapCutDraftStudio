@@ -1,4 +1,4 @@
-# CapCut Draft Studio 0.7.1
+# CapCut Draft Studio 0.7.2
 
 Tool tạo draft CapCut tự động từ thư mục audio/video/ảnh đánh số — và từ bản
 0.4.0 thì **render thẳng ra file mp4** luôn được, không cần mở CapCut.
@@ -80,7 +80,10 @@ và hai nút **KIỂM TRA** / **TẠO PROJECT**.
 
 ---
 
-## Mới ở 0.7.1
+## Mới ở 0.7.2
+
+(0.7.1 không ra được bộ cài vì một bài kiểm tra cần thư viện máy build không có; 0.7.2 là
+đúng bản sửa đó.)
 
 - **Chữ Hy Lạp ở bản vẽ thường**: phông EB Garamond của tool nay có bộ chữ Hy Lạp (kể cả
   dấu thở, dấu nhấn của Hy Lạp cổ: ὁ λόγος, ἐγένετο), nên thẻ từ gốc `TERM`, trích dẫn và

@@ -1,5 +1,6 @@
 """0.7.1: phông EB Garamond của tool có chữ Hy Lạp — bản vẽ thường (Pillow) không còn
-ra ô vuông ở thẻ từ gốc / trích dẫn tiếng Hy Lạp; chữ Latin, Việt giữ nguyên."""
+ra ô vuông ở thẻ từ gốc / trích dẫn tiếng Hy Lạp; chữ Latin, Việt giữ nguyên.
+Chỉ dùng Pillow (máy build CI không có fontTools)."""
 from __future__ import annotations
 
 import pytest
@@ -7,26 +8,22 @@ import pytest
 from capcut_draft_studio import overlays as ov
 from capcut_draft_studio.overlay_draw import FONT_FILES, Frame, OverlayStyle, _font_path, font, render_frame
 
-GREEK = "ὁ λόγος σὰρξ ἐγένετο Ἰησοῦς Χριστός"
+GREEK = "ὁλόγοςσὰρξἐγένετοἸησοῦςΧριστός"
+MISSING = ""          # vùng riêng của Unicode: không phông nào có → ra glyph thiếu
+
+
+def _mask(f, ch: str) -> bytes:
+    m = f.getmask(ch)
+    return bytes(m) + str(m.size).encode()
 
 
 @pytest.mark.parametrize("role", ["serif_semibold", "serif_italic", "serif_italic_med"])
-def test_serif_fonts_cover_greek_and_vietnamese(role):
-    from fontTools.ttLib import TTFont
-    path = _font_path(role)
-    assert path, FONT_FILES[role]
-    cmap = TTFont(path).getBestCmap()
-    for ch in GREEK + "λόγος ạ ế ữ Đ":
-        if not ch.isspace():
-            assert ord(ch) in cmap, f"{FONT_FILES[role]} thiếu {ch!r}"
-
-
-@pytest.mark.parametrize("role", ["serif_semibold", "serif_italic"])
-def test_greek_letters_are_not_the_missing_glyph(role):
+def test_serif_fonts_draw_greek_and_vietnamese(role):
+    assert _font_path(role), FONT_FILES[role]
     f = font(role, 60)
-    missing = f.getmask("￿").getbbox()
-    for ch in "λόγοςὁἐ":
-        assert f.getmask(ch).getbbox() != missing or f.getmask(ch).size != f.getmask("￿").size
+    missing = _mask(f, MISSING)
+    for ch in GREEK + "ạếữĐ":
+        assert _mask(f, ch) != missing, f"{FONT_FILES[role]} thiếu {ch!r}"
 
 
 def test_greek_term_draws_inside_frame():
